@@ -1,0 +1,68 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>These instructions will get a copy of the RVLV project up and running on your local machine for development and testing purposes..md</title><style></style></head><body id="preview">
+<h1 class="code-line" data-line-start=0 data-line-end=1 ><a id="RVLV_fitting_code_0"></a>RVLV fitting code</h1>
+<p class="has-line-data" data-line-start="2" data-line-end="3">These instructions will get a copy of the RVLV project up and running on your local machine for development and testing purposes.</p>
+<h1 class="code-line" data-line-start=5 data-line-end=6 ><a id="Prerequisites_5"></a>Prerequisites</h1>
+<h3 class="code-line" data-line-start=7 data-line-end=8 ><a id="Python_version_and_cvopt_library_7"></a>Python version and cvopt library</h3>
+<p class="has-line-data" data-line-start="8" data-line-end="10">You need Python 3.5 to run it (I have not tried it on a later version). Using an earlier version of Python will give you errors as some of the syntax for numpy functions changed between Python 2 and Python 3. However, it can be run from a Python 3.5 virtual environment if you keep multiple Python versions. (see Running the script). You will need to change path line 5 in <a href="http://biventricularModel.py">biventricularModel.py</a> to link the python packages.<br>
+You also need to install the <strong>cvxopt library</strong> (<a href="https://cvxopt.org/">https://cvxopt.org/</a>).</p>
+<h3 class="code-line" data-line-start=10 data-line-end=11 ><a id="Input_10"></a>Input</h3>
+<p class="has-line-data" data-line-start="11" data-line-end="12">Two files are needed.</p>
+<ol>
+<li class="has-line-data" data-line-start="12" data-line-end="30"><strong>GPfile.txt</strong> which contains 3D contour points. Each point (row) is described as:<br>
+x y z label slice_number time_frame_number where x y z are the 3D coordinates, label is the surface the point belongs to, slice_number is the dicom slice number it was extracted from and time_frame_number is the time frame it was extracted from. The labels are (for the provided dataset):
+<ul>
+<li class="has-line-data" data-line-start="14" data-line-end="15">RVFW: RV free wall</li>
+<li class="has-line-data" data-line-start="15" data-line-end="16">RVS: RV septum</li>
+<li class="has-line-data" data-line-start="16" data-line-end="17">saendocardialContour: LV endocardium (extracted from a short axis slice)</li>
+<li class="has-line-data" data-line-start="17" data-line-end="18">saepicardialContour: LV epicardium (extracted from a short axis slice)</li>
+<li class="has-line-data" data-line-start="18" data-line-end="19">BP_points: mitral points</li>
+<li class="has-line-data" data-line-start="19" data-line-end="20">Triscipid_Valve: tricuspid points</li>
+<li class="has-line-data" data-line-start="20" data-line-end="21">Aorta: aorta points</li>
+<li class="has-line-data" data-line-start="21" data-line-end="22">Pulmonary: pulmonary points</li>
+<li class="has-line-data" data-line-start="22" data-line-end="23">laraContour: RA contour (extracted from a long axis slice)</li>
+<li class="has-line-data" data-line-start="23" data-line-end="24">lalaContour: LA contour (extracted from a long axis slice)</li>
+<li class="has-line-data" data-line-start="24" data-line-end="25">RV_insert: RV insertion points (where RV septum and RV free-wall meet)</li>
+<li class="has-line-data" data-line-start="25" data-line-end="26">LA_Apex_Point: apex</li>
+<li class="has-line-data" data-line-start="26" data-line-end="27">laendocardialContour: LV endocardium (extracted from a long axis slice)</li>
+<li class="has-line-data" data-line-start="27" data-line-end="28">laepicardialContour: LV epicardium (extracted from a long axis slice)</li>
+<li class="has-line-data" data-line-start="28" data-line-end="30">larvendocardialContour: RV endocardium (extracted from a long axis slice)</li>
+</ul>
+</li>
+</ol>
+<p class="has-line-data" data-line-start="30" data-line-end="31">Of course, labels can be adapted to your dataset. You’ll just need to change them in the code.</p>
+<ol start="2">
+<li class="has-line-data" data-line-start="31" data-line-end="33"><strong>SliceInfoFile.txt</strong> which contains dicom info.</li>
+</ol>
+<h1 class="code-line" data-line-start=33 data-line-end=34 ><a id="Running_the_scripts_33"></a>Running the scripts</h1>
+<p class="has-line-data" data-line-start="35" data-line-end="36">Two scripts are provided to make sure the code is working for you.</p>
+<ol>
+<li class="has-line-data" data-line-start="37" data-line-end="39"><strong>example_step_by_step.ipynb</strong>: this script shows you how the code works step by step and the different steps to follow when fitting one model. To open and run it (example_step_by_step.ipynb), open a command-line or terminal and run:</li>
+</ol>
+<pre><code class="has-line-data" data-line-start="40" data-line-end="42" class="language-sh">jupyter notebook --NotebookApp.iopub_data_rate_<span class="hljs-built_in">limit</span>=<span class="hljs-number">10000000000</span>
+</code></pre>
+<p class="has-line-data" data-line-start="43" data-line-end="44">and select the file “example_step_by_step.ipynb”. Each individual cell can be executed with ctrl+enter. <strong>example_step_by_step.html</strong> gives you what you should get so you can check if it works properly for you.</p>
+<ol start="2">
+<li class="has-line-data" data-line-start="44" data-line-end="46"><strong><a href="http://example.py">example.py</a></strong>: this script shows you how to use the code when you want to fit more than one time frame (the first 3 time frames are fitted in this example). To run it, open a command-line or terminal and enter (depending on your Python installation)</li>
+</ol>
+<pre><code class="has-line-data" data-line-start="47" data-line-end="49" class="language-sh">python example.py
+</code></pre>
+<p class="has-line-data" data-line-start="50" data-line-end="51">or</p>
+<pre><code class="has-line-data" data-line-start="52" data-line-end="54" class="language-sh">python3 example.py 
+</code></pre>
+<p class="has-line-data" data-line-start="54" data-line-end="55">If you don’t have python 3.5 or later version installed, you can run it from a virtual environment. To do so, enter</p>
+<pre><code class="has-line-data" data-line-start="56" data-line-end="64" class="language-sh">pip3 install virtualenv
+pip3 install virtualenvwrapper
+mkdir ~/.virtualenvs
+<span class="hljs-built_in">export</span> WORKON_HOME=~/.virtualenvs
+<span class="hljs-built_in">source</span> /usr/<span class="hljs-built_in">local</span>/bin/virtualenvwrapper.sh
+<span class="hljs-built_in">source</span> ~/.bash_profile
+<span class="hljs-built_in">which</span> python3
+</code></pre>
+<p class="has-line-data" data-line-start="65" data-line-end="66">Now copy the result of path of python3 in the last command and put it in the following command:</p>
+<pre><code class="has-line-data" data-line-start="67" data-line-end="69" class="language-sh">mkvirtualenv --python=python3/path/<span class="hljs-keyword">in</span>/last/<span class="hljs-built_in">command</span> myenv
+</code></pre>
+<p class="has-line-data" data-line-start="69" data-line-end="70">This is assuming pip3 is already installed. If not, install it before running these commands.</p>
+<h2 class="code-line" data-line-start=71 data-line-end=72 ><a id="Author_71"></a>Author</h2>
+<p class="has-line-data" data-line-start="72" data-line-end="73">Charlène Mauger, University of Auckand, <a href="mailto:c.mauger@auckland.ac.nz">c.mauger@auckland.ac.nz</a> or <a href="mailto:charlene.mauger1@gmail.com">charlene.mauger1@gmail.com</a></p>
+
+</body></html>
