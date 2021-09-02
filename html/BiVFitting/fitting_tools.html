@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>BiVFitting.fitting_tools API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>BiVFitting.fitting_tools</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import numpy as np
+from scipy import optimize
+from scipy.spatial import cKDTree
+from scipy.spatial import Delaunay
+from plotly import graph_objects as go
+
+# Auxiliary functions
+def fit_circle_2d(x, y, w=[]):
+    &#34;&#34;&#34; This function fits a circle to a set of 2D points
+        Input:
+            [x,y]: 2D points coordinates
+            w: weights for points (optional)
+        Output:
+            [xc,yc]: center of the fitted circle
+            r: radius of the fitted circle
+    &#34;&#34;&#34;
+
+    x = np.array(x)
+    y = np.array(y)
+    A = np.array([x, y, np.ones(len(x))]).T
+    b = x**2 + y**2
+    
+    # Modify A,b for weighted least squares
+    if len(w) == len(x):
+        W = np.diag(w)
+        A = np.dot(W,A)
+        b = np.dot(W,b)
+    
+    # Solve by method of least squares
+    c = np.linalg.lstsq(A,b,rcond=None)[0]
+    
+    # Get circle parameters from solution c
+    xc = c[0]/2
+    yc = c[1]/2
+    center = np.array([xc, yc])
+    r = np.sqrt(c[2] + xc**2 + yc**2)
+    return center, r
+
+
+def fit_elipse_2d(points, tolerance=0.01):
+    &#34;&#34;&#34; This function fits a elipse to a set of 2D points
+        Input:
+            [x,y]: 2D points coordinates
+            w: weights for points (optional)
+        Output:
+            [xc,yc]: center of the fitted circle
+            r: radius of the fitted circle
+    &#34;&#34;&#34;
+
+    (N, d) = np.shape(points)
+    d = float(d)
+    # Q will be our working array
+    Q = np.vstack([np.copy(points.T), np.ones(N)])
+    QT = Q.T
+
+    # initializations
+    err = 1.0 + tolerance
+    u = (1.0 / N) * np.ones(N)
+
+    # Khachiyan Algorithm
+    while err &gt; tolerance:
+        V = np.dot(Q, np.dot(np.diag(u), QT))
+        M = np.diag(np.dot(QT, np.dot(np.linalg.inv(V),Q)))  # M the diagonal vector of an NxN matrix
+        j = np.argmax(M)
+        maximum = M[j]
+        step_size = (maximum - d - 1.0) / ((d + 1.0) * (maximum - 1.0))
+        new_u = (1.0 - step_size) * u
+        new_u[j] += step_size
+        err = np.linalg.norm(new_u - u)
+        u = new_u
+
+
+    # center of the ellipse
+    center = np.dot(points.T, u)
+    # the A matrix for the ellipse
+    A = np.linalg.inv(
+        np.dot(points.T, np.dot(np.diag(u), points)) -
+        np.array([[a * b for b in center] for a in center])) / d
+    # Get the values we&#39;d like to return
+    U, s, rotation = np.linalg.svd(A)
+    radii = 1.0 / np.sqrt(s)
+
+    return (center, radii, rotation)
+
+
+def rodrigues_rot(P, n0, n1):
+    &#34;&#34;&#34; This function rotates data based on a starting and ending vector. Rodrigues rotation is used
+        to project 3D points onto a fitting plane and get their 2D X-Y coords in the coord system of the plane
+        Input:
+            P: 3D points
+            n0: plane normal
+            n1: normal of the new XY coordinates system
+        Output:
+            P_rot: rotated points
+
+    &#34;&#34;&#34;
+    # If P is only 1d np.array (coords of single point), fix it to be matrix
+    if P.ndim == 1:
+        P = P[np.newaxis,:]
+    
+    # Get vector of rotation k and angle theta
+    n0 = n0/np.linalg.norm(n0)
+    n1 = n1/np.linalg.norm(n1)
+    k = np.cross(n0,n1)
+    k = k/np.linalg.norm(k)
+    theta = np.arccos(np.dot(n0,n1))
+    
+    # Compute rotated points
+    P_rot = np.zeros((len(P),3))
+    for i in range(len(P)):
+        P_rot[i] = P[i]*np.cos(theta) + np.cross(k,P[i])*np.sin(theta) + k*np.dot(k,P[i])*(1-np.cos(theta))
+
+    return P_rot
+
+def Plot2DPoint(points, color_markers, size_markers,nameplot = &#34; &#34;):
+    &#34;&#34;&#34; Plot 2D points 
+        Input: 
+            points: 2D points
+            color_markers: color of the markers 
+            size_markers: size of the markers 
+            nameplot: plot name (default: &#34; &#34;)
+
+        Output:
+            trace: trace for figure
+    &#34;&#34;&#34;
+    trace = go.Scatter(
+             x=points[:,0],
+             y=points[:,1],
+             name = nameplot,
+             mode=&#39;markers&#39;,
+             marker=dict(size=size_markers,opacity=1.0,color = color_markers)
+            )
+    return [trace]
+
+def Plot3DPoint(points, color_markers, size_markers,nameplot = &#34; &#34;):
+    &#34;&#34;&#34; Plot 3D points
+        Input: 
+            points: 3D points
+            color_markers: color of the markers 
+            size_markers: size of the markers 
+            nameplot: plot name (default: &#34; &#34;)
+
+        Output:
+            trace: trace for figure
+    &#34;&#34;&#34;
+
+    trace = go.Scatter3d(
+             x=points[:,0],
+             y=points[:,1],
+             z=points[:,2],
+             name = nameplot,
+             mode=&#39;markers&#39;,
+             marker=dict(size=size_markers,opacity=1.0,color = color_markers)
+            )
+    return [trace]
+
+def LineIntersection(ImagePositionPatient,ImageOrientationPatient,P0,P1):
+    &#34;&#34;&#34; Find the intersection between line P0-P1 with the MRI image.
+        Input:  
+            P0 and P1 are both single vector of 3D coordinate points.
+        Output: 
+            P is the intersection point (if any, see below) on the image plane.
+            P in 3D coordinate. Use M.PatientToImage for converting it into 2D coordinate.
+                
+        P will return empty if M is empty.
+        P will also return empty if P0-P1 line is parallel with the image plane M.
+        Adpted from Avan Suinesiaputra
+    &#34;&#34;&#34;
+
+    R = np.identity(4)
+
+    R[0,0:3] = ImageOrientationPatient[0:3]
+    R[1,0:3] = ImageOrientationPatient[3:6]
+    R[2,0:3] = np.cross(R[0,0:3],R[1,0:3])
+    R[3,0:3] = ImagePositionPatient
+
+    normal = R[2,0:3]
+
+    u = P1-P0
+
+    nu = np.dot(normal,u)
+    if np.all(nu==0): # orthogonal vectors u belongs to the plane
+        return P0
+
+    # compute how from P0 to reach the plane
+    s = (np.dot(normal.T , (R[3,0:3] - P0))) / nu
+
+    # compute P
+    P = P0 + s * u
+
+    return P
+
+
+def generate_2Delipse_by_vectors(t, center, radii, rotation =None):
+    &#34;&#34;&#34; This function generates points on elipse
+        Input:
+            t: point&#39;s angle on the circle
+            v: small axis vector
+            u: large axis vector
+            r: radii, if scalar estimates an cirle
+            C: center of the elipse
+        Output:
+            P_circle: points on ellipse/circle if r is scalar
+    &#34;&#34;&#34;
+    if np.isscalar(radii):
+        radii = [radii,radii]
+    if rotation is None:
+        rotation = np.array([[1,0],[0,1]])
+
+    x = radii[0] * np.cos(t)
+    y = radii[1] * np.sin(t)
+    for i in range(len(x)):
+            [x[i], y[i]] = np.dot([x[i], y[i]],rotation) + center
+    return  np.array([x, y]).T
+
+
+def apply_affine_to_points(affine_matrix, points_array):
+    &#34;&#34;&#34; apply affine matrix to 3D points, only in-plane transformation is considered
+        input:
+            affine_matrix : 4x4 matrix describing the affine
+                            transformation
+            points_array: nx3 array with points coordinates
+        output:
+            y_points_array: nx2 array with points coordinate in the new
+            position
+     &#34;&#34;&#34;
+    points_array_4D = np.ones((len(points_array), 4))
+    points_array_4D[:, 0:3] = points_array
+    t_points_array = np.dot(points_array_4D, affine_matrix.T)
+    t_points_array = t_points_array[:, 0:3] / (
+        np.vstack((t_points_array[:, 3], t_points_array[:, 3], t_points_array[:, 3]))).T
+    return t_points_array
+
+
+
+def register_group_points_translation_only(source_points, target_points,
+                                           weights = None,
+                                           exclude_outliers = False,
+                                           norm = 1):
+    &#34;&#34;&#34; compute the optimal translation between two sets of grouped points
+    echa group for the source points will be projected into the corresponding
+    group from target points
+    input:
+        source_points = array of nx2 arrays with points coordinates, moving
+                        points
+        target_points = array of nx2 arrays with points coordinates,
+                        fixed points
+    output: 2D translation vector
+    &#34;&#34;&#34;
+
+
+    if len(source_points) != len(target_points):
+        return np.array([0,0])
+
+    def obj_function(x):
+        f = 0
+        nb = 0
+        if norm not in [1,2]:
+            ValueError(&#39;Register groupp points: only norm 1 and 2 are &#39;
+                       &#39;implemented&#39;)
+            return
+        for index,target in enumerate(target_points):
+            tree = cKDTree(target)
+            new_points = source_points[index]+np.array(x)
+            d, indx = tree.query(new_points, k=1, p=2)
+            if exclude_outliers:
+                d[d&gt;10] = 0
+            nb = nb + len(d)
+            if weights is None:
+                f  = f+ sum(np.power(d,norm))
+            else:
+                f = f + weights[index]*sum(np.power(d,norm))
+        return np.sqrt(f/nb)
+
+    t = optimize.fmin(func=obj_function, x0=[0, 0],
+                    disp=False)
+    return t
+
+
+def sort_consecutive_points(C):
+    &#34; add by A.Mira on 01/2020&#34;
+    if isinstance(C, list):
+        C = np.array(C)
+    Cx = C[0, :]
+    lastP = Cx
+    C_index = [0]
+    index_list = np.array(range(1,C.shape[0]))
+    Cr = np.delete(C, 0, 0)
+    # iterate through points until all points are taken away
+    while Cr.shape[0] &gt; 0:
+        # find the closest point from the last point at Cx
+        i = (np.square(lastP - Cr)).sum(1).argmin()
+        # remove that closest point from Cr and add to Cx
+        lastP = Cr[i, :]
+        Cx = np.vstack([Cx, lastP])
+        C_index.append(index_list[i])
+        Cr = np.delete(Cr, i, 0)
+        index_list = np.delete(index_list,i)
+    return C_index,Cx
+
+def compute_area_weighted_centroid(points):
+
+    # centroids were calculated using the area-weighted average
+    # of the barycentre of the triangles from the triangulation
+    # of the intersection points
+    # Get triangulation
+    T = Delaunay(points)
+    n = len(T.simplices)
+    W = np.zeros((n, 1))
+    C = 0
+
+    for k in range(n):
+        sp = points[T.simplices[k, :], :]
+        a = np.linalg.norm(sp[1, :] - sp[0, :])
+        b = np.linalg.norm(sp[2, :] - sp[1, :])
+        c = np.linalg.norm(sp[2, :] - sp[0, :])
+        s = (a + b + c) / 2
+        w = s * (s - a) * (s - b) * (s - c)
+        if w &lt; 0:
+            W[k] = 0
+        else:
+            W[k] = np.sqrt(s * (s - a) * (s - b) * (s - c))
+        C = C + np.multiply(W[k], sp.mean(axis=0))
+
+    C = C / np.sum(W)
+
+    return C</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="BiVFitting.fitting_tools.LineIntersection"><code class="name flex">
+<span>def <span class="ident">LineIntersection</span></span>(<span>ImagePositionPatient, ImageOrientationPatient, P0, P1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Find the intersection between line P0-P1 with the MRI image.
+Input:<br>
+P0 and P1 are both single vector of 3D coordinate points.
+Output:
+P is the intersection point (if any, see below) on the image plane.
+P in 3D coordinate. Use M.PatientToImage for converting it into 2D coordinate.</p>
+<p>P will return empty if M is empty.
+P will also return empty if P0-P1 line is parallel with the image plane M.
+Adpted from Avan Suinesiaputra</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def LineIntersection(ImagePositionPatient,ImageOrientationPatient,P0,P1):
+    &#34;&#34;&#34; Find the intersection between line P0-P1 with the MRI image.
+        Input:  
+            P0 and P1 are both single vector of 3D coordinate points.
+        Output: 
+            P is the intersection point (if any, see below) on the image plane.
+            P in 3D coordinate. Use M.PatientToImage for converting it into 2D coordinate.
+                
+        P will return empty if M is empty.
+        P will also return empty if P0-P1 line is parallel with the image plane M.
+        Adpted from Avan Suinesiaputra
+    &#34;&#34;&#34;
+
+    R = np.identity(4)
+
+    R[0,0:3] = ImageOrientationPatient[0:3]
+    R[1,0:3] = ImageOrientationPatient[3:6]
+    R[2,0:3] = np.cross(R[0,0:3],R[1,0:3])
+    R[3,0:3] = ImagePositionPatient
+
+    normal = R[2,0:3]
+
+    u = P1-P0
+
+    nu = np.dot(normal,u)
+    if np.all(nu==0): # orthogonal vectors u belongs to the plane
+        return P0
+
+    # compute how from P0 to reach the plane
+    s = (np.dot(normal.T , (R[3,0:3] - P0))) / nu
+
+    # compute P
+    P = P0 + s * u
+
+    return P</code></pre>
+</details>
+</dd>
+<dt id="BiVFitting.fitting_tools.Plot2DPoint"><code class="name flex">
+<span>def <span class="ident">Plot2DPoint</span></span>(<span>points, color_markers, size_markers, nameplot=' ')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Plot 2D points
+Input:
+points: 2D points
+color_markers: color of the markers
+size_markers: size of the markers
+nameplot: plot name (default: " ")</p>
+<h2 id="output">Output</h2>
+<p>trace: trace for figure</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def Plot2DPoint(points, color_markers, size_markers,nameplot = &#34; &#34;):
+    &#34;&#34;&#34; Plot 2D points 
+        Input: 
+            points: 2D points
+            color_markers: color of the markers 
+            size_markers: size of the markers 
+            nameplot: plot name (default: &#34; &#34;)
+
+        Output:
+            trace: trace for figure
+    &#34;&#34;&#34;
+    trace = go.Scatter(
+             x=points[:,0],
+             y=points[:,1],
+             name = nameplot,
+             mode=&#39;markers&#39;,
+             marker=dict(size=size_markers,opacity=1.0,color = color_markers)
+            )
+    return [trace]</code></pre>
+</details>
+</dd>
+<dt id="BiVFitting.fitting_tools.Plot3DPoint"><code class="name flex">
+<span>def <span class="ident">Plot3DPoint</span></span>(<span>points, color_markers, size_markers, nameplot=' ')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Plot 3D points
+Input:
+points: 3D points
+color_markers: color of the markers
+size_markers: size of the markers
+nameplot: plot name (default: " ")</p>
+<h2 id="output">Output</h2>
+<p>trace: trace for figure</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def Plot3DPoint(points, color_markers, size_markers,nameplot = &#34; &#34;):
+    &#34;&#34;&#34; Plot 3D points
+        Input: 
+            points: 3D points
+            color_markers: color of the markers 
+            size_markers: size of the markers 
+            nameplot: plot name (default: &#34; &#34;)
+
+        Output:
+            trace: trace for figure
+    &#34;&#34;&#34;
+
+    trace = go.Scatter3d(
+             x=points[:,0],
+             y=points[:,1],
+             z=points[:,2],
+             name = nameplot,
+             mode=&#39;markers&#39;,
+             marker=dict(size=size_markers,opacity=1.0,color = color_markers)
+            )
+    return [trace]</code></pre>
+</details>
+</dd>
+<dt id="BiVFitting.fitting_tools.apply_affine_to_points"><code class="name flex">
+<span>def <span class="ident">apply_affine_to_points</span></span>(<span>affine_matrix, points_array)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>apply affine matrix to 3D points, only in-plane transformation is considered
+input:
+affine_matrix : 4x4 matrix describing the affine
+transformation
+points_array: nx3 array with points coordinates
+output:
+y_points_array: nx2 array with points coordinate in the new
+position</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def apply_affine_to_points(affine_matrix, points_array):
+    &#34;&#34;&#34; apply affine matrix to 3D points, only in-plane transformation is considered
+        input:
+            affine_matrix : 4x4 matrix describing the affine
+                            transformation
+            points_array: nx3 array with points coordinates
+        output:
+            y_points_array: nx2 array with points coordinate in the new
+            position
+     &#34;&#34;&#34;
+    points_array_4D = np.ones((len(points_array), 4))
+    points_array_4D[:, 0:3] = points_array
+    t_points_array = np.dot(points_array_4D, affine_matrix.T)
+    t_points_array = t_points_array[:, 0:3] / (
+        np.vstack((t_points_array[:, 3], t_points_array[:, 3], t_points_array[:, 3]))).T
+    return t_points_array</code></pre>
+</details>
+</dd>
+<dt id="BiVFitting.fitting_tools.compute_area_weighted_centroid"><code class="name flex">
+<span>def <span class="ident">compute_area_weighted_centroid</span></span>(<span>points)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def compute_area_weighted_centroid(points):
+
+    # centroids were calculated using the area-weighted average
+    # of the barycentre of the triangles from the triangulation
+    # of the intersection points
+    # Get triangulation
+    T = Delaunay(points)
+    n = len(T.simplices)
+    W = np.zeros((n, 1))
+    C = 0
+
+    for k in range(n):
+        sp = points[T.simplices[k, :], :]
+        a = np.linalg.norm(sp[1, :] - sp[0, :])
+        b = np.linalg.norm(sp[2, :] - sp[1, :])
+        c = np.linalg.norm(sp[2, :] - sp[0, :])
+        s = (a + b + c) / 2
+        w = s * (s - a) * (s - b) * (s - c)
+        if w &lt; 0:
+            W[k] = 0
+        else:
+            W[k] = np.sqrt(s * (s - a) * (s - b) * (s - c))
+        C = C + np.multiply(W[k], sp.mean(axis=0))
+
+    C = C / np.sum(W)
+
+    return C</code></pre>
+</details>
+</dd>
+<dt id="BiVFitting.fitting_tools.fit_circle_2d"><code class="name flex">
+<span>def <span class="ident">fit_circle_2d</span></span>(<span>x, y, w=[])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This function fits a circle to a set of 2D points</p>
+<h2 id="input">Input</h2>
+<p>[x,y]: 2D points coordinates
+w: weights for points (optional)</p>
+<h2 id="output">Output</h2>
+<p>[xc,yc]: center of the fitted circle
+r: radius of the fitted circle</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def fit_circle_2d(x, y, w=[]):
+    &#34;&#34;&#34; This function fits a circle to a set of 2D points
+        Input:
+            [x,y]: 2D points coordinates
+            w: weights for points (optional)
+        Output:
+            [xc,yc]: center of the fitted circle
+            r: radius of the fitted circle
+    &#34;&#34;&#34;
+
+    x = np.array(x)
+    y = np.array(y)
+    A = np.array([x, y, np.ones(len(x))]).T
+    b = x**2 + y**2
+    
+    # Modify A,b for weighted least squares
+    if len(w) == len(x):
+        W = np.diag(w)
+        A = np.dot(W,A)
+        b = np.dot(W,b)
+    
+    # Solve by method of least squares
+    c = np.linalg.lstsq(A,b,rcond=None)[0]
+    
+    # Get circle parameters from solution c
+    xc = c[0]/2
+    yc = c[1]/2
+    center = np.array([xc, yc])
+    r = np.sqrt(c[2] + xc**2 + yc**2)
+    return center, r</code></pre>
+</details>
+</dd>
+<dt id="BiVFitting.fitting_tools.fit_elipse_2d"><code class="name flex">
+<span>def <span class="ident">fit_elipse_2d</span></span>(<span>points, tolerance=0.01)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This function fits a elipse to a set of 2D points</p>
+<h2 id="input">Input</h2>
+<p>[x,y]: 2D points coordinates
+w: weights for points (optional)</p>
+<h2 id="output">Output</h2>
+<p>[xc,yc]: center of the fitted circle
+r: radius of the fitted circle</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def fit_elipse_2d(points, tolerance=0.01):
+    &#34;&#34;&#34; This function fits a elipse to a set of 2D points
+        Input:
+            [x,y]: 2D points coordinates
+            w: weights for points (optional)
+        Output:
+            [xc,yc]: center of the fitted circle
+            r: radius of the fitted circle
+    &#34;&#34;&#34;
+
+    (N, d) = np.shape(points)
+    d = float(d)
+    # Q will be our working array
+    Q = np.vstack([np.copy(points.T), np.ones(N)])
+    QT = Q.T
+
+    # initializations
+    err = 1.0 + tolerance
+    u = (1.0 / N) * np.ones(N)
+
+    # Khachiyan Algorithm
+    while err &gt; tolerance:
+        V = np.dot(Q, np.dot(np.diag(u), QT))
+        M = np.diag(np.dot(QT, np.dot(np.linalg.inv(V),Q)))  # M the diagonal vector of an NxN matrix
+        j = np.argmax(M)
+        maximum = M[j]
+        step_size = (maximum - d - 1.0) / ((d + 1.0) * (maximum - 1.0))
+        new_u = (1.0 - step_size) * u
+        new_u[j] += step_size
+        err = np.linalg.norm(new_u - u)
+        u = new_u
+
+
+    # center of the ellipse
+    center = np.dot(points.T, u)
+    # the A matrix for the ellipse
+    A = np.linalg.inv(
+        np.dot(points.T, np.dot(np.diag(u), points)) -
+        np.array([[a * b for b in center] for a in center])) / d
+    # Get the values we&#39;d like to return
+    U, s, rotation = np.linalg.svd(A)
+    radii = 1.0 / np.sqrt(s)
+
+    return (center, radii, rotation)</code></pre>
+</details>
+</dd>
+<dt id="BiVFitting.fitting_tools.generate_2Delipse_by_vectors"><code class="name flex">
+<span>def <span class="ident">generate_2Delipse_by_vectors</span></span>(<span>t, center, radii, rotation=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This function generates points on elipse</p>
+<h2 id="input">Input</h2>
+<p>t: point's angle on the circle
+v: small axis vector
+u: large axis vector
+r: radii, if scalar estimates an cirle
+C: center of the elipse</p>
+<h2 id="output">Output</h2>
+<p>P_circle: points on ellipse/circle if r is scalar</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def generate_2Delipse_by_vectors(t, center, radii, rotation =None):
+    &#34;&#34;&#34; This function generates points on elipse
+        Input:
+            t: point&#39;s angle on the circle
+            v: small axis vector
+            u: large axis vector
+            r: radii, if scalar estimates an cirle
+            C: center of the elipse
+        Output:
+            P_circle: points on ellipse/circle if r is scalar
+    &#34;&#34;&#34;
+    if np.isscalar(radii):
+        radii = [radii,radii]
+    if rotation is None:
+        rotation = np.array([[1,0],[0,1]])
+
+    x = radii[0] * np.cos(t)
+    y = radii[1] * np.sin(t)
+    for i in range(len(x)):
+            [x[i], y[i]] = np.dot([x[i], y[i]],rotation) + center
+    return  np.array([x, y]).T</code></pre>
+</details>
+</dd>
+<dt id="BiVFitting.fitting_tools.register_group_points_translation_only"><code class="name flex">
+<span>def <span class="ident">register_group_points_translation_only</span></span>(<span>source_points, target_points, weights=None, exclude_outliers=False, norm=1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>compute the optimal translation between two sets of grouped points
+echa group for the source points will be projected into the corresponding
+group from target points
+input:
+source_points = array of nx2 arrays with points coordinates, moving
+points
+target_points = array of nx2 arrays with points coordinates,
+fixed points
+output: 2D translation vector</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def register_group_points_translation_only(source_points, target_points,
+                                           weights = None,
+                                           exclude_outliers = False,
+                                           norm = 1):
+    &#34;&#34;&#34; compute the optimal translation between two sets of grouped points
+    echa group for the source points will be projected into the corresponding
+    group from target points
+    input:
+        source_points = array of nx2 arrays with points coordinates, moving
+                        points
+        target_points = array of nx2 arrays with points coordinates,
+                        fixed points
+    output: 2D translation vector
+    &#34;&#34;&#34;
+
+
+    if len(source_points) != len(target_points):
+        return np.array([0,0])
+
+    def obj_function(x):
+        f = 0
+        nb = 0
+        if norm not in [1,2]:
+            ValueError(&#39;Register groupp points: only norm 1 and 2 are &#39;
+                       &#39;implemented&#39;)
+            return
+        for index,target in enumerate(target_points):
+            tree = cKDTree(target)
+            new_points = source_points[index]+np.array(x)
+            d, indx = tree.query(new_points, k=1, p=2)
+            if exclude_outliers:
+                d[d&gt;10] = 0
+            nb = nb + len(d)
+            if weights is None:
+                f  = f+ sum(np.power(d,norm))
+            else:
+                f = f + weights[index]*sum(np.power(d,norm))
+        return np.sqrt(f/nb)
+
+    t = optimize.fmin(func=obj_function, x0=[0, 0],
+                    disp=False)
+    return t</code></pre>
+</details>
+</dd>
+<dt id="BiVFitting.fitting_tools.rodrigues_rot"><code class="name flex">
+<span>def <span class="ident">rodrigues_rot</span></span>(<span>P, n0, n1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This function rotates data based on a starting and ending vector. Rodrigues rotation is used
+to project 3D points onto a fitting plane and get their 2D X-Y coords in the coord system of the plane</p>
+<h2 id="input">Input</h2>
+<p>P: 3D points
+n0: plane normal
+n1: normal of the new XY coordinates system</p>
+<h2 id="output">Output</h2>
+<p>P_rot: rotated points</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def rodrigues_rot(P, n0, n1):
+    &#34;&#34;&#34; This function rotates data based on a starting and ending vector. Rodrigues rotation is used
+        to project 3D points onto a fitting plane and get their 2D X-Y coords in the coord system of the plane
+        Input:
+            P: 3D points
+            n0: plane normal
+            n1: normal of the new XY coordinates system
+        Output:
+            P_rot: rotated points
+
+    &#34;&#34;&#34;
+    # If P is only 1d np.array (coords of single point), fix it to be matrix
+    if P.ndim == 1:
+        P = P[np.newaxis,:]
+    
+    # Get vector of rotation k and angle theta
+    n0 = n0/np.linalg.norm(n0)
+    n1 = n1/np.linalg.norm(n1)
+    k = np.cross(n0,n1)
+    k = k/np.linalg.norm(k)
+    theta = np.arccos(np.dot(n0,n1))
+    
+    # Compute rotated points
+    P_rot = np.zeros((len(P),3))
+    for i in range(len(P)):
+        P_rot[i] = P[i]*np.cos(theta) + np.cross(k,P[i])*np.sin(theta) + k*np.dot(k,P[i])*(1-np.cos(theta))
+
+    return P_rot</code></pre>
+</details>
+</dd>
+<dt id="BiVFitting.fitting_tools.sort_consecutive_points"><code class="name flex">
+<span>def <span class="ident">sort_consecutive_points</span></span>(<span>C)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>add by A.Mira on 01/2020</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def sort_consecutive_points(C):
+    &#34; add by A.Mira on 01/2020&#34;
+    if isinstance(C, list):
+        C = np.array(C)
+    Cx = C[0, :]
+    lastP = Cx
+    C_index = [0]
+    index_list = np.array(range(1,C.shape[0]))
+    Cr = np.delete(C, 0, 0)
+    # iterate through points until all points are taken away
+    while Cr.shape[0] &gt; 0:
+        # find the closest point from the last point at Cx
+        i = (np.square(lastP - Cr)).sum(1).argmin()
+        # remove that closest point from Cr and add to Cx
+        lastP = Cr[i, :]
+        Cx = np.vstack([Cx, lastP])
+        C_index.append(index_list[i])
+        Cr = np.delete(Cr, i, 0)
+        index_list = np.delete(index_list,i)
+    return C_index,Cx</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="BiVFitting" href="index.html">BiVFitting</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="BiVFitting.fitting_tools.LineIntersection" href="#BiVFitting.fitting_tools.LineIntersection">LineIntersection</a></code></li>
+<li><code><a title="BiVFitting.fitting_tools.Plot2DPoint" href="#BiVFitting.fitting_tools.Plot2DPoint">Plot2DPoint</a></code></li>
+<li><code><a title="BiVFitting.fitting_tools.Plot3DPoint" href="#BiVFitting.fitting_tools.Plot3DPoint">Plot3DPoint</a></code></li>
+<li><code><a title="BiVFitting.fitting_tools.apply_affine_to_points" href="#BiVFitting.fitting_tools.apply_affine_to_points">apply_affine_to_points</a></code></li>
+<li><code><a title="BiVFitting.fitting_tools.compute_area_weighted_centroid" href="#BiVFitting.fitting_tools.compute_area_weighted_centroid">compute_area_weighted_centroid</a></code></li>
+<li><code><a title="BiVFitting.fitting_tools.fit_circle_2d" href="#BiVFitting.fitting_tools.fit_circle_2d">fit_circle_2d</a></code></li>
+<li><code><a title="BiVFitting.fitting_tools.fit_elipse_2d" href="#BiVFitting.fitting_tools.fit_elipse_2d">fit_elipse_2d</a></code></li>
+<li><code><a title="BiVFitting.fitting_tools.generate_2Delipse_by_vectors" href="#BiVFitting.fitting_tools.generate_2Delipse_by_vectors">generate_2Delipse_by_vectors</a></code></li>
+<li><code><a title="BiVFitting.fitting_tools.register_group_points_translation_only" href="#BiVFitting.fitting_tools.register_group_points_translation_only">register_group_points_translation_only</a></code></li>
+<li><code><a title="BiVFitting.fitting_tools.rodrigues_rot" href="#BiVFitting.fitting_tools.rodrigues_rot">rodrigues_rot</a></code></li>
+<li><code><a title="BiVFitting.fitting_tools.sort_consecutive_points" href="#BiVFitting.fitting_tools.sort_consecutive_points">sort_consecutive_points</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>
