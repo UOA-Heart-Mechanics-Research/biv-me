@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>BiVFitting.Diffeomorphic_fitting API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>BiVFitting.Diffeomorphic_fitting</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import time
+from cvxopt import matrix, solvers
+from  .build_model_tools import *
+
+
+def SolveProblemCVXOPT(biv_model, data_set, weight_GP, low_smoothing_weight,
+                       transmural_weight):
+    &#34;&#34;&#34; This function performs the proper diffeomorphic fit.
+        Parameters
+        ----------
+
+        `case`  case id
+
+        `weight_GP` data_points weight
+
+        &#39;low_smoothing_weight&#39;  smoothing weight (for regularization term)
+
+        Returns
+        --------
+            None
+    &#34;&#34;&#34;
+    start_time = time.time()
+    [ data_points_index, w_out, distance_prior ,projected_points_basis_coeff] = \
+        biv_model.compute_data_xi(weight_GP, data_set)
+    # # exlude the outliers defined as (u-mean(u)) &gt; 6*std(u)
+    # projected_points_basis_coeff = projected_points_basis_coeff[abs(
+    #     distance_prior - np.mean(distance_prior)) &lt; 6 * np.std(distance_prior), :]
+    # data_points_index = data_points_index[
+    #     abs(distance_prior - np.mean(distance_prior)) &lt; 6 * np.std(distance_prior)]
+    # w_out = w_out[
+    #     abs(distance_prior - np.mean(distance_prior)) &lt; 6 * np.std(distance_prior)]
+    #
+    data_points = data_set.points_coordinates[data_points_index]
+    prior_position = np.dot(projected_points_basis_coeff, biv_model.control_mesh)
+    w = w_out * np.identity(len(prior_position))
+    WPG = np.dot(w, projected_points_basis_coeff)
+    GTPTWTWPG = np.dot(WPG.T, WPG)
+    A = GTPTWTWPG + low_smoothing_weight * (
+            biv_model.GTSTSG_x + biv_model.GTSTSG_y + transmural_weight * biv_model.GTSTSG_z)
+    Wd = np.dot(w, data_points - prior_position)
+    # rhs = np.dot(WPG.T, Wd)
+    previous_step_err = 0
+    tol = 1e-6
+    iteration = 0
+    Q = 2 * A  # .T*A  # 2*A
+    quadratic_form = matrix(0.5 * (Q + Q.T),
+                            tc=&#39;d&#39;)  # to make it symmetrical.
+    prev_displacement = np.zeros((biv_model.numNodes, 3))
+    step_err = np.linalg.norm(data_points - prior_position, axis=1)
+    step_err = np.sqrt(np.sum(step_err)/len(prior_position))
+    print(&#39;Explicitly constrained fit&#39;)
+    while abs(step_err - previous_step_err) &gt; tol and iteration &lt; 10:
+        print(&#39;     Iteration #&#39; + str(iteration + 1) + &#39; ECF error &#39; + str(
+            step_err))
+        previous_step_err = step_err
+        linear_part_x = matrix((2 * np.dot(prev_displacement[:, 0].T, A)
+                                - 2 * np.dot(Wd[:, 0].T,WPG).T), tc=&#39;d&#39;)
+        linear_part_y = matrix((2 * np.dot(prev_displacement[:, 1].T, A)
+                                - 2 * np.dot(Wd[:, 1].T, WPG).T), tc=&#39;d&#39;)
+        linear_part_z = matrix((2 * np.dot(prev_displacement[:, 2].T,A)
+                                - 2 * np.dot(Wd[:, 2].T,WPG).T), tc=&#39;d&#39;)
+        linConstraints = matrix(generate_contraint_matrix(biv_model), tc=&#39;d&#39;)
+        linConstraintNeg = -linConstraints
+        G = matrix(np.vstack((linConstraints, linConstraintNeg)))
+        size = 2 * (3 * len(biv_model.mBder_dx))
+        bound = 1 / 3
+        h = matrix([bound] * size)
+        solvers.options[&#39;show_progress&#39;] = False
+        #  Solver: solvers.qp(P,q,G,h)
+        #  see https://courses.csail.mit.edu/6.867/wiki/images/a/a7/Qp-cvxopt.pdf
+        #  for explanation
+        solx = solvers.qp(quadratic_form, linear_part_x, G, h)
+        soly = solvers.qp(quadratic_form, linear_part_y, G, h)
+        solz = solvers.qp(quadratic_form, linear_part_z, G, h)
+        sx = []
+        sy = []
+        sz = []
+        for a in solx[&#39;x&#39;]:
+            sx.append(a)
+        for a in soly[&#39;x&#39;]:
+            sy.append(a)
+        for a in solz[&#39;x&#39;]:
+            sz.append(a)
+        displacement = np.zeros((biv_model.numNodes, 3))
+        displacement[:, 0] = np.asarray(sx)
+        displacement[:, 1] = np.asarray(sy)
+        displacement[:, 2] = np.asarray(sz)
+        # check if diffeomorphic
+        Isdiffeo = biv_model.is_diffeomorphic(np.add(biv_model.control_mesh,
+                                                     displacement), 0.1)
+        if Isdiffeo == 0:
+            # Due to numerical approximations, epicardium and endocardium
+            # can &#39;touch&#39; (but not cross),
+            # leading to a negative jacobian. If it happens, we stop.
+            diffeo = 0
+            print(&#39;Diffeomorphic condition not verified &#39;)
+            break
+        else:
+            prev_displacement[:, 0] = prev_displacement[:, 0] + sx
+            prev_displacement[:, 1] = prev_displacement[:, 1] + sy
+            prev_displacement[:, 2] = prev_displacement[:, 2] + sz
+            biv_model.update_control_mesh(biv_model.control_mesh + displacement)
+            prior_position = np.dot(projected_points_basis_coeff,
+                                    biv_model.control_mesh)
+            step_err = np.linalg.norm(data_points - prior_position, axis=1)
+            step_err = np.sqrt(np.sum(step_err) / len(prior_position))
+            iteration = iteration + 1
+    print(&#34;--- End of the explicitly constrained fit ---&#34;)
+    print(&#34;--- %s seconds ---&#34; % (time.time() - start_time))
+
+def lls_fit_model(biv_model, weight_GP, data_set, smoothing_Factor):
+
+    [index, weights, distance_prior, projected_points_basis_coeff] = \
+        biv_model.compute_data_xi(weight_GP, data_set)
+
+    prior_position = np.linalg.multi_dot([projected_points_basis_coeff, biv_model.control_mesh])
+    w = weights * np.identity(len(prior_position))
+    WPG = np.linalg.multi_dot([w, projected_points_basis_coeff])
+    GTPTWTWPG = np.linalg.multi_dot([WPG.T, WPG])
+    # np.linalg.multi_dot faster than np.dot
+
+    A = GTPTWTWPG + smoothing_Factor * (
+            biv_model.GTSTSG_x + biv_model.GTSTSG_y + 0.001 * biv_model.GTSTSG_z)
+    data_points_position = data_set.points_coordinates[index]
+    Wd = np.linalg.multi_dot([w, data_points_position - prior_position])
+    rhs = np.linalg.multi_dot([WPG.T, Wd])
+
+    solf = np.linalg.solve(A.T.dot(A), A.T.dot(rhs))  # solve the Moore-Penrose pseudo inversee
+    err = np.linalg.norm( data_points_position - prior_position, axis =1)
+    err = np.sqrt(np.sum(err)/len(prior_position))
+    return  solf , err
+
+
+def MultiThreadSmoothingED(biv_model, weight_GP, data_set):
+    &#34;&#34;&#34; This function performs a series of LLS fits. At each iteration the
+    least squares optimisation is performed and the determinant of the
+    Jacobian matrix is calculated.
+    If all the values are positive, the subdivision surface is deformed by
+    updating its control points, projections are recalculated and the
+    regularization weight is decreased.
+    As long as the deformation is diffeomorphic, smoothing weight is decreased.
+        Input:
+            case: case name
+            weight_GP: data_points&#39; weight
+        Output:
+            None. &#39;biv_model&#39; is updated in the function itself
+    &#34;&#34;&#34;
+    start_time = time.time()
+    high_weight = weight_GP*1E+10  # First regularization weight
+    isdiffeo = 1
+    iteration = 1
+    factor = 5
+    min_jacobian = 0.1
+    while (isdiffeo == 1) &amp; (high_weight &gt; weight_GP*1e2) &amp; (iteration &lt;50):
+        displacement, err  = lls_fit_model(biv_model,weight_GP, data_set,
+                                                     high_weight)
+        print(&#39;     Iteration #&#39; + str(iteration) + &#39; ICF error &#39; + str(err))
+        isdiffeo = biv_model.is_diffeomorphic(np.add(biv_model.control_mesh, displacement),
+                                              min_jacobian)
+        if isdiffeo == 1:
+            biv_model.update_control_mesh(np.add(biv_model.control_mesh, displacement))
+            high_weight = high_weight / factor  # we divide weight by &#39;factor&#39; and start again...
+        else:
+            # If Isdiffeo ==1, the model is not updated.
+            # We divide factor by 2 and try again.
+            if  factor &gt; 1:
+                factor = factor / 2
+                high_weight = high_weight * factor
+                isdiffeo = 1
+        iteration = iteration + 1
+    print(&#34;End of the implicitly constrained fit&#34;)
+    print(&#34;--- %s seconds ---&#34; % (time.time() - start_time))
+    return high_weight
+
+def generate_contraint_matrix(mesh):
+        &#34;&#34;&#34; This function generates constraints matrix to be given to cvxopt
+
+        Parameters
+        ----------
+
+            mesh
+
+        Returns
+        --------
+
+        constraints: constraints matrix
+
+        &#34;&#34;&#34;
+
+        constraints = []
+        for i in range(len(mesh.mBder_dx)):  # rows and colums will always be the same so
+            # we just need to precompute this and then calculate the values...
+
+            dXdxi = np.zeros((3, 3), dtype=&#39;float&#39;)
+
+            dXdxi[:, 0] = np.dot(mesh.mBder_dx[i, :], mesh.control_mesh)
+            dXdxi[:, 1] = np.dot(mesh.mBder_dy[i, :], mesh.control_mesh)
+            dXdxi[:, 2] = np.dot(mesh.mBder_dz[i, :], mesh.control_mesh)
+
+            g = np.linalg.inv(dXdxi)
+
+            Gx = np.dot(mesh.mBder_dx[i, :], g[0, 0]) + np.dot(
+                mesh.mBder_dy[i, :], g[1, 0]) + np.dot(mesh.mBder_dz[i, :],
+                                                       g[2, 0])
+            constraints.append(Gx)
+
+            Gy = np.dot(mesh.mBder_dx[i, :], g[0, 1]) + np.dot(
+                mesh.mBder_dy[i, :], g[1, 1]) + np.dot(mesh.mBder_dz[i, :],
+                                                       g[2, 1])
+            constraints.append(Gy)
+
+            Gz = np.dot(mesh.mBder_dx[i, :], g[0, 2]) + np.dot(
+                mesh.mBder_dy[i, :], g[1, 2]) + np.dot(mesh.mBder_dz[i, :],
+                                                       g[2, 2])
+            constraints.append(Gz)
+
+        return np.asmatrix(constraints)
+
+def calc_smoothing_matrix_DAffine(model, e_weights, e_groups=None):
+        &#39;&#39;&#39;Changed by A.Mira to allow elemts grouping with different
+        weights.
+
+        Parameters
+        ----------
+        `e_groups`  list of list with index of elements defining element group
+
+        `e_weight`  nx3 array were n is the number of groups, defining the
+        weights for each group of elements
+        &#39;&#39;&#39;
+
+        # function that compiles the S&#39;S matrix using D affine weights is a
+        # 3 x1 vector containing the desired weight alog u, v and w
+        # direction(element coordinates system)
+        # Adaptation from calcDefSmoothingMatrix_RVLV3D.m
+        if not model.build_mode:
+            print(&#39;To compute the smoothing matrix the model should be &#39;
+                  &#39;built with build_mode=True&#39;)
+            return
+        if e_groups == None:
+            e_groups = [list(range(model.numElements))]
+
+        e_weights = np.array(e_weights)
+        if np.isscalar(e_groups[0]):
+            e_groups = [e_groups]
+        if len(e_weights.shape) ==1:
+            e_weights = np.array([e_weights])
+        # Creation of Gauss points
+
+        xig, wg = generate_gauss_points(4)
+        ngt = xig.shape[0]
+        nft = 3
+        nDeriv = [0, 1, 5]
+        # d / dxi1, d / dxi2, d / dxi3 in position  1, 2 and 6
+        dxi = 0.01
+        # step in x space for finite difference calculation
+        dxi1 = np.concatenate((np.ones((ngt,1)) * dxi,
+                               np.zeros((ngt, 1)),
+                               np.zeros((ngt, 1))),axis = 1)
+        dxi2 = np.concatenate((np.zeros((ngt, 1)),
+                               np.ones((ngt, 1)) * dxi,
+                               np.zeros((ngt, 1))),axis = 1)
+        dxi3 = np.concatenate((np.zeros((ngt, 1)),
+                               np.zeros((ngt, 1)),
+                               np.ones((ngt, 1)) * dxi),axis = 1)
+
+        STSfull = np.zeros((model.numNodes, model.numNodes))
+        Gx = np.zeros((model.numNodes, model.numNodes))
+        Gy = np.zeros((model.numNodes, model.numNodes))
+        Gz = np.zeros((model.numNodes, model.numNodes))
+
+        dXdxi = np.zeros((3, 3))
+        dXdxi11 = np.zeros((3, 3))
+        dXdxi12 = np.zeros((3, 3))
+        dXdxi21 = np.zeros((3, 3))
+        dXdxi22 = np.zeros((3, 3))
+        dXdxi31 = np.zeros((3, 3))
+        dXdxi32 = np.zeros((3, 3))
+
+        mBder = np.zeros((ngt, model.numNodes, 10))
+        mBder11 = np.zeros((ngt, model.numNodes, 10))
+        mBder12 = np.zeros((ngt, model.numNodes, 10))
+        mBder21 = np.zeros((ngt, model.numNodes, 10))
+        mBder22 = np.zeros((ngt, model.numNodes, 10))
+        mBder31 = np.zeros((ngt, model.numNodes, 10))
+        mBder32 = np.zeros((ngt, model.numNodes, 10))
+        for et_index,et in enumerate(e_groups):
+            weights = e_weights[et_index]
+            for ne in et:
+
+                nr = 0
+                Sk = np.zeros((3 * ngt * nft, model.numNodes, 3)) # storage for smoothing arrays
+
+                # gauss points &#39; basis functions
+
+                for j in range(ngt):
+                    _, mBder[j,:,:], _ = model.evaluate_basis_matrix(xig[j, 0], xig[j, 1],
+                                                                     xig[j, 2], ne, 0, 0,
+                                                                     0)
+                    _, mBder11[j,:,:], _ = model.evaluate_basis_matrix(xig[j, 0], xig[j, 1],
+                                                                       xig[j, 2], ne,
+                                                                       dxi1[j, 0], dxi1[j, 1],
+                                                                       dxi1[j, 2])
+                    _, mBder12[j,:,:], _ = model.evaluate_basis_matrix(xig[j, 0], xig[j, 1],
+                                                                       xig[j, 2], ne,
+                                                                       -dxi1[j, 0],
+                                                                       -dxi1[j, 1],
+                                                                       -dxi1[j, 2])
+                    _, mBder21[j,:,:], _ = model.evaluate_basis_matrix(xig[j, 0], xig[j, 1],
+                                                                       xig[j, 2], ne,
+                                                                       dxi2[j, 0], dxi2[j, 1],
+                                                                       dxi2[j, 2])
+                    _, mBder22[j,:,:], _ = model.evaluate_basis_matrix(xig[j, 0], xig[j, 1],
+                                                                       xig[j, 2], ne,
+                                                                       -dxi2[j, 0],
+                                                                       -dxi2[j, 1],
+                                                                       -dxi2[0, 2])
+                    _, mBder31[j,:,:], _ = model.evaluate_basis_matrix(xig[j, 0], xig[j, 1],
+                                                                       xig[j, 2], ne,
+                                                                       dxi3[j, 0], dxi3[j, 1],
+                                                                       dxi3[j, 2])
+                    _, mBder32[j,:,:], _ = model.evaluate_basis_matrix(xig[j, 0], xig[j, 1],
+                                                                       xig[j, 2], ne,
+                                                                       -dxi3[j, 0],
+                                                                       -dxi3[j, 1],
+                                                                       -dxi3[j, 2])
+
+
+                # for all gauss pts ng
+                for ng in range(ngt):
+                    # calculate dX / dxi at Gauss pt and surrounding.
+                    for nk,deriv in enumerate(nDeriv):
+                        dXdxi[:, nk] = np.dot(mBder[ng,:, deriv], model.control_mesh)
+                        dXdxi11[:, nk] = np.dot(mBder11[ng,:, deriv], model.control_mesh)
+                        dXdxi12[:, nk] = np.dot(mBder12[ng,:, deriv], model.control_mesh)
+                        dXdxi21[:, nk] = np.dot(mBder21[ng,:, deriv], model.control_mesh)
+                        dXdxi22[:, nk] = np.dot(mBder22[ng,:, deriv], model.control_mesh)
+                        dXdxi31[:, nk] = np.dot(mBder31[ng,:, deriv], model.control_mesh)
+                        dXdxi32[:, nk] = np.dot(mBder32[ng,:, deriv], model.control_mesh)
+
+
+                    g = np.linalg.inv(dXdxi)
+                    g11 = np.linalg.inv(dXdxi11)
+                    g12 = np.linalg.inv(dXdxi12)
+                    g21 = np.linalg.inv(dXdxi21)
+                    g22 = np.linalg.inv(dXdxi22)
+                    g31 = np.linalg.inv(dXdxi31)
+                    g32 = np.linalg.inv(dXdxi32)
+                    h = np.zeros((3,3,3))
+                    h[:,:, 0] = (g11 - g12) / (2 * dxi)
+                    h[:,:, 1] = (g21 - g22) / (2 * dxi)
+                    h[:,:, 2] = (g31 - g32) / (2 * dxi)
+
+                    # 2 nd order derivatives[uu, uv, uw; uv, vv, vw; uw vw, ww]
+                    pindex = np.array([[3, 2, 7],
+                                       [2, 4, 6],
+                                       [7, 6, 8]])
+
+                    for nk in range(3): # derivatives
+                        for nj in range(nft):
+                            try:
+                                Sk[nr,:, nk] = wg[ng] * ( \
+                                            g[0, nj] * mBder[ng,:, pindex[nk, 0]]+
+                                            g[1, nj] *mBder[ng,:, pindex[nk, 1]]+ \
+                                            g[2, nj] * mBder[ng,:, pindex[nk, 2]] +
+                                            h[0, nj, nk] * mBder[ng,:, 0] +
+                                            h[1, nj,nk] * mBder[ng,:, 1]+
+                                            h[2, nj, nk] * mBder[ng,:, 5])
+                            except:
+                                print(&#39;stop&#39;)
+                            nr = nr + 1
+
+
+                STS1    =   np.dot(Sk[:,:, 0].T, Sk[:,:,0])
+                STS2    =   np.dot(Sk[:,:, 1].T, Sk[:,:,1])
+                STS3    =   np.dot(Sk[:,:, 2].T, Sk[:,:,2])
+
+                STS = (weights[0] * STS1) + (weights[1] * STS2) + (weights[2] * STS3)
+                Gx = Gx + weights[0] * STS1
+                Gy = Gy + weights[1] * STS2
+                Gz = Gz + weights[2] * STS3
+
+                # stiffness matrix
+                STSfull = STSfull + STS
+
+
+        GTSTSG = STSfull # I&#39;ve already included G
+
+        return GTSTSG, Gx, Gy, Gz</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="BiVFitting.Diffeomorphic_fitting.MultiThreadSmoothingED"><code class="name flex">
+<span>def <span class="ident">MultiThreadSmoothingED</span></span>(<span>biv_model, weight_GP, data_set)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This function performs a series of LLS fits. At each iteration the
+least squares optimisation is performed and the determinant of the
+Jacobian matrix is calculated.
+If all the values are positive, the subdivision surface is deformed by
+updating its control points, projections are recalculated and the
+regularization weight is decreased.
+As long as the deformation is diffeomorphic, smoothing weight is decreased.
+Input:
+case: case name
+weight_GP: data_points' weight
+Output:
+None. 'biv_model' is updated in the function itself</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def MultiThreadSmoothingED(biv_model, weight_GP, data_set):
+    &#34;&#34;&#34; This function performs a series of LLS fits. At each iteration the
+    least squares optimisation is performed and the determinant of the
+    Jacobian matrix is calculated.
+    If all the values are positive, the subdivision surface is deformed by
+    updating its control points, projections are recalculated and the
+    regularization weight is decreased.
+    As long as the deformation is diffeomorphic, smoothing weight is decreased.
+        Input:
+            case: case name
+            weight_GP: data_points&#39; weight
+        Output:
+            None. &#39;biv_model&#39; is updated in the function itself
+    &#34;&#34;&#34;
+    start_time = time.time()
+    high_weight = weight_GP*1E+10  # First regularization weight
+    isdiffeo = 1
+    iteration = 1
+    factor = 5
+    min_jacobian = 0.1
+    while (isdiffeo == 1) &amp; (high_weight &gt; weight_GP*1e2) &amp; (iteration &lt;50):
+        displacement, err  = lls_fit_model(biv_model,weight_GP, data_set,
+                                                     high_weight)
+        print(&#39;     Iteration #&#39; + str(iteration) + &#39; ICF error &#39; + str(err))
+        isdiffeo = biv_model.is_diffeomorphic(np.add(biv_model.control_mesh, displacement),
+                                              min_jacobian)
+        if isdiffeo == 1:
+            biv_model.update_control_mesh(np.add(biv_model.control_mesh, displacement))
+            high_weight = high_weight / factor  # we divide weight by &#39;factor&#39; and start again...
+        else:
+            # If Isdiffeo ==1, the model is not updated.
+            # We divide factor by 2 and try again.
+            if  factor &gt; 1:
+                factor = factor / 2
+                high_weight = high_weight * factor
+                isdiffeo = 1
+        iteration = iteration + 1
+    print(&#34;End of the implicitly constrained fit&#34;)
+    print(&#34;--- %s seconds ---&#34; % (time.time() - start_time))
+    return high_weight</code></pre>
+</details>
+</dd>
+<dt id="BiVFitting.Diffeomorphic_fitting.SolveProblemCVXOPT"><code class="name flex">
+<span>def <span class="ident">SolveProblemCVXOPT</span></span>(<span>biv_model, data_set, weight_GP, low_smoothing_weight, transmural_weight)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This function performs the proper diffeomorphic fit.
+Parameters</p>
+<hr>
+<p><code>case</code>
+case id</p>
+<p><code>weight_GP</code> data_points weight</p>
+<p>'low_smoothing_weight'
+smoothing weight (for regularization term)</p>
+<h2 id="returns">Returns</h2>
+<pre><code>None
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def SolveProblemCVXOPT(biv_model, data_set, weight_GP, low_smoothing_weight,
+                       transmural_weight):
+    &#34;&#34;&#34; This function performs the proper diffeomorphic fit.
+        Parameters
+        ----------
+
+        `case`  case id
+
+        `weight_GP` data_points weight
+
+        &#39;low_smoothing_weight&#39;  smoothing weight (for regularization term)
+
+        Returns
+        --------
+            None
+    &#34;&#34;&#34;
+    start_time = time.time()
+    [ data_points_index, w_out, distance_prior ,projected_points_basis_coeff] = \
+        biv_model.compute_data_xi(weight_GP, data_set)
+    # # exlude the outliers defined as (u-mean(u)) &gt; 6*std(u)
+    # projected_points_basis_coeff = projected_points_basis_coeff[abs(
+    #     distance_prior - np.mean(distance_prior)) &lt; 6 * np.std(distance_prior), :]
+    # data_points_index = data_points_index[
+    #     abs(distance_prior - np.mean(distance_prior)) &lt; 6 * np.std(distance_prior)]
+    # w_out = w_out[
+    #     abs(distance_prior - np.mean(distance_prior)) &lt; 6 * np.std(distance_prior)]
+    #
+    data_points = data_set.points_coordinates[data_points_index]
+    prior_position = np.dot(projected_points_basis_coeff, biv_model.control_mesh)
+    w = w_out * np.identity(len(prior_position))
+    WPG = np.dot(w, projected_points_basis_coeff)
+    GTPTWTWPG = np.dot(WPG.T, WPG)
+    A = GTPTWTWPG + low_smoothing_weight * (
+            biv_model.GTSTSG_x + biv_model.GTSTSG_y + transmural_weight * biv_model.GTSTSG_z)
+    Wd = np.dot(w, data_points - prior_position)
+    # rhs = np.dot(WPG.T, Wd)
+    previous_step_err = 0
+    tol = 1e-6
+    iteration = 0
+    Q = 2 * A  # .T*A  # 2*A
+    quadratic_form = matrix(0.5 * (Q + Q.T),
+                            tc=&#39;d&#39;)  # to make it symmetrical.
+    prev_displacement = np.zeros((biv_model.numNodes, 3))
+    step_err = np.linalg.norm(data_points - prior_position, axis=1)
+    step_err = np.sqrt(np.sum(step_err)/len(prior_position))
+    print(&#39;Explicitly constrained fit&#39;)
+    while abs(step_err - previous_step_err) &gt; tol and iteration &lt; 10:
+        print(&#39;     Iteration #&#39; + str(iteration + 1) + &#39; ECF error &#39; + str(
+            step_err))
+        previous_step_err = step_err
+        linear_part_x = matrix((2 * np.dot(prev_displacement[:, 0].T, A)
+                                - 2 * np.dot(Wd[:, 0].T,WPG).T), tc=&#39;d&#39;)
+        linear_part_y = matrix((2 * np.dot(prev_displacement[:, 1].T, A)
+                                - 2 * np.dot(Wd[:, 1].T, WPG).T), tc=&#39;d&#39;)
+        linear_part_z = matrix((2 * np.dot(prev_displacement[:, 2].T,A)
+                                - 2 * np.dot(Wd[:, 2].T,WPG).T), tc=&#39;d&#39;)
+        linConstraints = matrix(generate_contraint_matrix(biv_model), tc=&#39;d&#39;)
+        linConstraintNeg = -linConstraints
+        G = matrix(np.vstack((linConstraints, linConstraintNeg)))
+        size = 2 * (3 * len(biv_model.mBder_dx))
+        bound = 1 / 3
+        h = matrix([bound] * size)
+        solvers.options[&#39;show_progress&#39;] = False
+        #  Solver: solvers.qp(P,q,G,h)
+        #  see https://courses.csail.mit.edu/6.867/wiki/images/a/a7/Qp-cvxopt.pdf
+        #  for explanation
+        solx = solvers.qp(quadratic_form, linear_part_x, G, h)
+        soly = solvers.qp(quadratic_form, linear_part_y, G, h)
+        solz = solvers.qp(quadratic_form, linear_part_z, G, h)
+        sx = []
+        sy = []
+        sz = []
+        for a in solx[&#39;x&#39;]:
+            sx.append(a)
+        for a in soly[&#39;x&#39;]:
+            sy.append(a)
+        for a in solz[&#39;x&#39;]:
+            sz.append(a)
+        displacement = np.zeros((biv_model.numNodes, 3))
+        displacement[:, 0] = np.asarray(sx)
+        displacement[:, 1] = np.asarray(sy)
+        displacement[:, 2] = np.asarray(sz)
+        # check if diffeomorphic
+        Isdiffeo = biv_model.is_diffeomorphic(np.add(biv_model.control_mesh,
+                                                     displacement), 0.1)
+        if Isdiffeo == 0:
+            # Due to numerical approximations, epicardium and endocardium
+            # can &#39;touch&#39; (but not cross),
+            # leading to a negative jacobian. If it happens, we stop.
+            diffeo = 0
+            print(&#39;Diffeomorphic condition not verified &#39;)
+            break
+        else:
+            prev_displacement[:, 0] = prev_displacement[:, 0] + sx
+            prev_displacement[:, 1] = prev_displacement[:, 1] + sy
+            prev_displacement[:, 2] = prev_displacement[:, 2] + sz
+            biv_model.update_control_mesh(biv_model.control_mesh + displacement)
+            prior_position = np.dot(projected_points_basis_coeff,
+                                    biv_model.control_mesh)
+            step_err = np.linalg.norm(data_points - prior_position, axis=1)
+            step_err = np.sqrt(np.sum(step_err) / len(prior_position))
+            iteration = iteration + 1
+    print(&#34;--- End of the explicitly constrained fit ---&#34;)
+    print(&#34;--- %s seconds ---&#34; % (time.time() - start_time))</code></pre>
+</details>
+</dd>
+<dt id="BiVFitting.Diffeomorphic_fitting.calc_smoothing_matrix_DAffine"><code class="name flex">
+<span>def <span class="ident">calc_smoothing_matrix_DAffine</span></span>(<span>model, e_weights, e_groups=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Changed by A.Mira to allow elemts grouping with different
+weights.</p>
+<h2 id="parameters">Parameters</h2>
+<p><code>e_groups</code>
+list of list with index of elements defining element group</p>
+<p><code>e_weight</code>
+nx3 array were n is the number of groups, defining the
+weights for each group of elements</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def calc_smoothing_matrix_DAffine(model, e_weights, e_groups=None):
+        &#39;&#39;&#39;Changed by A.Mira to allow elemts grouping with different
+        weights.
+
+        Parameters
+        ----------
+        `e_groups`  list of list with index of elements defining element group
+
+        `e_weight`  nx3 array were n is the number of groups, defining the
+        weights for each group of elements
+        &#39;&#39;&#39;
+
+        # function that compiles the S&#39;S matrix using D affine weights is a
+        # 3 x1 vector containing the desired weight alog u, v and w
+        # direction(element coordinates system)
+        # Adaptation from calcDefSmoothingMatrix_RVLV3D.m
+        if not model.build_mode:
+            print(&#39;To compute the smoothing matrix the model should be &#39;
+                  &#39;built with build_mode=True&#39;)
+            return
+        if e_groups == None:
+            e_groups = [list(range(model.numElements))]
+
+        e_weights = np.array(e_weights)
+        if np.isscalar(e_groups[0]):
+            e_groups = [e_groups]
+        if len(e_weights.shape) ==1:
+            e_weights = np.array([e_weights])
+        # Creation of Gauss points
+
+        xig, wg = generate_gauss_points(4)
+        ngt = xig.shape[0]
+        nft = 3
+        nDeriv = [0, 1, 5]
+        # d / dxi1, d / dxi2, d / dxi3 in position  1, 2 and 6
+        dxi = 0.01
+        # step in x space for finite difference calculation
+        dxi1 = np.concatenate((np.ones((ngt,1)) * dxi,
+                               np.zeros((ngt, 1)),
+                               np.zeros((ngt, 1))),axis = 1)
+        dxi2 = np.concatenate((np.zeros((ngt, 1)),
+                               np.ones((ngt, 1)) * dxi,
+                               np.zeros((ngt, 1))),axis = 1)
+        dxi3 = np.concatenate((np.zeros((ngt, 1)),
+                               np.zeros((ngt, 1)),
+                               np.ones((ngt, 1)) * dxi),axis = 1)
+
+        STSfull = np.zeros((model.numNodes, model.numNodes))
+        Gx = np.zeros((model.numNodes, model.numNodes))
+        Gy = np.zeros((model.numNodes, model.numNodes))
+        Gz = np.zeros((model.numNodes, model.numNodes))
+
+        dXdxi = np.zeros((3, 3))
+        dXdxi11 = np.zeros((3, 3))
+        dXdxi12 = np.zeros((3, 3))
+        dXdxi21 = np.zeros((3, 3))
+        dXdxi22 = np.zeros((3, 3))
+        dXdxi31 = np.zeros((3, 3))
+        dXdxi32 = np.zeros((3, 3))
+
+        mBder = np.zeros((ngt, model.numNodes, 10))
+        mBder11 = np.zeros((ngt, model.numNodes, 10))
+        mBder12 = np.zeros((ngt, model.numNodes, 10))
+        mBder21 = np.zeros((ngt, model.numNodes, 10))
+        mBder22 = np.zeros((ngt, model.numNodes, 10))
+        mBder31 = np.zeros((ngt, model.numNodes, 10))
+        mBder32 = np.zeros((ngt, model.numNodes, 10))
+        for et_index,et in enumerate(e_groups):
+            weights = e_weights[et_index]
+            for ne in et:
+
+                nr = 0
+                Sk = np.zeros((3 * ngt * nft, model.numNodes, 3)) # storage for smoothing arrays
+
+                # gauss points &#39; basis functions
+
+                for j in range(ngt):
+                    _, mBder[j,:,:], _ = model.evaluate_basis_matrix(xig[j, 0], xig[j, 1],
+                                                                     xig[j, 2], ne, 0, 0,
+                                                                     0)
+                    _, mBder11[j,:,:], _ = model.evaluate_basis_matrix(xig[j, 0], xig[j, 1],
+                                                                       xig[j, 2], ne,
+                                                                       dxi1[j, 0], dxi1[j, 1],
+                                                                       dxi1[j, 2])
+                    _, mBder12[j,:,:], _ = model.evaluate_basis_matrix(xig[j, 0], xig[j, 1],
+                                                                       xig[j, 2], ne,
+                                                                       -dxi1[j, 0],
+                                                                       -dxi1[j, 1],
+                                                                       -dxi1[j, 2])
+                    _, mBder21[j,:,:], _ = model.evaluate_basis_matrix(xig[j, 0], xig[j, 1],
+                                                                       xig[j, 2], ne,
+                                                                       dxi2[j, 0], dxi2[j, 1],
+                                                                       dxi2[j, 2])
+                    _, mBder22[j,:,:], _ = model.evaluate_basis_matrix(xig[j, 0], xig[j, 1],
+                                                                       xig[j, 2], ne,
+                                                                       -dxi2[j, 0],
+                                                                       -dxi2[j, 1],
+                                                                       -dxi2[0, 2])
+                    _, mBder31[j,:,:], _ = model.evaluate_basis_matrix(xig[j, 0], xig[j, 1],
+                                                                       xig[j, 2], ne,
+                                                                       dxi3[j, 0], dxi3[j, 1],
+                                                                       dxi3[j, 2])
+                    _, mBder32[j,:,:], _ = model.evaluate_basis_matrix(xig[j, 0], xig[j, 1],
+                                                                       xig[j, 2], ne,
+                                                                       -dxi3[j, 0],
+                                                                       -dxi3[j, 1],
+                                                                       -dxi3[j, 2])
+
+
+                # for all gauss pts ng
+                for ng in range(ngt):
+                    # calculate dX / dxi at Gauss pt and surrounding.
+                    for nk,deriv in enumerate(nDeriv):
+                        dXdxi[:, nk] = np.dot(mBder[ng,:, deriv], model.control_mesh)
+                        dXdxi11[:, nk] = np.dot(mBder11[ng,:, deriv], model.control_mesh)
+                        dXdxi12[:, nk] = np.dot(mBder12[ng,:, deriv], model.control_mesh)
+                        dXdxi21[:, nk] = np.dot(mBder21[ng,:, deriv], model.control_mesh)
+                        dXdxi22[:, nk] = np.dot(mBder22[ng,:, deriv], model.control_mesh)
+                        dXdxi31[:, nk] = np.dot(mBder31[ng,:, deriv], model.control_mesh)
+                        dXdxi32[:, nk] = np.dot(mBder32[ng,:, deriv], model.control_mesh)
+
+
+                    g = np.linalg.inv(dXdxi)
+                    g11 = np.linalg.inv(dXdxi11)
+                    g12 = np.linalg.inv(dXdxi12)
+                    g21 = np.linalg.inv(dXdxi21)
+                    g22 = np.linalg.inv(dXdxi22)
+                    g31 = np.linalg.inv(dXdxi31)
+                    g32 = np.linalg.inv(dXdxi32)
+                    h = np.zeros((3,3,3))
+                    h[:,:, 0] = (g11 - g12) / (2 * dxi)
+                    h[:,:, 1] = (g21 - g22) / (2 * dxi)
+                    h[:,:, 2] = (g31 - g32) / (2 * dxi)
+
+                    # 2 nd order derivatives[uu, uv, uw; uv, vv, vw; uw vw, ww]
+                    pindex = np.array([[3, 2, 7],
+                                       [2, 4, 6],
+                                       [7, 6, 8]])
+
+                    for nk in range(3): # derivatives
+                        for nj in range(nft):
+                            try:
+                                Sk[nr,:, nk] = wg[ng] * ( \
+                                            g[0, nj] * mBder[ng,:, pindex[nk, 0]]+
+                                            g[1, nj] *mBder[ng,:, pindex[nk, 1]]+ \
+                                            g[2, nj] * mBder[ng,:, pindex[nk, 2]] +
+                                            h[0, nj, nk] * mBder[ng,:, 0] +
+                                            h[1, nj,nk] * mBder[ng,:, 1]+
+                                            h[2, nj, nk] * mBder[ng,:, 5])
+                            except:
+                                print(&#39;stop&#39;)
+                            nr = nr + 1
+
+
+                STS1    =   np.dot(Sk[:,:, 0].T, Sk[:,:,0])
+                STS2    =   np.dot(Sk[:,:, 1].T, Sk[:,:,1])
+                STS3    =   np.dot(Sk[:,:, 2].T, Sk[:,:,2])
+
+                STS = (weights[0] * STS1) + (weights[1] * STS2) + (weights[2] * STS3)
+                Gx = Gx + weights[0] * STS1
+                Gy = Gy + weights[1] * STS2
+                Gz = Gz + weights[2] * STS3
+
+                # stiffness matrix
+                STSfull = STSfull + STS
+
+
+        GTSTSG = STSfull # I&#39;ve already included G
+
+        return GTSTSG, Gx, Gy, Gz</code></pre>
+</details>
+</dd>
+<dt id="BiVFitting.Diffeomorphic_fitting.generate_contraint_matrix"><code class="name flex">
+<span>def <span class="ident">generate_contraint_matrix</span></span>(<span>mesh)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This function generates constraints matrix to be given to cvxopt</p>
+<h2 id="parameters">Parameters</h2>
+<pre><code>mesh
+</code></pre>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>constraints</code></strong> :&ensp;<code>constraints matrix</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def generate_contraint_matrix(mesh):
+        &#34;&#34;&#34; This function generates constraints matrix to be given to cvxopt
+
+        Parameters
+        ----------
+
+            mesh
+
+        Returns
+        --------
+
+        constraints: constraints matrix
+
+        &#34;&#34;&#34;
+
+        constraints = []
+        for i in range(len(mesh.mBder_dx)):  # rows and colums will always be the same so
+            # we just need to precompute this and then calculate the values...
+
+            dXdxi = np.zeros((3, 3), dtype=&#39;float&#39;)
+
+            dXdxi[:, 0] = np.dot(mesh.mBder_dx[i, :], mesh.control_mesh)
+            dXdxi[:, 1] = np.dot(mesh.mBder_dy[i, :], mesh.control_mesh)
+            dXdxi[:, 2] = np.dot(mesh.mBder_dz[i, :], mesh.control_mesh)
+
+            g = np.linalg.inv(dXdxi)
+
+            Gx = np.dot(mesh.mBder_dx[i, :], g[0, 0]) + np.dot(
+                mesh.mBder_dy[i, :], g[1, 0]) + np.dot(mesh.mBder_dz[i, :],
+                                                       g[2, 0])
+            constraints.append(Gx)
+
+            Gy = np.dot(mesh.mBder_dx[i, :], g[0, 1]) + np.dot(
+                mesh.mBder_dy[i, :], g[1, 1]) + np.dot(mesh.mBder_dz[i, :],
+                                                       g[2, 1])
+            constraints.append(Gy)
+
+            Gz = np.dot(mesh.mBder_dx[i, :], g[0, 2]) + np.dot(
+                mesh.mBder_dy[i, :], g[1, 2]) + np.dot(mesh.mBder_dz[i, :],
+                                                       g[2, 2])
+            constraints.append(Gz)
+
+        return np.asmatrix(constraints)</code></pre>
+</details>
+</dd>
+<dt id="BiVFitting.Diffeomorphic_fitting.lls_fit_model"><code class="name flex">
+<span>def <span class="ident">lls_fit_model</span></span>(<span>biv_model, weight_GP, data_set, smoothing_Factor)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def lls_fit_model(biv_model, weight_GP, data_set, smoothing_Factor):
+
+    [index, weights, distance_prior, projected_points_basis_coeff] = \
+        biv_model.compute_data_xi(weight_GP, data_set)
+
+    prior_position = np.linalg.multi_dot([projected_points_basis_coeff, biv_model.control_mesh])
+    w = weights * np.identity(len(prior_position))
+    WPG = np.linalg.multi_dot([w, projected_points_basis_coeff])
+    GTPTWTWPG = np.linalg.multi_dot([WPG.T, WPG])
+    # np.linalg.multi_dot faster than np.dot
+
+    A = GTPTWTWPG + smoothing_Factor * (
+            biv_model.GTSTSG_x + biv_model.GTSTSG_y + 0.001 * biv_model.GTSTSG_z)
+    data_points_position = data_set.points_coordinates[index]
+    Wd = np.linalg.multi_dot([w, data_points_position - prior_position])
+    rhs = np.linalg.multi_dot([WPG.T, Wd])
+
+    solf = np.linalg.solve(A.T.dot(A), A.T.dot(rhs))  # solve the Moore-Penrose pseudo inversee
+    err = np.linalg.norm( data_points_position - prior_position, axis =1)
+    err = np.sqrt(np.sum(err)/len(prior_position))
+    return  solf , err</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="BiVFitting" href="index.html">BiVFitting</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="BiVFitting.Diffeomorphic_fitting.MultiThreadSmoothingED" href="#BiVFitting.Diffeomorphic_fitting.MultiThreadSmoothingED">MultiThreadSmoothingED</a></code></li>
+<li><code><a title="BiVFitting.Diffeomorphic_fitting.SolveProblemCVXOPT" href="#BiVFitting.Diffeomorphic_fitting.SolveProblemCVXOPT">SolveProblemCVXOPT</a></code></li>
+<li><code><a title="BiVFitting.Diffeomorphic_fitting.calc_smoothing_matrix_DAffine" href="#BiVFitting.Diffeomorphic_fitting.calc_smoothing_matrix_DAffine">calc_smoothing_matrix_DAffine</a></code></li>
+<li><code><a title="BiVFitting.Diffeomorphic_fitting.generate_contraint_matrix" href="#BiVFitting.Diffeomorphic_fitting.generate_contraint_matrix">generate_contraint_matrix</a></code></li>
+<li><code><a title="BiVFitting.Diffeomorphic_fitting.lls_fit_model" href="#BiVFitting.Diffeomorphic_fitting.lls_fit_model">lls_fit_model</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>
