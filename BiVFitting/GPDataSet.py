@@ -717,6 +717,81 @@ class GPDataSet(object):
 
         return translation, position
 
+    def get_unintersected_slices(self):
+        ## find redundant slices. by Lee
+        
+        lax_registered_contours = [
+                                    ContourType.LAX_LV_ENDOCARDIAL,
+                                    ContourType.LAX_RV_FREEWALL,
+                                    ContourType.LAX_RV_SEPTUM,
+                                    ContourType.LAX_LV_EPICARDIAL
+                                   ]
+        
+        np_slices = np.unique(self.slice_number)
+        redundant_slices = []
+        for index, id in enumerate(np_slices):
+            zero_count = 0
+            for c_indx, contour in enumerate(lax_registered_contours):
+                contour_intersect_points = \
+                    self._get_slice_intersection_points(contour, id)
+                if len(contour_intersect_points) == 0:
+                    zero_count += 1
+                    #print(contour)
+            #print('zero_count ', zero_count)
+            if zero_count==4:
+                redundant_slices.append(id)
+                
+        if len(self.points_coordinates)==0:
+            return np.zeros(0), np.zeros(0)
+                
+        valid_index = np.ones(self.contour_type.shape, dtype=bool)
+        for i in redundant_slices:
+            valid_index = valid_index * (self.slice_number != i)
+
+        #remove unitersetcted sax slices (based on LAX contours), 
+        self.points_coordinates = self.points_coordinates[valid_index]
+        self.contour_type = self.contour_type[valid_index]
+        self.slice_number = self.slice_number[valid_index]
+        self.weights = self.weights[valid_index]
+        
+        return redundant_slices, valid_index
+    
+    def get_unintersected_slices_RV(self):
+        ## find redundant slices. by Lee
+        
+        sax_registered_contours = [
+                                    ContourType.SAX_RV_FREEWALL,
+                                    ContourType.SAX_RV_SEPTUM,
+                                    ContourType.SAX_RV_OUTLET,
+                                   ]
+        
+        lax_registered_contours = ContourType.LAX_RV_SEPTUM
+        
+        np_slices = np.unique(self.slice_number)
+        redundant_slices = []
+        for index, id in enumerate(np_slices):
+            contour_intersect_points = \
+                self._get_slice_intersection_points(lax_registered_contours, id)
+            if len(contour_intersect_points) == 0:
+                redundant_slices.append(id)
+                
+        if len(self.points_coordinates)==0:
+            return np.zeros(0), np.zeros(0)
+                
+        invalid_index = np.ones(self.contour_type.shape, dtype=bool)
+        for i in redundant_slices:
+            for c_indx, contour in enumerate(sax_registered_contours):
+                invalid_index = invalid_index * (self.contour_type == contour) \
+                                * (self.slice_number == i)
+        valid_index = ~invalid_index
+
+        #remove unitersetcted sax slices (based on LAX contours), 
+        self.points_coordinates = self.points_coordinates[valid_index]
+        self.contour_type = self.contour_type[valid_index]
+        self.slice_number = self.slice_number[valid_index]
+        self.weights = self.weights[valid_index]
+        
+        return redundant_slices, valid_index
 
     def _get_slice_shift_sinclaire(self, slice_number, fix_LAX = False):
         """
