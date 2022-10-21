@@ -1,10 +1,15 @@
 import time
 from cvxopt import matrix, solvers
 from  .build_model_tools import *
+from plotly.offline import  plot
+import plotly.graph_objs as go
+import os
+import gzip
+import shutil
 
 
 def SolveProblemCVXOPT(biv_model, data_set, weight_GP, low_smoothing_weight,
-                       transmural_weight):
+                       transmural_weight, txtfile):
     """ This function performs the proper diffeomorphic fit.
         Parameters
         ----------
@@ -38,6 +43,9 @@ def SolveProblemCVXOPT(biv_model, data_set, weight_GP, low_smoothing_weight,
     A = GTPTWTWPG + low_smoothing_weight * (
             biv_model.GTSTSG_x + biv_model.GTSTSG_y + transmural_weight * biv_model.GTSTSG_z)
     Wd = np.dot(w, data_points - prior_position)
+
+    #print('low_smoothing_weight', low_smoothing_weight) ####to LOG
+    
     # rhs = np.dot(WPG.T, Wd)
     previous_step_err = 0
     tol = 1e-6
@@ -49,9 +57,15 @@ def SolveProblemCVXOPT(biv_model, data_set, weight_GP, low_smoothing_weight,
     step_err = np.linalg.norm(data_points - prior_position, axis=1)
     step_err = np.sqrt(np.sum(step_err)/len(prior_position))
     print('Explicitly constrained fit')
+
+    
     while abs(step_err - previous_step_err) > tol and iteration < 10:
         print('     Iteration #' + str(iteration + 1) + ' ECF error ' + str(
             step_err))
+        with open(txtfile, 'a') as f: #LDT
+            f.write('     Iteration #' + str(iteration + 1) + ' Smoothing weight '+ str(low_smoothing_weight)+'\t ECF error ' + str(
+            step_err)+'\n')
+
         previous_step_err = step_err
         linear_part_x = matrix((2 * np.dot(prev_displacement[:, 0].T, A)
                                 - 2 * np.dot(Wd[:, 0].T,WPG).T), tc='d')
@@ -59,17 +73,32 @@ def SolveProblemCVXOPT(biv_model, data_set, weight_GP, low_smoothing_weight,
                                 - 2 * np.dot(Wd[:, 1].T, WPG).T), tc='d')
         linear_part_z = matrix((2 * np.dot(prev_displacement[:, 2].T,A)
                                 - 2 * np.dot(Wd[:, 2].T,WPG).T), tc='d')
+
+
         linConstraints = matrix(generate_contraint_matrix(biv_model), tc='d')
         linConstraintNeg = -linConstraints
         G = matrix(np.vstack((linConstraints, linConstraintNeg)))
         size = 2 * (3 * len(biv_model.mBder_dx))
         bound = 1 / 3
         h = matrix([bound] * size)
+
+
         solvers.options['show_progress'] = False
         #  Solver: solvers.qp(P,q,G,h)
         #  see https://courses.csail.mit.edu/6.867/wiki/images/a/a7/Qp-cvxopt.pdf
         #  for explanation
+        
         solx = solvers.qp(quadratic_form, linear_part_x, G, h)
+        soly = solvers.qp(quadratic_form, linear_part_y, G, h)
+        solz = solvers.qp(quadratic_form, linear_part_z, G, h)
+
+        sx = [a for a in solx['x']] #LDT 15/11/21: this avoids .append()
+        sy = [a for a in soly['x']]
+        sz = [a for a in solz['x']]
+        displacement = np.column_stack((sx, sy, sz))  #LDT 15/11/21: this avoids to repeat three times np.asarray
+        
+
+        '''        solx = solvers.qp(quadratic_form, linear_part_x, G, h)
         soly = solvers.qp(quadratic_form, linear_part_y, G, h)
         solz = solvers.qp(quadratic_form, linear_part_z, G, h)
         sx = []
@@ -84,7 +113,7 @@ def SolveProblemCVXOPT(biv_model, data_set, weight_GP, low_smoothing_weight,
         displacement = np.zeros((biv_model.numNodes, 3))
         displacement[:, 0] = np.asarray(sx)
         displacement[:, 1] = np.asarray(sy)
-        displacement[:, 2] = np.asarray(sz)
+        displacement[:, 2] = np.asarray(sz)'''
         # check if diffeomorphic
         Isdiffeo = biv_model.is_diffeomorphic(np.add(biv_model.control_mesh,
                                                      displacement), 0.1)
@@ -100,13 +129,19 @@ def SolveProblemCVXOPT(biv_model, data_set, weight_GP, low_smoothing_weight,
             prev_displacement[:, 1] = prev_displacement[:, 1] + sy
             prev_displacement[:, 2] = prev_displacement[:, 2] + sz
             biv_model.update_control_mesh(biv_model.control_mesh + displacement)
+
             prior_position = np.dot(projected_points_basis_coeff,
                                     biv_model.control_mesh)
             step_err = np.linalg.norm(data_points - prior_position, axis=1)
             step_err = np.sqrt(np.sum(step_err) / len(prior_position))
             iteration = iteration + 1
+    with open(txtfile, 'a') as f: #LDT
+        f.write("End of the implicitly constrained fit \n")
+        f.write("--- %s seconds ---\n" % (time.time() - start_time))
+
     print("--- End of the explicitly constrained fit ---")
     print("--- %s seconds ---" % (time.time() - start_time))
+
 
 def lls_fit_model(biv_model, weight_GP, data_set, smoothing_Factor):
 
@@ -115,12 +150,14 @@ def lls_fit_model(biv_model, weight_GP, data_set, smoothing_Factor):
 
     prior_position = np.linalg.multi_dot([projected_points_basis_coeff, biv_model.control_mesh])
     w = weights * np.identity(len(prior_position))
+    
     WPG = np.linalg.multi_dot([w, projected_points_basis_coeff])
     GTPTWTWPG = np.linalg.multi_dot([WPG.T, WPG])
     # np.linalg.multi_dot faster than np.dot
 
     A = GTPTWTWPG + smoothing_Factor * (
             biv_model.GTSTSG_x + biv_model.GTSTSG_y + 0.001 * biv_model.GTSTSG_z)
+
     data_points_position = data_set.points_coordinates[index]
     Wd = np.linalg.multi_dot([w, data_points_position - prior_position])
     rhs = np.linalg.multi_dot([WPG.T, Wd])
@@ -131,7 +168,7 @@ def lls_fit_model(biv_model, weight_GP, data_set, smoothing_Factor):
     return  solf , err
 
 
-def MultiThreadSmoothingED(biv_model, weight_GP, data_set):
+def MultiThreadSmoothingED(biv_model, weight_GP, data_set, txtfile):
     """ This function performs a series of LLS fits. At each iteration the
     least squares optimisation is performed and the determinant of the
     Jacobian matrix is calculated.
@@ -151,9 +188,16 @@ def MultiThreadSmoothingED(biv_model, weight_GP, data_set):
     iteration = 1
     factor = 5
     min_jacobian = 0.1
+
     while (isdiffeo == 1) & (high_weight > weight_GP*1e2) & (iteration <50):
+        #print('high_weight', high_weight) ####to LOG
         displacement, err  = lls_fit_model(biv_model,weight_GP, data_set,
                                                      high_weight)
+        
+
+        with open(txtfile, 'a') as f: #LDT
+            f.write('     Iteration #' + str(iteration) + ' Weight '+ str(high_weight) +'\t ICF error ' + str(err)+'\n')
+
         print('     Iteration #' + str(iteration) + ' ICF error ' + str(err))
         isdiffeo = biv_model.is_diffeomorphic(np.add(biv_model.control_mesh, displacement),
                                               min_jacobian)
@@ -168,6 +212,11 @@ def MultiThreadSmoothingED(biv_model, weight_GP, data_set):
                 high_weight = high_weight * factor
                 isdiffeo = 1
         iteration = iteration + 1
+
+    with open(txtfile, 'a') as f: #LDT
+        f.write("End of the implicitly constrained fit \n")
+        f.write("--- %s seconds ---\n" % (time.time() - start_time))
+
     print("End of the implicitly constrained fit")
     print("--- %s seconds ---" % (time.time() - start_time))
     return high_weight
@@ -217,7 +266,7 @@ def generate_contraint_matrix(mesh):
         return np.asmatrix(constraints)
 
 def calc_smoothing_matrix_DAffine(model, e_weights, e_groups=None):
-        '''Changed by A.Mira to allow elemts grouping with different
+        '''Changed by A.Mira to allow elements grouping with different
         weights.
 
         Parameters
@@ -386,3 +435,93 @@ def calc_smoothing_matrix_DAffine(model, e_weights, e_groups=None):
         GTSTSG = STSfull # I've already included G
 
         return GTSTSG, Gx, Gy, Gz
+
+
+def plot_timeseries(dataset, folder, filename):
+
+        fig = go.Figure(dataset[0][0]) 
+
+        frames = [go.Frame(data= k[0],name= f'frame{k[1]}') for k in dataset[:]] 
+
+        updatemenus = [dict(
+                buttons = [
+                    dict(
+                        args = [None, {"frame": {"duration": 200, "redraw": True},
+                                        "fromcurrent": True, "transition": {"duration": 0}}],
+                        label = "Play",
+                        method = "animate"
+                        ),
+                    dict(
+                        args = [[None], {"frame": {"duration": 0, "redraw": False},
+                                        "mode": "immediate",
+                                        "transition": {"duration": 0}}],
+                        label = "Pause",
+                        method = "animate"
+                        )
+                ],
+                direction = "left",
+                pad = {"r": 10, "t": 87},
+                showactive = False,
+                type = "buttons",
+                x = 0.21,
+                xanchor = "right",
+                y = -0.075,
+                yanchor = "top"
+            )]
+        
+        
+
+        sliders = [dict(steps = [dict(method= 'animate',
+                                    args= [[f'frame{k[1]}'],                           
+                                    dict(mode= 'immediate',
+                                        frame= dict(duration=200, redraw=True),
+                                        transition=dict(duration= 0))
+                                        ],
+                                    label=f'frame{k[1]}'
+                                    ) for i,k in enumerate(dataset)], 
+                        #active=1,
+                        transition= dict(duration= 0),
+                        x=0, # slider starting position  
+                        y=0, 
+                        currentvalue=dict(font=dict(size=12), 
+                                        prefix='frame: ', 
+                                        visible=True, 
+                                        xanchor= 'center'
+                                        ),  
+                        len=1.0) #slider length
+                ]
+
+        #print(fig.data[0])
+
+        #[print(list(filter(None, k['x']))) for k in fig.data ]
+
+        min_x = np.min([(np.min( list(filter(None, k['x'])))) for k in fig.data if len( list(filter(None, k['x'])))>0])
+        min_y = np.min([(np.min( list(filter(None, k['y'])))) for k in fig.data if len( list(filter(None, k['y'])))>0])
+        min_z = np.min([(np.min( list(filter(None, k['z'])))) for k in fig.data if len( list(filter(None, k['z'])))>0])
+
+        max_x = np.max([(np.max( list(filter(None, k['x'])))) for k in fig.data if len( list(filter(None, k['x'])))>0])
+        max_y = np.max([(np.max( list(filter(None, k['y'])))) for k in fig.data if len( list(filter(None, k['y'])))>0])
+        max_z = np.max([(np.max( list(filter(None, k['z'])))) for k in fig.data if len( list(filter(None, k['z'])))>0])
+
+
+        #print('MinMax x', np.min(fig.data[0]['x']), np.max(fig.data[0]['x']))
+
+        fig.update(frames=frames)
+        fig.update_layout(
+                    scene = dict(
+                        xaxis = dict(nticks=8, range=[round(min_x, -1)-20, round(max_x, -1)+20]),
+                        yaxis = dict(nticks=8, range=[round(min_y, -1)-20, round(max_y, -1)+20]),
+                        zaxis = dict(nticks=8, range=[round(min_z, -1)-20, round(max_z, -1)+20],)),
+                    scene_aspectmode='cube',
+                    updatemenus=updatemenus,
+                    sliders=sliders)
+
+        result = plot(fig, filename=os.path.join(
+            folder,filename), auto_open=False, auto_play=False, include_plotlyjs= 'cdn')
+        '''
+        with open(os.path.join(folder,filename), 'rb') as f_in:
+            with gzip.open(os.path.join(folder,filename+'.gz'), 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+                shutil.remove(f_in)
+        #return html
+        '''

@@ -11,16 +11,91 @@ from .surface_enum import ContourType
 from .surface_enum import SURFACE_CONTOUR_MAP
 from .fitting_tools import *
 from  .build_model_tools import *
-
+from line_profiler import LineProfiler
+from collections import OrderedDict
+from nltk import flatten
 
 ##Author : Charlène Mauger, University of Auckland, c.mauger@auckland.ac.nz
 
 class BiventricularModel():
     """ This class creates a surface from the control mesh, based on
-    Catmull-Clark subdivision surface method
+    Catmull-Clark subdivision surface method. Surfaces have the following properties:
+
+    Attributes:
+       numNodes = 388                       Number of control nodes.
+       numElements = 187                    Number of elements.
+       numSurfaceNodes = 5810               Number of nodes after subdivision
+                                            (surface points).
+       control_mesh                         Array of x,y,z coordinates of
+                                            control mesh (388x3).
+       et_vertex_xi                         local xi position (xi1,xi2,xi3)
+                                            for each vertex (5810x3).
+
+       et_pos                               Array of x,y,z coordinates for each
+                                            surface nodes (5810x3).
+       et_vertex_element_num                Element num for each surface
+                                            nodes (5810x1).
+       et_indices                           Elements connectivities (n1,n2,n3)
+                                            for each face (11760x3).
+       basis_matrix                         Matrix (5810x388) containing basis
+                                            functions used to evaluate surface
+                                            at surface point locations
+       matrix                               Subdivision matrix (388x5810).
+
+
+       GTSTSG_x, GTSTSG_y, GTSTSG_z         Regularization/Smoothing matrices
+                                            (388x388) along
+                                            Xi1 (circumferential),
+                                            Xi2 (longitudinal) and
+                                            Xi3 (transmural) directions
+
+
+       apex_index                           Vertex index of the apex
+
+       et_vertex_start_end                  Surface index limits for vertices
+                                            et_pos. Surfaces are sorted in
+                                            the following order:
+                                            LV_ENDOCARDIAL, RV septum, RV free wall,
+                                            epicardium, mitral valve, aorta,
+                                            tricuspid, pulmonary valve,
+                                            RV insert.
+                                            Valve centroids are always the last
+                                            vertex of the corresponding surface
+
+       surface_start_end                    Surface index limits for embedded
+                                            triangles et_indices.
+                                            Surfaces are sorted in the following
+                                            order:  LV_ENDOCARDIAL, RV septum, RV free wall,
+                                            epicardium, mitral valve, aorta,
+                                            tricuspid, pulmonary valve, RV insert.
+
+       mBder_dx, mBder_dy, mBder_dz         Matrices (5049x338) containing
+                                            weights used to calculate gradients
+                                            of the displacement field at Gauss
+                                            point locations.
+
+       Jac11, Jac12, Jac13                  Matrices (11968x388) containing
+                                            weights used to calculate Jacobians
+                                            at Gauss point location (11968x338).
+                                            Each matrix element is a linear
+                                            combination of the 388 control points.
+                                            J11 contains the weight used to
+                                            compute the derivatives along Xi1,
+                                            J12 along Xi2 and J13 along Xi3.
+                                            Jacobian determinant is
+                                            calculated/checked on 11968 locations.
+       fraction                 gives the level of the patch
+                                (level 0 = 1,level 1 = 0.5,level 2 = 0.25)
+       b_spline                  gives the 32 control points which need to be weighted
+                                (for each vertex)
+       patch_coordinates        patch coordinates
+       boundary                 boundary
+       phantom_points           Some elements only have an epi surface.
+                                The phantomt points are 'fake' points on
+                                the endo surface.
+
 
     """
-
     numNodes = 388
     '''Class constant, Number of control nodes (388).'''
     numElements = 187
@@ -118,7 +193,8 @@ class BiventricularModel():
         if not os.path.exists(model_file):
             ValueError('Missing model.txt file')
         self.control_mesh = (pd.read_table
-                             (model_file, delim_whitespace=True, header=None)).values
+                             (model_file, delim_whitespace=True, header=None, engine = 'c')).values 
+
         ''' `numNodes`X3 array[float] of x,y,z coordinates of control mesh.
         '''
 
@@ -129,7 +205,7 @@ class BiventricularModel():
 
         self.matrix = (pd.read_table(subdivision_matrix_file,
                                      delim_whitespace=True,
-                                     header=None)).values.astype(float)
+                                     header=None, engine = 'c')).values.astype(float)
         '''Subdivision matrix (`numNodes`x`numSurfaceNodes`).
         '''
 
@@ -142,7 +218,7 @@ class BiventricularModel():
         if not os.path.exists(et_index_file):
             ValueError('Missing ETIndicesSorted.txt file')
         self.et_indices = (pd.read_table(et_index_file, delim_whitespace=True,
-                                            header=None)).values.astype(int)-1
+                                            header=None, engine = 'c')).values.astype(int)-1
         ''' 11760x3 array[int] of elements connectivity (n1,n2,n3) for each face.'''
         
         #et_index_thruWall_file = os.path.join(control_mesh_dir, 'ETIndicesThruWall.txt') #RB addition for MyoMass calc
@@ -158,7 +234,7 @@ class BiventricularModel():
             ValueError('Missing ETIndicesEpiRVLV.txt file for myocardial mass calculation')
         self.et_indices_EpiLVRV = (
             pd.read_table(et_index_EpiLVRV_file, delim_whitespace=True,
-                          header=None)).values.astype(int)-1
+                          header=None, engine = 'c')).values.astype(int)-1
 
 
         GTSTSG_x_file = os.path.join(control_mesh_dir,'GTSTG_x.txt')
@@ -166,7 +242,7 @@ class BiventricularModel():
             ValueError(' Missing GTSTG_x.txt file')
         self.GTSTSG_x = (
             pd.read_table(GTSTSG_x_file, delim_whitespace=True,
-                          header=None)).values.astype(float)
+                          header=None, engine = 'c')).values.astype(float)
         '''`numNodes`x`numNodes` Regularization/Smoothing matrix along Xi1 (
         circumferential direction)        
         '''
@@ -176,7 +252,7 @@ class BiventricularModel():
             ValueError(' Missing GTSTG_y.txt file')
         self.GTSTSG_y = (
             pd.read_table(GTSTSG_y_file, delim_whitespace=True,
-                          header=None)).values.astype(float)
+                          header=None, engine = 'c')).values.astype(float)
         '''`numNodes`x`numNodes` Regularization/Smoothing matrix along
                                             Xi2 (longitudinal) direction'''
 
@@ -185,7 +261,7 @@ class BiventricularModel():
             ValueError(' Missing GTSTG_z.txt file')
         self.GTSTSG_z = (
             pd.read_table(GTSTSG_z_file, delim_whitespace=True,
-                          header=None)).values.astype(float)
+                          header=None, engine = 'c')).values.astype(float)
         '''`numNodes`x`numNodes` Regularization/Smoothing matrix along
                                                     Xi3 (transmural) direction'''
 
@@ -195,7 +271,7 @@ class BiventricularModel():
             ValueError('Missing etVertexElementNum.txt file')
         self.et_vertex_element_num = \
             (pd.read_table(etVertexElementNum_file,
-                           delim_whitespace=True,header=None)).values[:,0].astype(
+                           delim_whitespace=True,header=None, engine = 'c')).values[:,0].astype(
                 int)-1
 
         '''`numSurfaceNodes`x1 array[int] Element num for each surface nodes.
@@ -207,7 +283,7 @@ class BiventricularModel():
             ValueError('Missing mBder_x.file')
         self.mBder_dx = (
             pd.read_table(mBder_x_file, delim_whitespace=True,
-                          header=None)).values.astype(float)
+                          header=None, engine = 'c')).values.astype(float)
         '''`numSurfaceNodes`x`numNodes` Matrix containing  weights used to 
         calculate gradients of the displacement field at Gauss point locations.
         '''
@@ -216,7 +292,7 @@ class BiventricularModel():
             ValueError('Missing mBder_y.file')
         self.mBder_dy = (
             pd.read_table(mBder_y_file, delim_whitespace=True,
-                          header=None)).values.astype(float)
+                          header=None, engine = 'c')).values.astype(float)
         '''`numSurfaceNodes`x`numNodes` Matrix containing  weights used to 
         calculate gradients of the displacement field at Gauss point locations.
         '''
@@ -226,7 +302,7 @@ class BiventricularModel():
             ValueError('Missing mBder_z.file')
         self.mBder_dz = (
             pd.read_table(mBder_z_file, delim_whitespace=True,
-                          header=None)).values.astype(float)
+                          header=None, engine = 'c')).values.astype(float)
         '''`numSurfaceNodes`x`numNodes` Matrix containing  weights used to 
         calculate gradients of the displacement field at Gauss point locations.
         '''
@@ -236,7 +312,7 @@ class BiventricularModel():
             ValueError('Missing J11.txt file')
 
         self.Jac11 = (pd.read_table(jac11_file, delim_whitespace=True,
-                                    header=None)).values.astype(float)
+                                    header=None, engine = 'c')).values.astype(float)
         '''11968 x `numNodes` matrix containing weights used to calculate 
         Jacobians  along Xi1 at Gauss point location.
         Each matrix element is a linear combination of the 388 control points.
@@ -248,7 +324,7 @@ class BiventricularModel():
             ValueError('Missing J12.txt file')
 
         self.Jac12 = (pd.read_table(jac12_file, delim_whitespace=True,
-                                    header=None)).values.astype(float)
+                                    header=None, engine = 'c')).values.astype(float)
         '''11968 x `numNodes` matrix containing weights used to calculate 
         Jacobians  along Xi2 at Gauss point location.
         Each matrix element is a linear combination of the 388 control points.
@@ -258,7 +334,7 @@ class BiventricularModel():
             ValueError('Missing J13.txt file')
 
         self.Jac13 = (pd.read_table(jac13_file, delim_whitespace=True,
-                                    header=None)).values.astype(float)
+                                    header=None, engine = 'c')).values.astype(float)
         '''11968 x `numNodes` matrix containing weights used to calculate 
         Jacobians along Xi3 direction at Gauss point location.
         Each matrix element is a linear combination of the 388 control points.
@@ -267,9 +343,8 @@ class BiventricularModel():
         basic_matrix_file = os.path.join(control_mesh_dir,'basis_matrix.txt')
         if not os.path.exists(basic_matrix_file):
             ValueError('Missing basis_matrix.txt file')
-        self.basis_matrix = (
-            pd.read_table(basic_matrix_file,
-                          delim_whitespace=True,header=None)).values.astype(
+        self.basis_matrix = (pd.read_table(basic_matrix_file,
+                          delim_whitespace=True,header=None, engine = 'c')).values.astype(
             float)  #
         '''`numSurfaceNodes`x`numNodes` array[float]  basis  functions used 
         to evaluate surface at surface point locations
@@ -283,7 +358,7 @@ class BiventricularModel():
         if not os.path.exists(et_vertex_xi_file):
             ValueError('Missing etVertexXi.txt file')
         self.et_vertex_xi = (pd.read_table(
-            et_vertex_xi_file, delim_whitespace=True, header=None)).values
+            et_vertex_xi_file, delim_whitespace=True, header=None, engine = 'c')).values
         ''' `numSurfaceNodes`x3 array[float] of local xi position (xi1,xi2,
         xi3)
                                         for each vertex.
@@ -293,7 +368,7 @@ class BiventricularModel():
         if not os.path.exists(b_spline_file):
             ValueError('Missing control_points_patches.txt file')
         self.b_spline = (pd.read_table(
-            b_spline_file, delim_whitespace=True, header=None)).values.astype(int)-1
+            b_spline_file, delim_whitespace=True, header=None, engine = 'c')).values.astype(int)-1
         ''' numSurfaceNodesX32 array[int] of 32 control points which need to be 
          weighted (for each vertex)
         '''
@@ -301,7 +376,7 @@ class BiventricularModel():
         if not os.path.exists(boundary_file):
             ValueError('Missing boundary.txt file')
         self.boundary = (pd.read_table(
-            boundary_file, delim_whitespace=True, header=None)).values.astype(int)
+            boundary_file, delim_whitespace=True, header=None, engine = 'c')).values.astype(int)
         ''' boundary'''
 
         control_ef_file = os.path.join(control_mesh_dir,
@@ -309,15 +384,14 @@ class BiventricularModel():
         if not os.path.exists(control_ef_file):
             ValueError('Missing control_mesh_connectivity.txt file')
         self.control_et_indices = (pd.read_table(
-            control_ef_file, delim_whitespace=True, header=None)
-                                  ).values.astype(int)-1
+            control_ef_file, delim_whitespace=True, header=None, engine = 'c')).values.astype(int)-1
         ''' (K,8) matrix of control mesh connectivity'''
 
         phantom_points_file = os.path.join(control_mesh_dir, "phantom_points.txt")
         if not os.path.exists(phantom_points_file):
             ValueError('Missing phantom_points.txt file')
         self.phantom_points = (pd.read_table(
-            phantom_points_file, delim_whitespace=True, header=None)).values.astype(float)
+            phantom_points_file, delim_whitespace=True, header=None, engine = 'c')).values.astype(float)
         ''' Some surface nodes are not needed for the 
         definition of the biventricular 2D surface therefore they are 
         not include in the surface node matrix. However they are 
@@ -332,7 +406,7 @@ class BiventricularModel():
         if not os.path.exists(patch_coordinates_file):
             ValueError('Missing patch_coordinates.txt file')
         self.patch_coordinates = (pd.read_table(
-            patch_coordinates_file, delim_whitespace=True, header=None)).values
+            patch_coordinates_file, delim_whitespace=True, header=None, engine = 'c')).values
         '''local patch coordinates. 
          
         According to CC subdivision surface, to evaluate a point on a surface 
@@ -349,12 +423,12 @@ class BiventricularModel():
         
         Atlas-based Analysis of Biventricular Heart 
         Shape and Motion in Congenital Heart Disease. C. Mauger (p34-37)
-         '''
+        '''
         fraction_file = os.path.join(control_mesh_dir, "fraction.txt")
         if not os.path.exists(fraction_file):
             ValueError('Missing fraction.txt file')
         self.fraction = (pd.read_table(
-            fraction_file, delim_whitespace=True, header=None)).values
+            fraction_file, delim_whitespace=True, header=None, engine = 'c')).values
         '''`numSurfaceNodes`x1 vector[int] subdivision level of the 
          patch (level 0 = 1,level 1 = 0.5,level 2 = 0.25). See 
          `patch_coordinates for details`
@@ -366,7 +440,7 @@ class BiventricularModel():
         if not os.path.exists(local_matrix_file):
             ValueError('Missing local_matrix.txt file')
         self.local_matrix = (pd.read_table(
-            local_matrix_file, delim_whitespace=True, header=None)).values
+            local_matrix_file, delim_whitespace=True, header=None, engine = 'c')).values
 
     def get_nodes(self):
         '''
@@ -471,6 +545,7 @@ class BiventricularModel():
         if surface_name == Surface.PULMONARY_VALVE:
             return self.surface_start_end[7, :]
 
+
     def is_diffeomorphic(self, new_control_mesh, min_jacobian):
         """ This function checks the Jacobian value at Gauss point location
         (I am using 3x3x3 per element).
@@ -498,6 +573,7 @@ class BiventricularModel():
 
         boolean = 1
         for i in range(len(self.Jac11)):
+
             jacobi = np.array(
                 [[np.inner(self.Jac11[i, :], new_control_mesh[:, 0]),
                   np.inner(self.Jac12[i, :], new_control_mesh[:, 0]),
@@ -508,8 +584,9 @@ class BiventricularModel():
                  [np.inner(self.Jac11[i, :], new_control_mesh[:, 2]),
                   np.inner(self.Jac12[i, :], new_control_mesh[:, 2]),
                   np.inner(self.Jac13[i, :], new_control_mesh[:, 2])]])
-            determinant = np.linalg.det(jacobi)
 
+
+            determinant = np.linalg.det(jacobi)
             if determinant < min_jacobian:
                 boolean = 0
                 return boolean
@@ -826,6 +903,7 @@ class BiventricularModel():
                           surface_index[0]:surface_index[1]+1,1])
         K_LV = np.asarray(self.et_indices[
                           surface_index[0]:surface_index[1] + 1,2])
+        
         simplices_lv = np.vstack(
             (self.et_indices[surface_index[0]:surface_index[1] + 1, 0],
              self.et_indices[surface_index[0]:surface_index[1] + 1, 1],
@@ -1122,6 +1200,341 @@ class BiventricularModel():
 
             return [triangles_epi, lines]
 
+    def PlotSurface(self, face_color_LV, face_color_RV, face_color_epi, my_name,
+                    surface="all", opacity=0.8):
+        """ Plot 3D model.
+            Input:
+               face_color_LV, face_color_RV, face_color_epi: LV_ENDOCARDIAL, RV and epi colors
+               my_name: surface name
+               surface (optional): all = entire surface,
+               endo = endocardium, epi = epicardium  (default = "all")
+            Output:
+               triangles_epi, triangles_LV, triangles_RV: triangles that
+               need to be plotted for the epicardium, LV_ENDOCARDIAL and Rv respectively
+               lines: lines that need to be plotted
+        """
+
+        x = np.array(self.et_pos[:, 0]).T
+        y = np.array(self.et_pos[:, 1]).T
+        z = np.array(self.et_pos[:, 2]).T
+
+        # LV_ENDOCARDIAL endo
+        surface_index = self.get_surface_start_end_index(Surface.LV_ENDOCARDIAL)
+        I_LV = np.asarray(self.et_indices[
+                          surface_index[0]:surface_index[1]+1, 0])
+        J_LV = np.asarray(self.et_indices[
+                          surface_index[0]:surface_index[1]+1,1])
+        K_LV = np.asarray(self.et_indices[
+                          surface_index[0]:surface_index[1] + 1,2])
+        simplices_lv = np.vstack(
+            (self.et_indices[surface_index[0]:surface_index[1] + 1, 0],
+             self.et_indices[surface_index[0]:surface_index[1] + 1, 1],
+             self.et_indices[surface_index[0]:surface_index[1] + 1, 2])).T
+
+        # RV free wall
+        surface_index = self.get_surface_start_end_index(Surface.RV_FREEWALL)
+        I_FW = np.asarray(self.et_indices[
+                          surface_index[0]:surface_index[1]+1,
+                          0] )
+        J_FW = np.asarray(self.et_indices[
+                          surface_index[0]:surface_index[1]+1,
+                          1] )
+        K_FW = np.asarray(self.et_indices[
+                          surface_index[0]:surface_index[1]+1,
+                          2] )
+        simplices_fw = np.vstack(
+            (self.et_indices[surface_index[0]:surface_index[1] + 1, 0],
+             self.et_indices[surface_index[0]:surface_index[1] + 1, 1],
+             self.et_indices[surface_index[0]:surface_index[1] + 1, 2])).T
+
+        # RV septum
+        surface_index = self.get_surface_start_end_index(Surface.RV_SEPTUM)
+        I_S = np.asarray(self.et_indices[
+                         surface_index[0]:surface_index[1]+1,
+                         0] )
+        J_S = np.asarray(self.et_indices[
+                         surface_index[0]:surface_index[1]+1,
+                         1] )
+        K_S = np.asarray(self.et_indices[
+                         surface_index[0]:surface_index[1]+1,
+                         2] )
+        simplices_s = np.vstack(
+            (self.et_indices[surface_index[0]:surface_index[1] + 1, 0],
+             self.et_indices[surface_index[0]:surface_index[1] + 1, 1],
+             self.et_indices[surface_index[0]:surface_index[1] + 1, 2])).T
+
+        # Epicardium
+        surface_index = self.get_surface_start_end_index(Surface.EPICARDIAL)
+        I_epi = np.asarray(self.et_indices[
+                           surface_index[0]:surface_index[1]+1, 0] )
+        J_epi = np.asarray(self.et_indices[
+                           surface_index[0]:surface_index[1]+1, 1] )
+        K_epi = np.asarray(self.et_indices[
+                           surface_index[0]:surface_index[1]+1, 2] )
+        simplices_epi = np.vstack(
+            (self.et_indices[surface_index[0]:surface_index[1] + 1, 0],
+             self.et_indices[surface_index[0]:surface_index[1] + 1, 1],
+             self.et_indices[surface_index[0]:surface_index[1] + 1, 2])).T
+
+        if surface == "all":
+            points3D = np.vstack(
+                (self.et_pos[:, 0], self.et_pos[:, 1], self.et_pos[:, 2])).T
+
+            tri_vertices_epi = list(map(lambda index: points3D[index], simplices_epi))
+            tri_vertices_fw = list(
+                map(lambda index: points3D[index], simplices_fw))
+            tri_vertices_s = list(
+                map(lambda index: points3D[index], simplices_s))
+            tri_vertices_lv= list(
+                map(lambda index: points3D[index], simplices_lv))
+
+            triangles_LV = go.Mesh3d(
+                x=x,
+                y=y,
+                z=z,
+                color=face_color_LV,
+                i=I_LV,
+                j=J_LV,
+                k=K_LV,
+                opacity=1,
+                name = 'LV edocardial',
+                showlegend = True,
+            )
+
+            triangles_FW = go.Mesh3d(
+                x=x,
+                y=y,
+                z=z,
+                color=face_color_RV,
+                name='RV free wall',
+                showlegend=True,
+                i=I_FW,
+                j=J_FW,
+                k=K_FW,
+                opacity=1
+            )
+
+            triangles_S = go.Mesh3d(
+                x=x,
+                y=y,
+                z=z,
+                color=face_color_RV,
+                name='RV septum',
+                showlegend=True,
+                i=I_S,
+                j=J_S,
+                k=K_S,
+                opacity=1
+            )
+
+            triangles_epi = go.Mesh3d(
+                x=x,
+                y=y,
+                z=z,
+                color=face_color_epi,
+                i=I_epi,
+                j=J_epi,
+                k=K_epi,
+                opacity=0.4,
+                name = 'epicardial',
+                showlegend=True,
+            )
+
+            lists_coord = [
+                [[T[k % 3][c] for k in range(4)] + [None] for T in tri_vertices_epi]
+                for c in range(3)]
+            Xe, Ye, Ze = [functools.reduce(lambda x, y: x + y, lists_coord[k])
+                          for k in range(3)]
+
+            # define the lines to be plotted
+            lines_epi = go.Scatter3d(
+                x=Xe,
+                y=Ye,
+                z=Ze,
+                mode='lines',
+                line=go.scatter3d.Line(color='rgb(0,0,0)', width=1.5),
+                showlegend=True,
+
+                name = 'wireframe epicardial'
+            )
+
+            lists_coord = [
+                [[T[k % 3][c] for k in range(4)] + [None] for T in tri_vertices_fw]
+                for c in range(3)]
+            Xe, Ye, Ze = [functools.reduce(lambda x, y: x + y, lists_coord[k])
+                          for k in range(3)]
+
+            # define the lines to be plotted
+            lines_fw = go.Scatter3d(
+                x=Xe,
+                y=Ye,
+                z=Ze,
+                mode='lines',
+                line=go.scatter3d.Line(color='rgb(0,0,0)', width=1.5),
+                showlegend=True,
+
+                name = 'wireframe rv free wall'
+            )
+
+            lists_coord = [
+                [[T[k % 3][c] for k in range(4)] + [None] for T in tri_vertices_s]
+                for c in range(3)]
+            Xe, Ye, Ze = [functools.reduce(lambda x, y: x + y, lists_coord[k])
+                          for k in range(3)]
+
+            # define the lines to be plotted
+            lines_s = go.Scatter3d(
+                x=Xe,
+                y=Ye,
+                z=Ze,
+                mode='lines',
+                line=go.scatter3d.Line(color='rgb(0,0,0)', width=1.5),
+                showlegend=True,
+
+                name = 'wireframe rv septum'
+            )
+
+            lists_coord = [
+                [[T[k % 3][c] for k in range(4)] + [None] for T in tri_vertices_lv]
+                for c in range(3)]
+            Xe, Ye, Ze = [functools.reduce(lambda x, y: x + y, lists_coord[k])
+                          for k in range(3)]
+
+            # define the lines to be plotted
+            lines_lv = go.Scatter3d(
+                x=Xe,
+                y=Ye,
+                z=Ze,
+                mode='lines',
+                line=go.scatter3d.Line(color='rgb(0,0,0)', width=1.5),
+                showlegend=True,
+
+                name = 'wireframe lv edocardial'
+            )
+
+            return [triangles_epi, triangles_LV, triangles_FW,triangles_S,
+                    lines_epi, lines_lv,lines_fw,lines_s]
+
+        if surface == "endo":
+            points3D = np.vstack(
+                (self.et_pos[:, 0], self.et_pos[:, 1], self.et_pos[:, 2])).T
+            simplices = np.vstack((self.et_indices[
+                                   self.surface_start_end[0, 0]:
+                                   self.surface_start_end[2, 1]+1, 0] ,
+                                   self.et_indices[
+                                   self.surface_start_end[0, 0]:
+                                   self.surface_start_end[2, 1]+1,1] ,
+                                   self.et_indices[
+                                   self.surface_start_end[0, 0]:
+                                   self.surface_start_end[2,1]+1,2] )).T
+
+            tri_vertices = list(map(lambda index: points3D[index], simplices))
+
+            triangles_LV = go.Mesh3d(
+                x=x,
+                y=y,
+                z=z,
+                color=face_color_LV,
+                i=I_LV,
+                j=J_LV,
+                k=K_LV,
+                opacity=opacity,
+                name = 'LV edocardial',
+                showlegend=True,
+            )
+
+            triangles_FW = go.Mesh3d(
+                x=x,
+                y=y,
+                z=z,
+                color=face_color_RV,
+                name='RV freewall',
+                showlegend=True,
+                i=I_FW,
+                j=J_FW,
+                k=K_FW,
+                opacity=opacity)
+
+            triangles_S = go.Mesh3d(
+                x=x,
+                y=y,
+                z=z,
+                color=face_color_RV,
+                name='RV septum',
+                showlegend=True,
+                i=I_S,
+                j=J_S,
+                k=K_S,
+                opacity=opacity)
+            # define the lists Xe, Ye, Ze, of x, y, resp z coordinates of edge end points for each triangle
+            lists_coord = [
+                [[T[k % 3][c] for k in range(4)] for T in tri_vertices] for c in
+                range(3)]
+            Xe, Ye, Ze = [functools.reduce(lambda x, y: x + y, lists_coord[k])
+                          for k in range(3)]
+
+            # define the lines to be plotted
+            lines = go.Scatter3d(
+                x=Xe,
+                y=Ye,
+                z=Ze,
+                mode='lines',
+                line=go.scatter3d.Line(color='rgb(0,0,0)', width=1.5),
+                showlegend=True,
+                name = 'wireframe'
+            )
+
+            return [triangles_LV, triangles_FW, lines]
+
+        if surface == "epi":
+            surface_index = self.get_surface_start_end_index(Surface.EPICARDIAL)
+            points3D = np.vstack(
+                (self.et_pos[:, 0], self.et_pos[:, 1], self.et_pos[:, 2])).T
+            simplices = np.vstack((self.et_indices[surface_index[ 0]:
+                                                   surface_index[1]+1,0] ,
+                                   self.et_indices[
+                                   surface_index[ 0]:
+                                   surface_index[ 1]+1,1] ,
+                                   self.et_indices[surface_index[ 0]:
+                                                   surface_index[ 1]+1,2] )).T
+
+            tri_vertices = list(map(lambda index: points3D[index], simplices))
+
+            triangles_epi = go.Mesh3d(
+                x=x,
+                y=y,
+                z=z,
+                color=face_color_epi,
+                i=I_epi,
+                j=J_epi,
+                k=K_epi,
+                opacity=0.8,
+                name = 'epicardial',
+                showlegend=True
+            )
+
+            # define the lists Xe, Ye, Ze, of x, y, resp z coordinates of edge end points for each triangle
+            lists_coord = [
+                [[T[k % 3][c] for k in range(4)] for T in tri_vertices] for c in
+                range(3)]
+            Xe, Ye, Ze = [functools.reduce(lambda x, y: x + y, lists_coord[k])
+                          for k in range(3)]
+
+            # define the lines to be plotted
+            lines = go.Scatter3d(
+                x=Xe,
+                y=Ye,
+                z=Ze,
+                mode='lines',
+                line=go.scatter3d.Line(color='rgb(0,0,0)', width=1.5),
+                name = 'wireframe',
+                showlegend=True
+            )
+
+            return [triangles_epi, lines]
+
+
+
     def get_intersection_with_plane(self, P0, N0, surface_to_use = None):
         ''' Calculate intersection points between a plane with the
         biventricular model (LV_ENDOCARDIAL only)
@@ -1276,6 +1689,7 @@ class BiventricularModel():
         surface_index = self.get_surface_start_end_index(surface)
         return self.et_indices[ surface_index[0]:surface_index[1] + 1, :]
 
+
     def compute_data_xi(self, weight, data):
         """Projects the N guide points to the closest point of the model
         surface.
@@ -1310,12 +1724,13 @@ class BiventricularModel():
         data_points = np.array(data.points_coordinates)
         data_contour_type = np.array(data.contour_type)
         data_weights = np.array(data.weights)
-
         psi_matrix = []
         w = []
         distance_d_prior = []
         index = []
         data_points_index = []
+        indexL = []
+        index_unique = [] #add by LDT 3/11/2021
 
         basis_matrix = self.basis_matrix
 
@@ -1323,7 +1738,6 @@ class BiventricularModel():
 
         for surface in Surface:
             # Trees initialization
-
             surface_index = self.get_surface_vertex_start_end_index(
                 surface)
             tree_points = self.et_pos[
@@ -1338,27 +1752,50 @@ class BiventricularModel():
             for contour in SURFACE_CONTOUR_MAP[surface.value]:
                 contour_points_index = np.where(data_contour_type == contour)[0]
                 contour_points = data_points[contour_points_index]
+                
+                #if np.isnan(np.sum(contour_points))==True:
+                    #LDT 7/03: handle error, why do I get nan in contours? 
+                    #continue
+
                 weights_gp = data_weights[contour_points_index]
+
                 if len(contour_points) == 0:
                     continue
-
+                
                 if surface.value < 4:  # these are the surfaces
-                    distance, vertex_index = surface_tree.query(
-                        contour_points, k=1, p=2)
+                    
+                    distance, vertex_index = surface_tree.query(contour_points, k=1, p=2)
                     index_closest = [x + surface_index[0] for x in vertex_index]
+                    #add by LDT (3/11/2021): perform preliminary operations for vertex points that are not in index
+                    # instead of doing them in the 'else' below. This makes the for loop below faster.
+                    unique_index_closest = list(OrderedDict.fromkeys(index_closest))    #creates a list of elements that are unique in index_closest
+                    dict_unique = dict(zip(unique_index_closest, range(0,len(unique_index_closest))))   #create a dictionary = {'unique element': its list index}
+                    vrtx = list(dict_unique.keys())                     # list of all the dictionary keys 
+                    common_elm = list(set(index_unique) & set(vrtx))    # intersection between the array index_unique and the unique points in index_closest
+                  
+                    def filter_new(full_list, excludes):
+                        '''
+                        eliminates the items in 'exclude' out of the full_list
+                        '''
+                        s = set(excludes)
+                        return (x for x in full_list if x not in s)
+
+                    # togli gli elementi comuni 
+                    index_unique.append(list(filter_new(vrtx, common_elm))) # stores the new vertices that are NOT in already in the index_unique list
+                    index_unique = flatten(index_unique)
+
+                    items_as_dict = dict(zip(index_unique,range(0,len(index_unique)))) # builds a dictionary = {vertices: indexes}
 
                     for i_idx, vertex_index in enumerate(index_closest):
-                        if vertex_index not in index:
+                        if len(set([vertex_index]).intersection(index))==0: #changed by LDT (3/11/2021): faster
                             index.append(int(vertex_index))
-                            data_points_index.append(
-                                contour_points_index[i_idx])
-                            psi_matrix.append(
-                                basis_matrix[int(vertex_index), :])
+                            data_points_index.append(contour_points_index[i_idx])
+                            psi_matrix.append(basis_matrix[int(vertex_index), :])
                             w.append(weight * weights_gp[i_idx])
                             distance_d_prior.append(distance[i_idx])
 
                         else:
-                            old_idx = index.index(vertex_index)
+                            old_idx = items_as_dict[vertex_index] #changed by LDT (3/11/2021)
                             distance_old = distance_d_prior[old_idx]
                             if distance[i_idx] < distance_old:
                                 distance_d_prior[old_idx] = distance[i_idx]
@@ -1366,8 +1803,9 @@ class BiventricularModel():
                                     contour_points_index[i_idx]
                                 w[old_idx] = weight * weights_gp[i_idx]
 
-
+                
                 else:
+                  
                     # If it is a valve, we virtually translate the data points
                     # (only the ones belonging to the same surface) so their centroid
                     # matches the template's valve centroid.
@@ -1378,33 +1816,36 @@ class BiventricularModel():
                     # This is to make sure that the data points are going to be
                     # projected all around the valve and not only on one side.
                     if surface.value < 8:  # these are the landmarks without apex
-
+                      
                         # and rv inserts
                         centroid_valve = self.et_pos[surface_index[1]]
                         centroid_GP_valve = contour_points.mean(axis=0)
                         translation_GP_model = centroid_valve - centroid_GP_valve
                         translated_points = np.add(contour_points,
                                                    translation_GP_model)
+            
+
                     else:  # rv_inserts  and apex don't
                         # need to be translated
                         translated_points = contour_points
+
                     if contour in [ContourType.MITRAL_PHANTOM,
                                    ContourType.PULMONARY_PHANTOM,
                                    ContourType.AORTA_PHANTOM,
                                    ContourType.TRICUSPID_PHANTOM]:
+                                     
                         surface_tree = scipy.spatial.cKDTree(translated_points)
                         tree_points = tree_points[:-1]
-                        distance, vertex_index = surface_tree.query(tree_points
-                                                                    , k=1, p=2)
+                        distance, vertex_index = surface_tree.query(tree_points, k=1, p=2)
                         index_closest = [x + surface_index[0] for x in
-                                         range(len(
-                                             tree_points))]
+                                         range(len(tree_points))]
                         weights_gp = [weights_gp[x] for x in vertex_index]
 
                         contour_points_index = [contour_points_index[x] for x
                                                 in vertex_index]
 
                     else:
+                       
                         distance, vertex_index = surface_tree.query(
                             translated_points, k=1, p=2)
                         index_closest = []
@@ -1413,14 +1854,13 @@ class BiventricularModel():
                                 index_closest.append(x + surface_index[0])
                             else:
                                 index_closest.append(x + surface_index[0] - 1)
+                    
 
-                    #
                     index = index + index_closest
                     psi_matrix = psi_matrix + list(basis_matrix[
                                                    index_closest, :])
 
                     w = w + [(weight * x) for x in weights_gp]
-
                     distance_d_prior = distance_d_prior + list(distance)
                     data_points_index = data_points_index + list(
                         contour_points_index)
