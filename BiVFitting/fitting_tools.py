@@ -4,6 +4,7 @@ from scipy import optimize
 from scipy.spatial import cKDTree
 from scipy.spatial import Delaunay
 from plotly import graph_objects as go
+from operator import mul
 
 # Auxiliary functions
 def fit_circle_2d(x, y, w=[]):
@@ -155,6 +156,7 @@ def Plot3DPoint(points, color_markers, size_markers,nameplot = " "):
             )
     return [trace]
 
+#@profile
 def LineIntersection(ImagePositionPatient,ImageOrientationPatient,P0,P1):
     """ Find the intersection between line P0-P1 with the MRI image.
         Input:  
@@ -168,6 +170,7 @@ def LineIntersection(ImagePositionPatient,ImageOrientationPatient,P0,P1):
         Adpted from Avan Suinesiaputra
     """
 
+    '''
     R = np.identity(4)
 
     R[0,0:3] = ImageOrientationPatient[0:3]
@@ -190,6 +193,30 @@ def LineIntersection(ImagePositionPatient,ImageOrientationPatient,P0,P1):
     P = P0 + s * u
 
     return P
+    '''
+    #LDT (3/11/21): this is faster
+    def cross(a, b):
+        c = [a[1]*b[2] - a[2]*b[1],
+        a[2]*b[0] - a[0]*b[2],
+        a[0]*b[1] - a[1]*b[0]]
+
+        return c
+    
+    normal = cross(ImageOrientationPatient[0:3],ImageOrientationPatient[3:6])
+    u = P1-P0
+    nu = np.dot(normal, u)
+    #nu = sum(map(mul, normal, u))
+    
+    if nu == 0.0: # orthogonal vectors u belongs to the plane
+        return P0
+    
+    s = (np.dot(np.array(normal).T , (ImagePositionPatient - P0))) / nu
+    #s = sum(map(mul, np.array(normal).T, (ImagePositionPatient - P0)))/ nu
+
+    P = P0 + s * u
+
+    return P
+
 
 
 def generate_2Delipse_by_vectors(t, center, radii, rotation =None):
@@ -234,12 +261,13 @@ def apply_affine_to_points(affine_matrix, points_array):
 
 
 
-def register_group_points_translation_only(source_points, target_points,
+
+def register_group_points_translation_only(source_points, target_points, slice_number,
                                            weights = None,
                                            exclude_outliers = False,
                                            norm = 1):
     """ compute the optimal translation between two sets of grouped points
-    echa group for the source points will be projected into the corresponding
+    each group for the source points will be projected into the corresponding
     group from target points
     input:
         source_points = array of nx2 arrays with points coordinates, moving
@@ -248,36 +276,50 @@ def register_group_points_translation_only(source_points, target_points,
                         fixed points
     output: 2D translation vector
     """
-
-
+    # this checks that the number of countours used is the same 
     if len(source_points) != len(target_points):
         return np.array([0,0])
 
     def obj_function(x):
         f = 0
         nb = 0
+
         if norm not in [1,2]:
-            ValueError('Register groupp points: only norm 1 and 2 are '
+            ValueError('Register group points: only norm 1 and 2 are '
                        'implemented')
             return
+
         for index,target in enumerate(target_points):
-            tree = cKDTree(target)
+
+            # LDT: generate nearest neighbours tree
+            tree = cKDTree(target) # provides an index into a set of k-dimensional points which can be used to rapidly look up the nearest neighbors of any point.
             new_points = source_points[index]+np.array(x)
-            d, indx = tree.query(new_points, k=1, p=2)
+            #Query the kd-tree for the nearest neighbor, using euclidean distance.
+            d, indx = tree.query(new_points, k=1, p=2) 
+            # output d is an array of distances to the nearest neighbor
+            #print('d ', d, ' idx', indx)
             if exclude_outliers:
                 d[d>10] = 0
-            nb = nb + len(d)
+            
+            nb = nb + len(d) 
+            
+
+            #print('nb', nb)
             if weights is None:
                 f  = f+ sum(np.power(d,norm))
             else:
                 f = f + weights[index]*sum(np.power(d,norm))
-        return np.sqrt(f/nb)
 
-    t = optimize.fmin(func=obj_function, x0=[0, 0],
-                    disp=False)
+        return np.sqrt(f/nb)    
+    
+    t = optimize.fmin(func=obj_function, x0=[0, 0], disp=False)
+    
+    #print('\nshift', t)
+    #t = optimize.fmin_slsqp(func=obj_function, x0=[0, 0], disp=False) 
+
     return t
 
-
+#@profile
 def sort_consecutive_points(C):
     " add by A.Mira on 01/2020"
     if isinstance(C, list):
@@ -285,19 +327,24 @@ def sort_consecutive_points(C):
     Cx = C[0, :]
     lastP = Cx
     C_index = [0]
-    index_list = np.array(range(1,C.shape[0]))
+    #index_list = np.array(range(1,C.shape[0]))
+    index_list = range(1,C.shape[0]) #LDT 10/11
+
     Cr = np.delete(C, 0, 0)
     # iterate through points until all points are taken away
     while Cr.shape[0] > 0:
         # find the closest point from the last point at Cx
         i = (np.square(lastP - Cr)).sum(1).argmin()
-        # remove that closest point from Cr and add to Cx
-        lastP = Cr[i, :]
+        lastP = Cr[i]
         Cx = np.vstack([Cx, lastP])
         C_index.append(index_list[i])
         Cr = np.delete(Cr, i, 0)
         index_list = np.delete(index_list,i)
+    
     return C_index,Cx
+
+
+
 
 def compute_area_weighted_centroid(points):
 
@@ -326,4 +373,3 @@ def compute_area_weighted_centroid(points):
     C = C / np.sum(W)
 
     return C
-
