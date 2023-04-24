@@ -11,7 +11,7 @@ from .surface_enum import ContourType
 from .surface_enum import SURFACE_CONTOUR_MAP
 from .fitting_tools import *
 from  .build_model_tools import *
-from line_profiler import LineProfiler
+# from line_profiler import LineProfiler # commenting this line as this package needs to be installed from external website not conda (it's for code optimisation)
 from collections import OrderedDict
 from nltk import flatten
 
