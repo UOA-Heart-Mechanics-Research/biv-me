@@ -9,15 +9,12 @@ import numpy as np
 import pandas as pd
 import time
 import csv
-import sys 
-sys.path.append('./mesh_tools/')
 
-from mesh_tools import Mesh
-from mesh_tools import *
-
-import visualization as viewer
 from scipy.spatial import cKDTree
 from scipy.spatial.distance import cdist
+
+from bivme.meshing import *
+import bivme.meshing.visualization as viewer
 
 
 def GC_strain( folder,output_file):

@@ -7,17 +7,14 @@
 import os
 import numpy as np
 import pandas as pd
-import sys 
-sys.path.append('../Preprocessing/mesh_tools/')
-from geometric_tools import *
-from mesh import *
-import visualization as viewer
-#import mesh_tools.visualization as viewer
 import time
-
-from mayavi import mlab
 import csv
 import pylab as pl
+from mayavi import mlab
+
+from bivme.meshing.geometric_tools import *
+from bivme.meshing.mesh import *
+import bivme.meshing.visualization as viewer
 
 
 def GL_strain( folder,output_file):

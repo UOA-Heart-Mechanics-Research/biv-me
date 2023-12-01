@@ -9,9 +9,8 @@ import os
 import numpy as np
 import csv
 import sys 
-sys.path.append('./mesh_tools/')
-sys.path.append('../BiV_Modelling_v2/')
-from mesh_tools import *
+
+from bivme.meshing import *
 
 
 def find_volume( folder,output_file):
