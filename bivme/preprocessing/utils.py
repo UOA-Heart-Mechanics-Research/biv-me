@@ -1,21 +1,12 @@
-# Author: Laura Dal Toso 
-# Date: 20 OCT 2022
-# Based on work by: Anna Mira, Richard Burns
-
-# -----------------------------------------------------------------------------------------------------
-# This script contains functions that are useful for the pre-processing of SliceInfo files and GPFiles
-# -----------------------------------------------------------------------------------------------------
-
-
-import Contours as cont
-from CVI42XML import *
-import pandas as pd
-import itertools
 import csv
 import sys
-sys.path.append( '../BiV_Modelling_v2' ) # path to where the BiVFitting folder is located
-from BiVFitting import *
+import pandas as pd
+import itertools
 import more_itertools as mit
+
+from bivme.fitting import *
+from bivme.preprocessing import Contours as cont
+from bivme.preprocessing.cvi42.CVI42XML import *
 
 
 fieldnames = ['patient', 'frames', 'MITRAL_VALVE', 'TRICUSPID_VALVE', 'AORTA_VALVE', 'APEX_POINT']

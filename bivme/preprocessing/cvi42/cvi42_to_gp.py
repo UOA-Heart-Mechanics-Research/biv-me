@@ -1,32 +1,21 @@
-
-#Author: Laura Dal Toso 
-#Date: 31 May 2022
-#Based on work by: Richard Burns
-#------------------------------------------------------------
-#Use this script to extract guide points from .cvi42 files and to generate the SliceInfoFile
-#
-#Before running: 
-# - check relative paths
-
-#------------------------------------------------------------
-
-from CVI42XML import *
-from Contours import *
 import os
 import sys
-sys.path.append('C:/Users/ldt18/Desktop/Dev_HPC/BiV_Modelling_v2') 
-from BiVFitting import * # only needed to visualize contours
+from pathlib import Path
 
-case = 'venus1'
-output_path = 'C:/Users/ldt18/Desktop/empty1/'+case
+from bivme.preprocessing.cvi42.CVI42XML import *
+from bivme.preprocessing.Contours import *
+
+
+case = 'RV01'
+output_path = Path(r'R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\images\analysis\gpfiles-raw', f'{case}').as_posix()
 dicom_extension = '.dcm' #.dcm
 plot_contours = False
 
 # path to dicom_metadata file obtained using extract_dicom_metadata.py
-dcm_path = 'C:/Users/ldt18/Desktop/empty1/'+case+'/dicoms'#'/dicom_metadata.txt' 
+dcm_path = Path(r'R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\images\chicago-cmr', f'{case}') #'/dicom_metadata.txt' 
 
 #path to cvi42 file 
-contour_file = 'C:/Users/ldt18/Desktop/empty1/'+case+'/Contours.cvi42wsx'
+contour_file = Path(r'R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\wsx', f'{case}.cvi42wsx').as_posix()
 
 # do not change these output name files
 out_contour_file_name = os.path.join(output_path,'GPFile.txt')

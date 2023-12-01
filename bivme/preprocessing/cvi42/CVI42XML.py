@@ -1,24 +1,20 @@
-import xml.etree.ElementTree as ET
-
-import pydicom as dcm
-import Contours
-
-import numpy as np
 import os
 import re
+import pydicom as dcm
+import numpy as np
 from copy import deepcopy
-import xml.etree.ElementTree as ET
-from parse_cvi42_xml import *
 from xml.dom import minidom
-import sys
-sys.path.append('C:/Users/ldt18/Desktop/Dev_HPC/BiV_Modelling_v2')  # path to where the BiVFitting folder is located
-from BiVFitting import Frame,Point
+import xml.etree.ElementTree as ET
+
+from bivme.preprocessing import Contours
+from bivme.preprocessing.cvi42.parse_cvi42_xml import traverseNode
+from bivme.fitting.Frame import Frame, Point
+
 
 contour_name_map = { 'larvendocardialContour': 'LAX_RV_ENDOCARDIAL',
     				'larvepicardialContour': 'LAX_RV_EPICARDIAL ',
    					 'laendocardialContour': 'LAX_LV_ENDOCARDIAL',
    					'laepicardialContour':  'LAX_LV_EPICARDIAL' ,
-
     				"sarvendocardialContour": 'SAX_RV_ENDOCARDIAL',
     				 "sarvepicardialContour": 'SAX_RV_EPICARDIAL',
     				"saendocardialContour":'SAX_LV_ENDOCARDIAL',
@@ -166,8 +162,6 @@ class CVI42XML():
 		# create an empty list
 		dicom_files, files_frames = self.search_dicom_files(dcm_path,
 													   dicom_extension)
-
-
 
 		for dcm_uid in dicom_files.keys():
 

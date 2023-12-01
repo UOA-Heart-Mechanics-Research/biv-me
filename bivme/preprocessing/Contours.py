@@ -1,12 +1,9 @@
-﻿#!/usr/bin/env python3
-
-import sys
-sys.path.append( '../BiV_Modelling_v2' ) # path to where the BiVFitting folder is located
-from BiVFitting import *
-
 import warnings
 import os
 import numpy as np
+from scipy.spatial import ckdtree
+
+from bivme.fitting import *
 
 
 class Contours():

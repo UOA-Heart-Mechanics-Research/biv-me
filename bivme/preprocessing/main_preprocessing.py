@@ -1,9 +1,11 @@
 
 import os 
 import numpy as np
-from functions import *
 import csv
 from pathlib import Path
+
+from bivme.preprocessing.utils import *
+
 
 def do_preprocessing(folder,initial_gpfile,initial_sliceinfo, **kwargs):
 
