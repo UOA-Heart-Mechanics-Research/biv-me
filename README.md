@@ -1,9 +1,9 @@
 
 Biventricular model fitting framework
 -----------------------------------------------
-Author: Laura Dal Toso 
+This is an import of the KCL BiV modelling code (originally called BiV_Modelling).
 
-Date: 4 Feb 2022
+Date: 01 December 2023
 
 -----------------------------------------------
 
@@ -58,4 +58,4 @@ To speed up the fitting, you may want to process different cases in parallel CPU
 
 Credits
 ------------------------------------
-Based on work by: Anna Mira, Liandong Lee, Richard Burns
+Based on work by: Laura Dal Toso, Anna Mira, Liandong Lee, Richard Burns, Charlene Mauger
