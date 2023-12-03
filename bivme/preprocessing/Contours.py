@@ -966,13 +966,13 @@ class Contours():
         points2D = np.array(p2) / subpixel_resolution
 
         S = np.eye(4)
-        S[0, 0] = PixelSpacing[0]
-        S[1, 1] = PixelSpacing[1]
+        S[0, 0] = PixelSpacing[1]
+        S[1, 1] = PixelSpacing[0]
         S = np.matrix(S)
 
         R = np.identity(4)
-        R[0:3, 0] = ImageOrientation[3:6]  # col direction, i.e. increases with row index i
-        R[0:3, 1] = ImageOrientation[0:3]  # row direction, i.e. increases with col index j
+        R[0:3, 0] = ImageOrientation[0:3]  # col direction, i.e. increases with row index i
+        R[0:3, 1] = ImageOrientation[3:7]  # row direction, i.e. increases with col index j
         R[0:3, 2] = np.cross(R[0:3, 0], R[0:3, 1])
 
         T = np.identity(4)
