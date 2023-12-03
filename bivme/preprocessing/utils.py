@@ -52,7 +52,7 @@ def ReformatFiles(folder, gpfile, sliceinfofile, **kwargs):
 
     all_frames = pd.read_csv(contour_file, sep = '\t') 
     time_frames = sorted(np.unique([i[6] for i in all_frames.values]))  # this is the range of time frame numbers in the GPFiles
-    '''
+    
     try:
         contours.find_timeframe_septum()
     except:
@@ -60,14 +60,13 @@ def ReformatFiles(folder, gpfile, sliceinfofile, **kwargs):
         print('Fail',err)
         #print('\033[1;33;41m  {0}\t{1}\t\t\t{2}'.format(case, 'Fail', err))
 
-
     try:
         contours.find_timeframe_septum_inserts(time_frame=time_frames)
     except:
         err = 'Computing inserts'
         print( 'Fail',err)
         #print('\033[1;33;41m  {0}\t{1}\t\t\t{2}'.format(case, 'Fail',err))
-    '''
+    
     try:
         contours.find_apex_landmark(time_frame=time_frames)
     except:
