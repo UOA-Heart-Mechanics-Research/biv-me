@@ -51,16 +51,16 @@ class Contours():
                                        usecols=(0, 1, 2))
             skip_header = (1 if np.isnan(first_line).any() else 0)
             data_set = np.genfromtxt(gp_file,skip_header=skip_header,
-                                       usecols=(0,1,2), dtype = np.float)
+                                       usecols=(0,1,2), dtype = float)
             contour_type = np.genfromtxt(gp_file,skip_header=skip_header,
-                                       usecols=(3),dtype = np.str)
+                                       usecols=(3),dtype = str)
 
             gp_frame_id = np.genfromtxt(gp_file,skip_header=skip_header,
-                                       usecols=(4), dtype=np.int)
+                                       usecols=(4), dtype=int)
             weight = np.genfromtxt(gp_file, skip_header=skip_header,
-                                        usecols=(5), dtype=np.float)
+                                        usecols=(5), dtype=float)
             file_time_frames = np.genfromtxt(gp_file,skip_header=skip_header,
-                                       usecols=(6), dtype=np.float)
+                                       usecols=(6), dtype=float)
         
         except ValueError:
             print("\033[2;37;45m Wrong file format: {0}\n".format(gp_file))
@@ -81,19 +81,17 @@ class Contours():
             file_time_frames = file_time_frames[valid_contour_index]
             gp_frame_id = gp_frame_id[valid_contour_index]
 
-
         #read metadata file
         used_frame_id, index = np.unique(gp_frame_id, return_index=True)
         corresponding_time = file_time_frames[index]
-        frames_uid = np.genfromtxt(metadata, usecols=(0), dtype=np.str)
-        frames_id = np.genfromtxt(metadata, usecols=(2), dtype=np.int)
+        frames_uid = np.genfromtxt(metadata, usecols=(0), dtype=str)
+        frames_id = np.genfromtxt(metadata, usecols=(2), dtype=int)
 
-        position = np.genfromtxt(metadata, usecols= (6,7,8), dtype = np.float)
+        position = np.genfromtxt(metadata, usecols= (6,7,8), dtype = float)
         orientation = np.genfromtxt(metadata,usecols = (10,11,12,13,14,15),
-                                    dtype = np.float)
+                                    dtype = float)
         pixel_spacing = np.genfromtxt(metadata,usecols = (17,18), dtype =
-        np.float)
-
+        float)
 
         for index, point in enumerate(data_set):
             new_point = Point()
