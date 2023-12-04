@@ -44,9 +44,11 @@ def ReformatFiles(folder, gpfile, sliceinfofile, **kwargs):
     # define path to input GPfile and SliceInfoFile
     contour_file = os.path.join(folder, gpfile) 
     metadata_file = os.path.join(folder, sliceinfofile)
-
     contours  = cont.Contours()
+    
+    print("Reading GPFile and SliceInfoFile... ", end='')
     contours.read_gp_files(contour_file,metadata_file)
+    print("Done")
 
     case =  os.path.basename(os.path.normpath(folder))
 
@@ -129,15 +131,10 @@ def ReformatFiles(folder, gpfile, sliceinfofile, **kwargs):
     cvi_cont.contour = contours
 
     new_gpfilename = 'GPFile_proc.txt'
-    new_sliceinfofilename = 'SliceInfo_proc.txt'
-
     output_gpfile = os.path.join(folder,new_gpfilename)
-    output_metafile = os.path.join(folder, new_sliceinfofilename)
-
     cvi_cont.export_contour_points(output_gpfile)
-    cvi_cont.export_dicom_metadata(output_metafile)
 
-    return new_gpfilename, new_sliceinfofilename
+    return new_gpfilename
 
 
 def Landmarks_Dict(data_set, out_file, case):
