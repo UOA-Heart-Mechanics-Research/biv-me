@@ -71,10 +71,18 @@ def ReformatFiles(folder, gpfile, sliceinfofile, **kwargs):
         contours.find_apex_landmark(time_frame=time_frames)
     except:
         err = 'Computing apex'
-        print('\033[1;33;41m  {0}\t{1}\t\t\t{2}'.format(case, 'Fail',err))
+        print( 'Fail',err)
+        #print('\033[1;33;41m  {0}\t{1}\t\t\t{2}'.format(case, 'Fail',err))
+        
+    try:
+        contours.find_pulmonary_valve_landmarks(timeframe=time_frames)
+    except:
+        err = 'Computing pulmonary valve'
+        print( 'Fail',err)
+        #print('\033[1;33;41m  {0}\t{1}\t\t\t{2}'.format(case, 'Fail',err))
 
     try:
-        #contours.find_timeframe_valve_landmarks()
+        # contours.find_timeframe_valve_landmarks()
         if 'LAX_LV_EXTENT' in contours.points.keys():
             for index,point in enumerate(contours.get_timeframe_points(
                                 'LAX_LV_EXTENT', time_frames)[1]):
