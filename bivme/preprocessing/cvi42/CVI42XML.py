@@ -421,7 +421,16 @@ class CVI42XML:
             if self.contour.frame[frame_uid].time_frame in time_frames:
                 for contour in self.contour.list_contour_types():
                     _, frame_points = self.contour.get_frame_points(contour, frame_uid)
-                    for c_point in frame_points:
+                    # remove duplicate points
+                    original_points = deepcopy(frame_points)
+                    index = 0
+                    while index < len(original_points):
+                        for point in original_points[index + 1 :]:
+                            if np.array_equal(original_points[index].coordinates, point.coordinates):
+                                original_points.remove(point)
+                        index = index + 1
+
+                    for c_point in original_points:
                         out.write(
                             "{0:.3f}\t{1:.3f}\t{2:.3f}\t".format(
                                 c_point.coordinates[0],
