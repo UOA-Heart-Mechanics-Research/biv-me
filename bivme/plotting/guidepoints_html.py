@@ -3,9 +3,9 @@ import numpy as np
 import time
 import pandas as pd
 import re
+from pathlib import Path
 from plotly.offline import plot
 import plotly.graph_objs as go
-import sys
 
 from bivme.fitting.GPDataSet import *
 
@@ -84,12 +84,20 @@ def generate_html(folder, gpsuffix='', frame=0):
 
 if __name__ == "__main__":
     
-    # folder containing GPFile.txt and SliceInfoFile.txt
-    case_folder = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\gpfiles-raw\RV01"
-    gpsuffix = ''
+    # directory containing guidepoint files
+    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\gpfiles-raw"
+    
+    # set list of cases to process
+    caselist = ["RV01", "RV02", "RV03", "RV04"]
+    casedirs = [Path(dir_gp, case).as_posix() for case in caselist]
+    
+    # set suffix of guidepoint files to plot
+    gpsuffix = '_clean'
+    
+    for case_folder in casedirs:
 
-    starttime = time.time()
-    results = generate_html(case_folder, gpsuffix)
+        starttime = time.time()
+        results = generate_html(case_folder, gpsuffix)
 
-    # print time taken to 1 decimal place
-    print(f"Time taken: {time.time() - starttime:.1f} seconds")
+        # print time taken to 1 decimal place
+        print(f"Time taken: {time.time() - starttime:.1f} seconds")
