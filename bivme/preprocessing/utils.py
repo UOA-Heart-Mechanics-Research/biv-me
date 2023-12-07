@@ -44,15 +44,17 @@ def ReformatFiles(folder, gpfile, sliceinfofile, **kwargs):
     # define path to input GPfile and SliceInfoFile
     contour_file = os.path.join(folder, gpfile) 
     metadata_file = os.path.join(folder, sliceinfofile)
-
     contours  = cont.Contours()
+    
+    print("Reading GPFile and SliceInfoFile... ", end='')
     contours.read_gp_files(contour_file,metadata_file)
+    print("Done")
 
     case =  os.path.basename(os.path.normpath(folder))
 
     all_frames = pd.read_csv(contour_file, sep = '\t') 
     time_frames = sorted(np.unique([i[6] for i in all_frames.values]))  # this is the range of time frame numbers in the GPFiles
-    '''
+    
     try:
         contours.find_timeframe_septum()
     except:
@@ -60,22 +62,29 @@ def ReformatFiles(folder, gpfile, sliceinfofile, **kwargs):
         print('Fail',err)
         #print('\033[1;33;41m  {0}\t{1}\t\t\t{2}'.format(case, 'Fail', err))
 
-
     try:
         contours.find_timeframe_septum_inserts(time_frame=time_frames)
     except:
         err = 'Computing inserts'
         print( 'Fail',err)
         #print('\033[1;33;41m  {0}\t{1}\t\t\t{2}'.format(case, 'Fail',err))
-    '''
+    
     try:
         contours.find_apex_landmark(time_frame=time_frames)
     except:
         err = 'Computing apex'
-        print('\033[1;33;41m  {0}\t{1}\t\t\t{2}'.format(case, 'Fail',err))
+        print( 'Fail',err)
+        #print('\033[1;33;41m  {0}\t{1}\t\t\t{2}'.format(case, 'Fail',err))
+        
+    try:
+        contours.find_pulmonary_valve_landmarks(timeframe=time_frames)
+    except:
+        err = 'Computing pulmonary valve'
+        print( 'Fail',err)
+        #print('\033[1;33;41m  {0}\t{1}\t\t\t{2}'.format(case, 'Fail',err))
 
     try:
-        #contours.find_timeframe_valve_landmarks()
+        # contours.find_timeframe_valve_landmarks()
         if 'LAX_LV_EXTENT' in contours.points.keys():
             for index,point in enumerate(contours.get_timeframe_points(
                                 'LAX_LV_EXTENT', time_frames)[1]):
@@ -122,15 +131,10 @@ def ReformatFiles(folder, gpfile, sliceinfofile, **kwargs):
     cvi_cont.contour = contours
 
     new_gpfilename = 'GPFile_proc.txt'
-    new_sliceinfofilename = 'SliceInfo_proc.txt'
-
     output_gpfile = os.path.join(folder,new_gpfilename)
-    output_metafile = os.path.join(folder, new_sliceinfofilename)
-
     cvi_cont.export_contour_points(output_gpfile)
-    cvi_cont.export_dicom_metadata(output_metafile)
 
-    return new_gpfilename, new_sliceinfofilename
+    return new_gpfilename
 
 
 def Landmarks_Dict(data_set, out_file, case):
