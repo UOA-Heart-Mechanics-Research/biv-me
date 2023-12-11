@@ -3,7 +3,7 @@ import os
 import numpy as np
 from scipy.spatial import ckdtree
 
-from bivme.fitting import *
+from bivme.fitting.Frame import Frame, Point
 
 
 class Contours:
