@@ -1330,8 +1330,6 @@ class GPDataSet(object):
                     origin_transformation, contour_points_ref)[:, :2]))
                 weights.append(1)
 
-
-
         nb_groups = len(intersection_points_2d)
         if len(model_intersection_lv) > 0 and len(data_points_lv)>0:
 
@@ -1360,7 +1358,6 @@ class GPDataSet(object):
                 p2_reference.append([data_2D_centroid])
                 intersection_points_2d.append([model_2d_centroid])
 
-
         t = np.array([0,0])
         # chech for how many intersetion points have been found
         # if just one point for just two contours the registration is not
@@ -1372,7 +1369,6 @@ class GPDataSet(object):
                 t= -tools.register_group_points_translation_only(
                 intersection_points_2d,p2_reference, weights,
                     exclude_outliers=False, norm=2)
-
 
         return t
 
