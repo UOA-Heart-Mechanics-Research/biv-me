@@ -14,6 +14,7 @@ from BiVFitting import plot_timeseries
 import time
 import pandas as pd 
 from pathlib import Path
+import pyvista as pv
 
 from config_params import * 
 
@@ -31,6 +32,28 @@ contours_to_plot = [ContourType.LAX_RA, ContourType.LAX_RV_ENDOCARDIAL,
                     ContourType.AORTA_PHANTOM, ContourType.TRICUSPID_PHANTOM,
                     ContourType.MITRAL_PHANTOM
                     ]
+
+def write_vtk_surface(filename, vertices, faces):
+    """
+    Write a VTK surface mesh.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the output VTK file.
+    vertices : numpy.ndarray
+        An array of shape (N, 3) representing the vertex coordinates.
+    faces : numpy.ndarray
+        An array of shape (M, 3) representing the triangular faces.
+
+    Returns
+    -------
+    None
+    """
+    
+    mesh = pv.PolyData(vertices, np.c_[np.ones(len(faces))*3, faces].astype(int))
+    mesh.save(filename, binary=False)
+    
 
 def perform_fitting(folder, **kwargs):
     #performs all the BiVentricular fitting operations
@@ -235,9 +258,13 @@ def perform_fitting(folder, **kwargs):
                 data = model + contourPlots
                 #TimeSeries_step2.append([data, num])
                 
-                #plot(go.Figure(data),filename=os.path.join(folder, 'step2_fitted_model_Frame'+str(int(num))+'.html'), auto_open=False)
+                plot(go.Figure(data),filename=os.path.join(folder, 'step2_fitted_model_Frame'+str(int(num))+'.html'), auto_open=False)
                 
                 # save results in .txt format, one file for each frame
+                ModelData = {'x': biventricular_model.control_mesh[:,0], 'y': biventricular_model.control_mesh[
+                    :,1], 'z': biventricular_model.control_mesh[:,2], 'Frame': [num] * len(biventricular_model.control_mesh[:,2])}
+                
+                                # save results in .txt format, one file for each frame
                 ModelData = {'x': biventricular_model.control_mesh[:,0], 'y': biventricular_model.control_mesh[
                     :,1], 'z': biventricular_model.control_mesh[:,2], 'Frame': [num] * len(biventricular_model.control_mesh[:,2])}
                 
@@ -245,6 +272,15 @@ def perform_fitting(folder, **kwargs):
                 with  open(Modelfile, "w") as file:
                     file.write(Model_Dataframe.to_csv(header=True, index=False, sep = ',', line_terminator='\n'))
 
+                # save surface meshes as vtk
+                mesh_type = ['epicardium', 'LV_endocardium', 'RV_freewall', 'RV_septum']
+                Path(output_folder, 'vtk').mkdir(exist_ok=True)
+                for i in range(4):
+                    vertices = np.vstack((data[i].x, data[i].y, data[i].z)).transpose()
+                    faces = np.vstack((data[i].i, data[i].j, data[i].k)).transpose()
+                    meshpath = Path(output_folder, 'vtk', f'{case}_{mesh_type[i]}_{num:03}.vtk')
+                    write_vtk_surface(meshpath, vertices, faces)
+                    
         # if you want to plot time series in html files uncomment the next line(s)
         #plot_timeseries(TimeSeries_step1, output_folder, 'TimeSeries_step1.html')
         #plot_timeseries(TimeSeries_step2, output_folder, 'TimeSeries_step2.html')
