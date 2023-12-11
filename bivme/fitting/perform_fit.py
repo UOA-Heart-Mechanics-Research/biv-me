@@ -151,7 +151,7 @@ def perform_fitting(folder, **kwargs):
                             file.write('Frame number:  ' + str(num)+'\n')
                             file.write(str(shiftmeasure))
                             file.close()  
-                        ]
+                        
                         with  open(Posfile, "w") as file:	
                             file.write('Frame number:  ' + str(num)+'\n')	
                             file.write(str(posmeasure))	
