@@ -36,7 +36,9 @@ def do_preprocessing(folder, initial_gpfile, initial_sliceinfo, **kwargs):
         case_frame_dict = kwargs.get("id_Frame", None)
 
     # First check of SliceInfo and GPFile structure:
-    gpfile, sliceinfofile = ReformatFiles(folder, initial_gpfile, initial_sliceinfo)
+    gpfile, sliceinfofile = ReformatFiles(
+        folder, initial_gpfile, initial_sliceinfo, temporal_matching
+    )
 
     # chose which frames to upload from the GPFile
     all_frames = pd.read_csv(os.path.join(folder, gpfile), sep="\t")
@@ -50,11 +52,12 @@ def do_preprocessing(folder, initial_gpfile, initial_sliceinfo, **kwargs):
             folder, gpfile, sliceinfofile, output_csv=landmarks_csv
         )
         if clean_contours == True:
-            print("Cleaning Contours ..")
+            print("Cleaning contours...", end="")
             final_data_set = Clean_contours(folder, data_set, "GPFile_clean.txt")
+            print("done")
 
     elif do_landmarks_tracking == False and clean_contours == True:
-        print("Cleaning Contours ..")
+        print("Cleaning contours...", end="")
         filename = os.path.join(folder, gpfile)
         filenameInfo = os.path.join(folder, sliceinfofile)
 
@@ -70,6 +73,7 @@ def do_preprocessing(folder, initial_gpfile, initial_sliceinfo, **kwargs):
             )
 
         final_data_set = Clean_contours(folder, data_set, "GPFile_clean.txt")
+        print("done")
 
     else:
         final_data_set = []
@@ -98,7 +102,6 @@ def do_preprocessing(folder, initial_gpfile, initial_sliceinfo, **kwargs):
 
 
 if __name__ == "__main__":
-    
     # set directory containing GPFile and SliceInfoFile
     dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\gpfiles-raw"
 
@@ -114,6 +117,9 @@ if __name__ == "__main__":
 
     # find which frames are ED and ES?
     find_EDES_frames = False
+
+    # resample contours due to different temporal resolutions between slices?
+    temporal_matching = True
 
     initial_gpfile = "GPFile.txt"
     initial_sliceinfo = "SliceInfoFile.txt"

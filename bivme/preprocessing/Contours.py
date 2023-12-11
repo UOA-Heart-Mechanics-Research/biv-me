@@ -3,7 +3,7 @@ import os
 import numpy as np
 from scipy.spatial import ckdtree
 
-from bivme.fitting import *
+from bivme.fitting.Frame import Frame, Point
 
 
 class Contours:
@@ -98,6 +98,7 @@ class Contours:
             new_point.coordinates = point
             new_point.weight = weight[index]
             new_point.sop_instance_uid = frames_uid[frames_id == gp_frame_id[index]][0]
+            new_point.time_frame = file_time_frames[index]
             self.add_point(contour_type[index], new_point)
 
         # increment contours points which don't need sampling
@@ -1145,6 +1146,7 @@ class Contours:
                 ]
                 apex_index = np.argmax(distance)
                 new_point = all_extent_points[apex_index].deep_copy_point()
+                new_point.time_frame = frame
                 self.add_point("APEX_POINT", new_point)
 
     def define_apex_landmark(self, time_frame=None):
