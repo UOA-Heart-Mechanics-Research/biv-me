@@ -35,12 +35,14 @@ def do_preprocessing(folder, initial_gpfile, initial_sliceinfo, **kwargs):
         # acquire .csv file containing patient_id, ES frame number, ED frame number if present
         case_frame_dict = kwargs.get("id_Frame", None)
 
-    # First check of SliceInfo and GPFile structure:
-    gpfile, sliceinfofile = ReformatFiles(folder, initial_gpfile, initial_sliceinfo)
 
+
+    # First check of SliceInfo and GPFile structure:
+    gpfile, sliceinfofile = ReformatFiles(folder, initial_gpfile, initial_sliceinfo, temporal_matching)
+    
     # chose which frames to upload from the GPFile
-    all_frames = pd.read_csv(os.path.join(folder, gpfile), sep="\t")
-    frames_to_fit = sorted(np.unique([i[6] for i in all_frames.values]))
+    all_frames = pd.read_csv(os.path.join(folder, gpfile), sep = '\t') 
+    frames_to_fit = sorted(np.unique([i[6] for i in all_frames.values])) 
     case = os.path.basename(os.path.normpath(folder))
 
     if do_landmarks_tracking == True:
@@ -114,6 +116,8 @@ if __name__ == "__main__":
 
     # find which frames are ED and ES?
     find_EDES_frames = False
+    # do you need to resample the contours due to different temporal resolutions between slices?
+    temporal_matching = True
 
     initial_gpfile = "GPFile.txt"
     initial_sliceinfo = "SliceInfoFile.txt"

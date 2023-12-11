@@ -6,7 +6,7 @@ class Point():
     we require
 
     """
-    def __init__(self, pixel_coords=None, sop_instance_uid=None, weight = 1):
+    def __init__(self, pixel_coords=None, sop_instance_uid=None, weight = 1, time_frame=None):
         if pixel_coords == None:
             self.pixel =np.empty(2)
         else:
@@ -15,13 +15,14 @@ class Point():
         self.sop_instance_uid = sop_instance_uid
         self.coordinates = np.empty(3)
         self.weight = weight
+        self.time_frame = time_frame
 
 
 
 
     def __eq__(self, other):
 
-        if self.pixel == other.pixel:
+        if np.all(self.pixel == other.pixel):
             if self.sop_instance_uid ==other.sop_instance_uid:
                  equal = True
             else:
@@ -36,6 +37,7 @@ class Point():
         new_point.sop_instance_uid = copy.deepcopy(self.sop_instance_uid)
         new_point.coordinates = copy.deepcopy(self.coordinates)
         new_point.weight = copy.deepcopy(self.weight)
+        new_point.time_frame = copy.deepcopy(self.time_frame)
         return  new_point
 
 

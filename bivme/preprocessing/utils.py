@@ -12,7 +12,7 @@ from bivme.preprocessing.cvi42.CVI42XML import *
 fieldnames = ['patient', 'frames', 'MITRAL_VALVE', 'TRICUSPID_VALVE', 'AORTA_VALVE', 'APEX_POINT']
 
 
-def ReformatFiles(folder, gpfile, sliceinfofile, **kwargs):
+def ReformatFiles(folder, gpfile, sliceinfofile, temporal_matching=False,**kwargs):
     '''
     Author : Laura Dal Toso
     Date: 20/20/2022
@@ -127,14 +127,83 @@ def ReformatFiles(folder, gpfile, sliceinfofile, **kwargs):
             print(case, 'Fail',err)
             #print( '\033[1;33;41m  {0}\t{1}\t\t\t{2}'.format(case, 'Fail',err))
 
+    if temporal_matching == True:
+        contours = Temporal_Matching(contours)
+
     cvi_cont = CVI42XML()
     cvi_cont.contour = contours
 
     new_gpfilename = 'GPFile_proc.txt'
+    new_metadatafilename = 'SliceInfoFile_proc.txt'
     output_gpfile = os.path.join(folder,new_gpfilename)
+    output_metadatafile = os.path.join(folder,new_metadatafilename)
     cvi_cont.export_contour_points(output_gpfile)
+    cvi_cont.export_dicom_metadata(output_metadatafile)
 
-    return new_gpfilename
+    return output_gpfile, output_metadatafile
+
+
+def Temporal_Matching(contours):
+    '''
+    Author: Joshua Dillon
+    Date: 6/12/2023
+
+    ----------------------------------------------------------
+    Resamples contours to the minimum number of frames of any one contour, thereby accounting for 
+    phase inconsistencies in CMR protocols.
+
+    ----------------------------------------------------------
+
+    Input: 
+        - contours: Contours instance
+
+    Output:
+        - contours_resampled: Contours instance with resampled contours
+    '''
+    all_frames = []
+    frame_dict = {}
+    for contour_type, points in contours.points.items():
+        frames = np.unique([point.time_frame for point in points])
+        all_frames.append(len(frames))
+
+        # express frames as a proportion of the total number of frames
+        frames_prop = frames / max(frames)
+        frame_dict[contour_type] = [frames,frames_prop]
+
+    min_frames = np.arange(0,min(all_frames))
+    min_frames_prop = min_frames / max(min_frames)
+    contours_resampled = cont.Contours()
+
+    for contour_type, points in contours.points.items():
+        frames = frame_dict[contour_type][0]
+        frames_prop = frame_dict[contour_type][1]
+        if np.all(frames == min_frames):
+            contours_resampled.points[contour_type] = points
+            for point in points:
+                if point.sop_instance_uid not in contours_resampled.frame.keys():
+                    contours_resampled.add_frame(point.sop_instance_uid, contours.frame[point.sop_instance_uid])
+        else:
+            new_frames = []
+            for i in range(0,len(min_frames)):
+                min_dist = np.argmin(np.abs(min_frames_prop[i] - frames_prop))
+                new_frames.append(frames[min_dist])
+            
+            for point in points:
+                if point.time_frame not in new_frames:
+                    pass
+                else:
+                    new_point = point.deep_copy_point()
+                    new_point.time_frame = min_frames[new_frames.index(point.time_frame)]
+                    if new_point.sop_instance_uid not in contours_resampled.frame.keys():
+                        mod_frame = Frame(contours.frame[new_point.sop_instance_uid].image_id, contours.frame[new_point.sop_instance_uid].position,
+                                          contours.frame[new_point.sop_instance_uid].orientation, 
+                                          contours.frame[new_point.sop_instance_uid].pixel_spacing)
+                        mod_frame.time_frame = new_point.time_frame
+                        contours_resampled.add_frame(new_point.sop_instance_uid, mod_frame)
+                    contours_resampled.add_point(contour_type, new_point)
+    
+    print('Resampled contours to minimum number of frames: ', min(all_frames))
+    return contours_resampled
 
 
 def Landmarks_Dict(data_set, out_file, case):
