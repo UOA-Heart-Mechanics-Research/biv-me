@@ -51,7 +51,7 @@ def write_vtk_surface(filename, vertices, faces):
     mesh.save(filename, binary=False)
     
 
-def perform_fitting(folder, **kwargs):
+def perform_fitting(folder, outdir='./results/', gp_suffix='', si_suffix='', **kwargs):
     #performs all the BiVentricular fitting operations
 
     try:
@@ -67,11 +67,9 @@ def perform_fitting(folder, **kwargs):
         if 'id_Frame' in kwargs:
             # acquire .csv file containing patient_id, ES frame number, ED frame number if present
             case_frame_dict = kwargs.get('id_Frame', None)
-
-        # define the path to GPFile and to SliceInfoFile
-        # THIS SHOULD BE CHANGED if files are named differently
-        filename = os.path.join(folder, 'GPFile.txt') 
-        filenameInfo = os.path.join(folder,'SliceInfoFile.txt')
+            
+        filename = os.path.join(folder, f'GPFile{gp_suffix}.txt')
+        filenameInfo = os.path.join(folder, f'SliceInfoFile{si_suffix}.txt')
 
         # extract the patient name from the folder name
         case =  os.path.basename(os.path.normpath(folder))
@@ -90,26 +88,25 @@ def perform_fitting(folder, **kwargs):
         #frames_to_fit = np.array(case_frame_dict[str(case)]) # oly fit ED and ES, if ED_ES file provided
         frames_to_fit = np.unique([i[6] for i in all_frames.values]) # if you want to fit all _frames
 
-
+        # path to model template files
+        model_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), '../../model')
+        
         # create a separate output folder for each patient
-        model_path = './model'
-        output_folder = './results/' + case
+        output_folder = os.path.join(outdir, case)
         try:
-            os.makedirs(output_folder , exist_ok= True)
+            os.makedirs(output_folder , exist_ok=True)
         except: raise ValueError
 
         # create log Files where to store fitting errors and shift
-        Errorfile = Path(os.path.join(output_folder ,'ErrorFile.txt'))
+        Errorfile = Path(os.path.join(output_folder ,f'Errorfile{gp_suffix}.txt'))
         Errorfile.touch(exist_ok=True)
-        Shiftfile = Path(os.path.join(output_folder ,'Shiftfile.txt'))
+        Shiftfile = Path(os.path.join(output_folder ,f'Shiftfile{gp_suffix}.txt'))
         Shiftfile.touch(exist_ok=True)
-
-        Posfile = Path(os.path.join(output_folder ,'Posfile.txt'))	
+        Posfile = Path(os.path.join(output_folder ,f'Posfile{gp_suffix}.txt'))	
         Posfile.touch(exist_ok=True)	
 
         with open(Errorfile, 'w') as f:
             f.write('Log for patient: '+ case+'\n')    
-
 
         # The next lines are used to measure shift using only a key frame
         if measure_shift_EDonly == True:
@@ -141,8 +138,8 @@ def perform_fitting(folder, **kwargs):
                 num = int(num) #frame number
                 print('frame num', num)
 
-                Modelfile = Path(os.path.join(output_folder , str(case)+'_Model_Frame_'+"{0:03}".format(num)+'.txt'))
-                Modelfile.touch(exist_ok=True)  
+                Modelfile = Path(output_folder, f'{case}{gp_suffix}_model_frame_{num:03}.txt')
+                Modelfile.touch(exist_ok=True)
 
                 with open(Errorfile, 'a') as f: 
                     f.write('\nFRAME #' +str(int(num))+'\n')
@@ -188,8 +185,6 @@ def perform_fitting(folder, **kwargs):
                             file.close()    
                     pass 
                 
-                #model_path = "./model"
-
                 biventricular_model.update_pose_and_scale(data_set)
 
                 # # perform a stiff fit
@@ -254,13 +249,11 @@ def perform_fitting(folder, **kwargs):
                 data = model + contourPlots
                 #TimeSeries_step2.append([data, num])
                 
-                plot(go.Figure(data),filename=os.path.join(folder, 'step2_fitted_model_Frame'+str(int(num))+'.html'), auto_open=False)
+                output_folder_html = Path(output_folder, f'html{gp_suffix}')
+                output_folder_html.mkdir(exist_ok=True)
+                plot(go.Figure(data),filename=os.path.join(output_folder_html, f'{case}_fitted_model_frame_{num:03}.html'), auto_open=False)
                 
                 # save results in .txt format, one file for each frame
-                ModelData = {'x': biventricular_model.control_mesh[:,0], 'y': biventricular_model.control_mesh[
-                    :,1], 'z': biventricular_model.control_mesh[:,2], 'Frame': [num] * len(biventricular_model.control_mesh[:,2])}
-                
-                                # save results in .txt format, one file for each frame
                 ModelData = {'x': biventricular_model.control_mesh[:,0], 'y': biventricular_model.control_mesh[
                     :,1], 'z': biventricular_model.control_mesh[:,2], 'Frame': [num] * len(biventricular_model.control_mesh[:,2])}
                 
@@ -269,12 +262,13 @@ def perform_fitting(folder, **kwargs):
                     file.write(Model_Dataframe.to_csv(header=True, index=False, sep = ',', line_terminator='\n'))
 
                 # save surface meshes as vtk
+                output_folder_vtk = Path(output_folder, f'vtk{gp_suffix}')
+                output_folder_vtk.mkdir(exist_ok=True)
                 mesh_type = ['epicardium', 'LV_endocardium', 'RV_freewall', 'RV_septum']
-                Path(output_folder, 'vtk').mkdir(exist_ok=True)
                 for i in range(4):
                     vertices = np.vstack((data[i].x, data[i].y, data[i].z)).transpose()
                     faces = np.vstack((data[i].i, data[i].j, data[i].k)).transpose()
-                    meshpath = Path(output_folder, 'vtk', f'{case}_{mesh_type[i]}_{num:03}.vtk')
+                    meshpath = Path(output_folder_vtk, f'{case}_{mesh_type[i]}_{num:03}.vtk')
                     write_vtk_surface(meshpath, vertices, faces)
                     
         # if you want to plot time series in html files uncomment the next line(s)
@@ -288,47 +282,24 @@ def perform_fitting(folder, **kwargs):
         raise KeyboardInterruptError()
 
 
-
-
-if __name__ == '__main__':
-
+if __name__ == '__main__':    
     
-    startLDT = time.time()
-    #pid = os.getpid()
-    #os.system("taskset -cp %d %d" %(66, pid))
-
-    main_path = '.'          ### folder in use
-
-    cases_folder = os.path.join(main_path, 'test_data')
-    cases_list = [os.path.join(cases_folder, batch) for batch in os.listdir(cases_folder)]
+    # directory containing guidepoint files
+    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\gpfiles-raw"
+    dir_out = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\fitted"
     
+    # set list of cases to process
+    caselist = ["RV01", "RV02", "RV03", "RV04"]
+    casedirs = [Path(dir_gp, case).as_posix() for case in caselist]
     
-    # acquire file containing the case_id and ED/ES frames
-    # comment next line if this file is not available
-    file_CaseFrame = 'Case_ID_and_frame_44k.csv'
+    # set guidepoint and slice info files to use
+    gp_suffix = '_clean'
+    si_suffix = '_proc'
 
-    case_frame_dict = None
-    try: 
-        with open(file_CaseFrame , 'r') as f:
-            Lines = f.readlines()
-            list_lines = []
-            for i, line in enumerate(Lines):
-                list_lines.append(line.strip())
-        
-        case_frame_dict = {}
-        # build a dictionary with structure: 'case': [ED frame, ES frame]
-        for i in list_lines[1:]: # skip header
-            i = i.split(',')
-            case_frame_dict[i[0]] = [i[1], i[2]]
-    except: 
-        pass
+    # start processing...
+    starttime = time.time()
 
-    if case_frame_dict is not None:
-        results = [perform_fitting (folder, id_Frame = case_frame_dict) for folder in cases_list]
-    else:
-        results = [perform_fitting (folder) for folder in cases_list]
+    [perform_fitting(case, outdir=dir_out, gp_suffix=gp_suffix, si_suffix=si_suffix) for case in casedirs]
 
-    print('TOT CASES:', len(cases_list))
-    
-    print('TOTAL TIME: ', time.time()-startLDT)
-
+    print('TOTAL CASES:', len(casedirs))
+    print('TOTAL TIME: ', time.time()-starttime)
