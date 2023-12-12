@@ -120,6 +120,10 @@ if __name__ == "__main__":
 
     # resample contours due to different temporal resolutions between slices?
     temporal_matching = True
+    # do you want to add valve points from CIM?
+    add_cim_valve_points = True
+    # do you want to add manual slice corrections from CIM?
+    add_cim_slice_corrections = True
 
     initial_gpfile = "GPFile.txt"
     initial_sliceinfo = "SliceInfoFile.txt"
@@ -145,4 +149,18 @@ if __name__ == "__main__":
             writer.writeheader()
 
     # start processing...
-    [do_preprocessing(folder, initial_gpfile, initial_sliceinfo) for folder in casedirs]
+    #[do_preprocessing(folder, initial_gpfile, initial_sliceinfo) for folder in cases_list]
+
+    # if you want to correct GP files using CIM RVLV
+    # Add CIM valve points and slice corrections
+    cim_data = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\cim"
+    image_ptrs = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\images\chicago-cmr"
+    cim_offsets = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\biv\chicago\cim_offsets"
+    initial_gpfile = 'GPFile_proc.txt'
+    initial_sliceinfo = 'SliceInfoFile_proc.txt'
+
+    if add_cim_valve_points == True or add_cim_slice_corrections == True:
+        [CIM_Correction(folder, initial_gpfile, initial_sliceinfo, cim_data,image_ptrs,cim_offsets,add_cim_valve_points, add_cim_slice_corrections) for folder in cases_list]
+
+    
+    

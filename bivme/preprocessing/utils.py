@@ -1,12 +1,15 @@
 import csv
-import sys
 import pandas as pd
 import itertools
 import more_itertools as mit
+import copy
+import math
+from pydicom.filereader import dcmread
 
 from bivme.fitting import *
 from bivme.preprocessing import Contours as cont
 from bivme.preprocessing.cvi42.CVI42XML import *
+from read_cim_guide_points import read_guidepoints
 
 
 fieldnames = [
@@ -230,6 +233,224 @@ def Temporal_Matching(contours):
 
     print("Resampled contours to minimum number of frames: ", min(all_frames))
     return contours_resampled
+
+
+def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offsets=None, valve_points = True, slice_corrections =True, **kwargs):
+    '''
+    Author: Joshua Dillon
+    Date: 11/12/2023
+
+    ----------------------------------------------------------
+    This function adds valve points generated from CIM RVLV and replaces existing valve points. 
+    Additionally, manual slice corrections derived from CIM RVLV are applied to regular guidepoints.
+    Process requires matching the slice ID from CIM to CIRCLE, which is done by matching the SOP Instance UID 
+    in the DICOM metadata.
+
+    ----------------------------------------------------------
+    Input:
+        - folder: path to folder containing preprocessed GPFile and SliceInfoFile
+        - gpfile: name of GPFile
+        - sliceinfofile: name of SliceInfoFile
+        - cim_data: path to folder containing CIM RVLV model data
+        - image_ptrs: path to imageptrs
+        - (OPTIONAL) cim_offsets: path to folder containing slice corrections from CIM RVLV
+        - (OPTIONAL) valve_points: boolean indicating whether to add valve points from CIM RVLV
+        - (OPTIONAL) slice_corrections: boolean indicating whether to apply slice corrections from CIM RVLV 
+    Output:
+        - GPFile_CIM : processed GPFile 
+        - SliceInfoFile_CIM: processed SliceInfoFile
+    '''
+
+    case =  os.path.basename(os.path.normpath(folder))
+    print('case: ', case )
+
+    # define path to input GPfile and SliceInfoFile
+    contour_file = os.path.join(folder, gpfile) 
+    metadata_file = os.path.join(folder, sliceinfofile)
+    contours  = cont.Contours()
+    contours.read_gp_files(contour_file,metadata_file)
+
+    contours_CIM = copy.deepcopy(contours)
+    slices_CIM = {}
+    num_frames = max(contours._time_uid_map.keys())+1
+    # read in CIM guidepoints
+    guidepoints = read_guidepoints(case, '', cim_data)
+    del guidepoints[0]
+    print('CIM guide points read in successfully')
+
+    ## match slice IDs from CIM to CIRCLE
+    # find number of sax slices
+    sax_dict={}
+    for i in range(0,num_frames):
+        sax_slices = [k['slice'] for k in guidepoints if k['series'] == '0' and k['frame'] == str(i)]
+        sax_dict.update({i:max(sax_slices)})
+    lax_dict={}
+    for i in range(0,num_frames):
+        lax_slices = [k['slice'] for k in guidepoints if k['series'] == '1' and k['frame'] == str(i)]
+        lax_dict.update({i:max(lax_slices)})
+    
+    sax_num = int(max(sax_dict[0]))
+    lax_num = int(max(lax_dict[0]))
+    # read in imageptrs file
+    imageptrs = os.path.join(cim_data, case,"system",case+".img_imageptr")
+    p = open(imageptrs, "r")
+    ptrs = p.readlines()
+    del ptrs[0]
+    for i in ptrs:
+        j=i.split('\t')
+        j[-1] = str.replace(j[-1], '\n', '')
+        # replace IMAGEPATH with image directory
+        j[-1] = str.replace(j[-1], 'IMAGEPATH\\', image_ptrs)
+        ptrs[ptrs.index(i)] = j
+    p.close()
+    print('Image pointers read in successfully')
+
+    uid_slice_match = {}
+    uid_coords_match = {}
+    # for each frame, match the cim slice to the circle slice
+    for frame in range(0,num_frames):
+        for k in ptrs:
+            if int(float(k[2])) == frame:
+                # read in dicom header
+                dcm = dcmread(k[-1])
+                # find the sop UID
+                sop = dcm.SOPInstanceUID
+                if int(float(k[0]))==0:
+                    cim_slice = int(float(k[1])) +1
+                else:
+                    cim_slice = int(float(k[1]))+sax_num + 2
+
+                uid_slice_match.update({sop:cim_slice})
+                uid_coords_match.update({sop:[dcm.ImagePositionPatient,dcm.ImageOrientationPatient, dcm.PixelSpacing,frame]})
+
+    if slice_corrections == True:
+        # read in slice corrections
+        offsets = extract_offsets(os.path.join(cim_offsets, case, "OffsetFile.txt"))
+        print('Slice corrections read in successfully')
+
+        # apply slice corrections
+        for contour_type, points in contours_CIM.points.items():
+            for point in points:
+                if point.sop_instance_uid in uid_slice_match.keys():
+                    slice = uid_slice_match[point.sop_instance_uid]
+                    point.coordinates = point.coordinates + offsets[slice][0]
+                    contours_CIM.frame[point.sop_instance_uid].position = contours_CIM.frame[point.sop_instance_uid].position + offsets[slice][0]
+                    contours_CIM.frame[point.sop_instance_uid].orientation = contours_CIM.frame[point.sop_instance_uid].orientation + offsets[slice][1]
+        print('Slice corrections applied successfully')
+    
+    if valve_points == True:
+        valve_types = ['MITRAL_VALVE', 'TRICUSPID_VALVE', 'PULMONARY_VALVE', 'AORTA_VALVE', 'APEX_POINT', 'RV_INSERT']
+        cim_valve_types = ['GP_VALVE_MITRAL', 'GP_VALVE_TRICUSPID', 'GP_VALVE_PULMONARY', 'GP_VALVE_AORTIC', 'GP_LV_EPI_APEX', 'GP_RV_INSERTION']
+        cim_warp_types = ['GP_VALVE_MITRAL_WARP', 'GP_VALVE_TRICUSPID_WARP', 'GP_VALVE_PULMONARY_WARP', 'GP_VALVE_AORTIC_WARP', 'GP_LV_EPI_APEX_WARP', 'GP_RV_INSERTION_WARP']
+        # delete existing valve points
+        print('Deleting existing valve points...')
+        for contour_type, points in contours.points.items():
+            if contour_type in valve_types:
+                to_del = np.arange(0,len(points))
+                contours_CIM.delete_point(contour_type, to_del)
+        
+        # match slices beween cim and circle
+        for uid,coords in uid_coords_match.items():
+            if uid not in contours_CIM.frame.keys():
+                new_frame = Frame(image_id= uid_slice_match[uid] + coords[3] + len(contours_CIM.frame.keys()),
+                                  position = coords[0], orientation = coords[1], pixel_spacing = coords[2])
+                new_frame.time_frame = coords[3]
+                contours_CIM.add_frame(uid, new_frame)
+        
+        for uid,frame in contours_CIM.frame.items():
+            if uid not in uid_coords_match.keys():
+                # find closest slice by position, orientation
+                min_pos_d = np.inf
+                min_ori_d = np.inf
+                for cim_uid, cim_coords in uid_coords_match.items():
+                    pos_d = math.dist(frame.position, cim_coords[0])
+                    ori_d = math.dist(frame.orientation, cim_coords[1])
+                    if pos_d < min_pos_d:
+                        min_pos_d = pos_d
+                        closest_pos_uid = cim_uid
+                    if ori_d < min_ori_d:
+                        min_ori_d = ori_d
+                        closest_ori_uid = cim_uid
+                if closest_ori_uid == closest_pos_uid:
+                    uid_slice_match.update({uid:uid_slice_match[closest_ori_uid]})
+                    uid_coords_match.update({uid:uid_coords_match[closest_ori_uid]})
+
+        # add valve points
+        print('Adding valve points...')
+        for point in guidepoints:
+            if point['name'] in cim_valve_types or point['name'] in cim_warp_types:
+                new_point = Point()
+                new_point.coordinates = np.array([float(point['x']), float(point['y']), float(point['z'])])
+                for uid,frame in contours_CIM.frame.items():
+                    if uid in uid_slice_match.keys():
+                        if point['series'] == '0':
+                            if uid_slice_match[uid] == int(point['slice']) and int(frame.time_frame) == int(point['frame']):
+                                new_point.sop_instance_uid = uid
+                                continue
+                        elif point['series'] == '1':
+                            if uid_slice_match[uid] == int(point['slice'])+sax_num+1 and int(frame.time_frame) == int(point['frame']):
+                                new_point.sop_instance_uid = uid
+                                continue
+
+                if new_point.sop_instance_uid == None:
+                   print('No match found for slice ' + str(int(point["slice"]+sax_num+1)) + ' at frame ' + str(int(point['frame'])))
+                new_point.time_frame = int(point['frame'])
+                try:
+                    cont_name = valve_types[cim_valve_types.index(point['name'])]
+                except:
+                    cont_name = valve_types[cim_warp_types.index(point['name'])]
+                contours_CIM.add_point(cont_name, new_point)
+
+        print('Valve points added successfully')
+    
+    cvi_cont = CVI42XML()
+    cvi_cont.contour = contours_CIM
+
+    new_gpfilename = 'GPFile_CIM.txt'
+    new_metadatafilename = 'SliceInfoFile_CIM.txt'
+    output_gpfile = os.path.join(folder,new_gpfilename)
+    output_metadatafile = os.path.join(folder,new_metadatafilename)
+    cvi_cont.export_contour_points(output_gpfile)
+    cvi_cont.export_dicom_metadata(output_metadatafile)
+
+    return output_gpfile, output_metadatafile
+
+def extract_offsets(name):
+
+    '''
+    Code reads in Image Position Offset and Image Orientation Offset (from CIM) stored in OffsetFile for each slice of each case.
+    Stores in a dictionary with key = slice number and value = offset
+    Input: filename
+    Output: dictionary of offsets
+     
+    '''
+    offsets = {}
+   #  it using csv read
+    if not os.path.exists(name):
+        return
+    lines = []
+    with open(name, 'rt') as in_file:
+        for line in in_file:
+            lines.append(re.split('\s+',line))
+    
+    try:
+        index_slice = np.where(['slice' in x for x in lines[0]])[0][0]+1
+        index_pos_offset = np.where(['ImagePositionOffset' in x for x in lines[0]])[0][0]+1
+        index_ori_offset = np.where(['ImageOrientationOffset' in x for x in lines[0]])[0][0]+1
+    except:
+        index_slice = 0
+        index_pos_offset = 0
+        index_ori_offset = 0
+
+    for i in range(0,len(lines)):
+        slice_id = int(lines[i][index_slice])
+        pos_offset = np.array(lines[i][index_pos_offset:index_pos_offset+3]).astype(
+            float)
+        ori_offset = np.array(lines[i][index_ori_offset:index_ori_offset+6]).astype(
+            float)
+        offsets.update({slice_id:[pos_offset,ori_offset]})
+
+    return offsets    
 
 
 def Landmarks_Dict(data_set, out_file, case):
