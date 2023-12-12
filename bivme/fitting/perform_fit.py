@@ -1,24 +1,20 @@
-# Input: 3D contours
-# Output: Fitted model
-
-#!/usr/bin/env python3
 import os
-from plotly.offline import  plot
-import plotly.graph_objs as go
 import numpy as np
-from BiVFitting import BiventricularModel
-from BiVFitting import GPDataSet
-from BiVFitting import ContourType
-from BiVFitting import MultiThreadSmoothingED, SolveProblemCVXOPT
-from BiVFitting import plot_timeseries
 import time
 import pandas as pd 
-from pathlib import Path
 import pyvista as pv
+import plotly.graph_objs as go
+from pathlib import Path
+from plotly.offline import plot
 
-from config_params import * 
+from bivme.fitting.BiventricularModel import BiventricularModel
+from bivme.fitting.GPDataSet import GPDataSet
+from bivme.fitting.surface_enum import ContourType
+from bivme.fitting.Diffeomorphic_fitting import MultiThreadSmoothingED, SolveProblemCVXOPT, plot_timeseries
 
-#This list of contours_to _plot was taken from Liandong Lee
+from bivme.fitting.config_params import * 
+
+# This list of contours_to _plot was taken from Liandong Lee
 contours_to_plot = [ContourType.LAX_RA, ContourType.LAX_RV_ENDOCARDIAL,
                     ContourType.SAX_RV_FREEWALL, ContourType.LAX_RV_FREEWALL,
                     ContourType.SAX_RV_SEPTUM, ContourType.LAX_RV_SEPTUM,
