@@ -261,6 +261,8 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
         - SliceInfoFile_CIM: processed SliceInfoFile
     '''
 
+    analystID = 'DZ' # TODO make this an input?
+    
     case =  os.path.basename(os.path.normpath(folder))
     print('case: ', case )
 
@@ -268,14 +270,17 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
     contour_file = os.path.join(folder, gpfile) 
     metadata_file = os.path.join(folder, sliceinfofile)
     contours  = cont.Contours()
+    
+    print('Reading GPFile and SliceInfoFile... ', end='')
     contours.read_gp_files(contour_file,metadata_file)
+    print('done')
 
     contours_CIM = copy.deepcopy(contours)
     slices_CIM = {}
     num_frames = max(contours._time_uid_map.keys())+1
     # read in CIM guidepoints
-    guidepoints = read_guidepoints(case, '', cim_data)
-    del guidepoints[0]
+    guidepoints = read_guidepoints(case, analystID, cim_data)
+    del guidepoints[0] # first entry is empty
     print('CIM guide points read in successfully')
 
     ## match slice IDs from CIM to CIRCLE
