@@ -294,8 +294,8 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
         lax_slices = [k['slice'] for k in guidepoints if k['series'] == '1' and k['frame'] == str(i)]
         lax_dict.update({i:max(lax_slices)})
     
-    sax_num = int(max(sax_dict[0]))
-    lax_num = int(max(lax_dict[0]))
+    sax_num = int(max(sax_dict[0])) + 1
+    
     # read in imageptrs file
     imageptrs = os.path.join(cim_data, case,"system",case+".img_imageptr")
     p = open(imageptrs, "r")
@@ -315,15 +315,15 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
     # for each frame, match the cim slice to the circle slice
     for frame in range(0,num_frames):
         for k in ptrs:
-            if int(float(k[2])) == frame:
+            if int(k[2]) == frame:
                 # read in dicom header
                 dcm = dcmread(k[-1])
                 # find the sop UID
                 sop = dcm.SOPInstanceUID
-                if int(float(k[0]))==0:
-                    cim_slice = int(float(k[1])) +1
-                else:
-                    cim_slice = int(float(k[1]))+sax_num + 2
+                if int(k[0])==0: # if short axis slice (series 0)
+                    cim_slice = int(k[1])
+                else: # if long axis slice (series 1)
+                    cim_slice = int(k[1])+sax_num
 
                 uid_slice_match.update({sop:cim_slice})
                 uid_coords_match.update({sop:[dcm.ImagePositionPatient,dcm.ImageOrientationPatient, dcm.PixelSpacing,frame]})
@@ -401,12 +401,12 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
                                 new_point.sop_instance_uid = uid
                                 continue
                         elif point['series'] == '1':
-                            if uid_slice_match[uid] == int(point['slice'])+sax_num+1 and int(frame.time_frame) == int(point['frame']):
+                            if uid_slice_match[uid] == int(point['slice'])+sax_num and int(frame.time_frame) == int(point['frame']):
                                 new_point.sop_instance_uid = uid
                                 continue
 
                 if new_point.sop_instance_uid == None:
-                   print('No match found for slice ' + str(int(point["slice"]+sax_num+1)) + ' at frame ' + str(int(point['frame'])))
+                   print(f'No match found for slice {int(point["slice"])+sax_num} at frame {point["frame"]}')
                 new_point.time_frame = int(point['frame'])
                 try:
                     cont_name = valve_types[cim_valve_types.index(point['name'])]
