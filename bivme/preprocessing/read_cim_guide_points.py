@@ -1,11 +1,15 @@
 import os
 import glob
+import numpy as np
+from pathlib import Path
 
 # Reads valve points from cim rvlv models using keys
 # Author: Joshua Dillon
 # Last Modified: December, 2023
 
 ## Keys
+
+# TODO: make this a class...
 
 GP_KEYS = {'GP_APEX_CENTRAL_AXIS': 0,
   'GP_BASE_CENTRAL_AXIS': 1,
@@ -104,3 +108,51 @@ def read_guidepoints(caseID, analystID, rvlvpath):
                 guidepoints.append({'name': gp_type[0], 'x': line[0], 'y': line[1], 'z': line[2], 'series': line[5], 'slice': line[6], 'frame': line[7]})
                 slice_num.append([line[5],line[6]])
     return guidepoints
+
+
+def read_offsets(caseID, analystID, rvlvpath):
+    rvlvpath = os.path.join(rvlvpath, caseID)
+
+    # create dictionary to store offsets
+    offsets = {}
+
+    for series in [0, 1]:
+        offsets[f"series_{series}"] = {}
+        offsets_file = Path(
+            rvlvpath, "planes", f"series_{series}.planes_model_{caseID}_{analystID}"
+        )
+
+        with open(offsets_file) as f:
+            lines = f.readlines()
+
+        nslices = int(lines[0])
+        data = lines[1 : 3 * nslices + 1]
+
+        for i in range(nslices):
+            # read first of 3 corner coordinates per slice
+            slice_data = data[3 * i]
+
+            # convert to floats
+            slice_data = [float(f) for f in slice_data.split()]
+
+            # subtract to get offsets
+            if len(slice_data) == 6:
+                offsets[f"series_{series}"][i] = np.subtract(
+                    slice_data[:3], slice_data[3:]
+                )
+
+            # if no new coordinates exist, then offset = 0
+            elif len(slice_data) == 3:
+                offsets[f"series_{series}"][i] = np.array([0, 0, 0])
+
+    return offsets
+        
+    
+if __name__ == "__main__":
+    
+    caseID = 'RV01'
+    analystID = 'DZ'
+    rvlvpath = r'C:\AMRG\CIM RVLV 9.1\CIM_DATA'
+    
+    offsets = read_offsets(caseID, analystID, rvlvpath)
+    
