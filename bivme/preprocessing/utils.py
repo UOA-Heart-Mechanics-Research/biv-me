@@ -9,7 +9,7 @@ from pydicom.filereader import dcmread
 from bivme.fitting import *
 from bivme.preprocessing import Contours as cont
 from bivme.preprocessing.cvi42.CVI42XML import *
-from read_cim_guide_points import read_guidepoints
+from read_cim_guide_points import read_guidepoints, read_offsets
 
 
 fieldnames = [
@@ -377,10 +377,18 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
 
         # add valve points
         print('Adding valve points...')
+        
+        # get offsets
+        offsets = read_offsets(caseID=case, analystID=analystID, rvlvpath=cim_data)
+        
         for point in guidepoints:
             if point['name'] in cim_valve_types or point['name'] in cim_warp_types:
                 new_point = Point()
                 new_point.coordinates = np.array([float(point['x']), float(point['y']), float(point['z'])])
+                
+                # remove pre-applied offsets from CIM valve points
+                new_point.coordinates = new_point.coordinates - offsets[f"series_{point['series']}"][int(point['slice'])]
+                
                 for uid,frame in contours_CIM.frame.items():
                     if uid in uid_slice_match.keys():
                         if point['series'] == '0':
