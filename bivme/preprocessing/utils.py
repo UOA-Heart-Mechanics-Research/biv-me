@@ -235,7 +235,7 @@ def Temporal_Matching(contours):
     return contours_resampled
 
 
-def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offsets=None, valve_points = True, slice_corrections =True, **kwargs):
+def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offsets=None, valve_points=True, slice_corrections=True, **kwargs):
     '''
     Author: Joshua Dillon
     Date: 11/12/2023
@@ -304,6 +304,7 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
     for i in ptrs:
         j=i.split('\t')
         j[-1] = str.replace(j[-1], '\n', '')
+        
         # replace IMAGEPATH with image directory
         j[-1] = str.replace(j[-1], 'IMAGEPATH\\', image_ptrs)
         ptrs[ptrs.index(i)] = j
@@ -337,16 +338,18 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
         for contour_type, points in contours_CIM.points.items():
             for point in points:
                 if point.sop_instance_uid in uid_slice_match.keys():
+                    # TODO - don't overwrite inbuilt function "slice"!
                     slice = uid_slice_match[point.sop_instance_uid]
                     point.coordinates = point.coordinates + offsets[slice][0]
                     contours_CIM.frame[point.sop_instance_uid].position = contours_CIM.frame[point.sop_instance_uid].position + offsets[slice][0]
                     contours_CIM.frame[point.sop_instance_uid].orientation = contours_CIM.frame[point.sop_instance_uid].orientation + offsets[slice][1]
         print('Slice corrections applied successfully')
     
-    if valve_points == True:
+    if valve_points == True: # TODO: ability to toggle on/off RV inserts?
         valve_types = ['MITRAL_VALVE', 'TRICUSPID_VALVE', 'PULMONARY_VALVE', 'AORTA_VALVE', 'APEX_POINT', 'RV_INSERT']
         cim_valve_types = ['GP_VALVE_MITRAL', 'GP_VALVE_TRICUSPID', 'GP_VALVE_PULMONARY', 'GP_VALVE_AORTIC', 'GP_LV_EPI_APEX', 'GP_RV_INSERTION']
         cim_warp_types = ['GP_VALVE_MITRAL_WARP', 'GP_VALVE_TRICUSPID_WARP', 'GP_VALVE_PULMONARY_WARP', 'GP_VALVE_AORTIC_WARP', 'GP_LV_EPI_APEX_WARP', 'GP_RV_INSERTION_WARP']
+        
         # delete existing valve points
         print('Deleting existing valve points...')
         for contour_type, points in contours.points.items():
@@ -419,8 +422,8 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
     cvi_cont = CVI42XML()
     cvi_cont.contour = contours_CIM
 
-    new_gpfilename = 'GPFile_CIM.txt'
-    new_metadatafilename = 'SliceInfoFile_CIM.txt'
+    new_gpfilename = 'GPFile_cim.txt'
+    new_metadatafilename = 'SliceInfoFile_cim.txt'
     output_gpfile = os.path.join(folder,new_gpfilename)
     output_metadatafile = os.path.join(folder,new_metadatafilename)
     cvi_cont.export_contour_points(output_gpfile)

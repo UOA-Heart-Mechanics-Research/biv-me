@@ -267,7 +267,7 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", **k
             data_set.weights[data_set.contour_type == ContourType.AORTA_VALVE] = 2
             data_set.weights[data_set.contour_type == ContourType.PULMONARY_VALVE] = 2
 
-            # Perform linear fit
+            # Perform linear fit (step1)
             MultiThreadSmoothingED(biventricular_model, weight_GP, data_set, Errorfile)
 
             # Plot results
@@ -277,7 +277,7 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", **k
             data = model + contourPlots
             # TimeSeries_step1.append([data, num])
 
-            # Perform diffeomorphic fit
+            # Perform diffeomorphic fit (step2)
             SolveProblemCVXOPT(
                 biventricular_model,
                 data_set,
@@ -346,7 +346,7 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", **k
 if __name__ == "__main__":
     
     # directory containing guidepoint files
-    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\gpfiles-raw"
+    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\gpfiles"
     dir_out = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\fitted"
 
     # set list of cases to process
@@ -354,8 +354,8 @@ if __name__ == "__main__":
     casedirs = [Path(dir_gp, case).as_posix() for case in caselist]
 
     # set guidepoint and slice info files to use
-    gp_suffix = "_clean"
-    si_suffix = "_proc"
+    gp_suffix = "_cim"
+    si_suffix = "_cim"
 
     # start processing...
     starttime = time.time()
