@@ -48,6 +48,8 @@ def generate_html(folder, gpsuffix='', frame=0):
         ContourType.APEX_POINT,
         ContourType.MITRAL_VALVE,
         ContourType.TRICUSPID_VALVE,
+        ContourType.AORTA_VALVE,
+        ContourType.PULMONARY_VALVE,
         ContourType.SAX_RV_EPICARDIAL,
         ContourType.LAX_RV_EPICARDIAL,
         ContourType.LAX_RV_ENDOCARDIAL,
