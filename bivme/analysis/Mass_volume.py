@@ -8,7 +8,6 @@ Script for the measurement of LV and LV mass and volume from biventricular model
 import os
 import numpy as np
 import csv
-import sys 
 
 from bivme.meshing import *
 
@@ -24,7 +23,9 @@ def find_volume( folder,output_file):
     case =  os.path.basename(os.path.normpath(folder))
     print('case: ', case )
     try:
-        input_path_model = '../BiV_Modelling_v2/model/'
+        input_path_model = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)), "../model"
+        )
         subdivision_matrix_file = os.path.join(input_path_model,
                                                     "subdivision_matrix.txt")
         elements_file = os.path.join(input_path_model,'ETIndicesSorted.txt')

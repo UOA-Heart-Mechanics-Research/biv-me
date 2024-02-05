@@ -8,12 +8,8 @@ import time
 import pandas as pd 
 from pathlib import Path
 
-import sys
-sys.path.append( '../BiV_Modelling_v2' ) # append path to the Fitting framework where the BiVFitting folder is located
-
-from BiVFitting.BiventricularModel import BiventricularModel
-from BiVFitting.GPDataSet import GPDataSet
-from BiVFitting.surface_enum import Surface
+from bivme.fitting.GPDataSet import GPDataSet
+from bivme.fitting.surface_enum import Surface
 
 
 def write_vtk_polydata(filename, vertices, **kwargs):

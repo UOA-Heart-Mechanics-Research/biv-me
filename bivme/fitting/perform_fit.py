@@ -267,7 +267,7 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", **k
             data_set.weights[data_set.contour_type == ContourType.AORTA_VALVE] = 2
             data_set.weights[data_set.contour_type == ContourType.PULMONARY_VALVE] = 2
 
-            # Perform linear fit
+            # Perform linear fit (step1)
             MultiThreadSmoothingED(biventricular_model, weight_GP, data_set, Errorfile)
 
             # Plot results
@@ -277,7 +277,7 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", **k
             data = model + contourPlots
             # TimeSeries_step1.append([data, num])
 
-            # Perform diffeomorphic fit
+            # Perform diffeomorphic fit (step2)
             SolveProblemCVXOPT(
                 biventricular_model,
                 data_set,
@@ -331,7 +331,67 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", **k
                     output_folder_vtk, f"{case}_{mesh_type[i]}_{num:03}.vtk"
                 )
                 write_vtk_surface(meshpath, vertices, faces)
+                
+            # save closed RV mesh
+            output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
+            output_folder_vtk.mkdir(exist_ok=True)
+            
+            mesh_data = {"RV_septum": 1, "RV_freewall": 2, "tricuspid_valve": 6, "pulmonary_valve": 7}
+            
+            combined_verts = np.array([]).reshape(0,3)
+            combined_faces = np.array([], dtype=np.int64).reshape(0,3)
+            offset = 0
+            for key in mesh_data:
+                
+                start_fi = biventricular_model.surface_start_end[mesh_data[key]][0]
+                end_fi = biventricular_model.surface_start_end[mesh_data[key]][1] + 1
+                faces_et = biventricular_model.et_indices[start_fi:end_fi]
+                
+                unique_inds = np.unique(faces_et.flatten())
+                vertices = biventricular_model.et_pos[unique_inds]
+                
+                # remap faces/indices to 0-indexing
+                mapping = {old_index: new_index for new_index, old_index in enumerate(unique_inds)}
+                faces_mapped = np.vectorize(mapping.get)(faces_et)    
 
+                meshpath = Path(
+                    output_folder_vtk, f"{case}_{key}_{num:03}.vtk"
+                )
+                write_vtk_surface(meshpath, vertices, faces_mapped)              
+                
+                combined_verts = np.vstack((combined_verts, vertices))
+                combined_faces = np.vstack((combined_faces, faces_mapped + offset))
+                
+                print(f'offset now {offset}')
+                offset += len(vertices) # TODO: fix logic.... 
+            
+            # remove duplicate points (from chatGPT)
+            # Create a dictionary to map old indices to new indices after removing duplicates
+            index_map = {}
+            new_vertices = []
+            new_faces = []
+
+            # Iterate over vertices to remove duplicates and update index_map
+            for old_index, vertex in enumerate(combined_verts):
+                vertex_tuple = tuple(vertex)
+                if vertex_tuple not in index_map:
+                    new_index = len(new_vertices)
+                    new_vertices.append(vertex)
+                    index_map[vertex_tuple] = new_index
+
+            # Update the faces array with the new indices
+            for face in combined_faces:
+                new_face = [index_map[tuple(combined_verts[old_index])] for old_index in face]
+                new_faces.append(new_face)
+
+            combined_verts_clean = np.array(new_vertices)
+            combined_faces_clean = np.array(new_faces)
+            
+            meshpath = Path(
+                    output_folder_vtk, f"{case}_RV_closed_{num:03}.vtk"
+                )
+            write_vtk_surface(meshpath, combined_verts_clean, combined_faces_clean) 
+            
         # if you want to plot time series in html files uncomment the next line(s)
         # plot_timeseries(TimeSeries_step1, output_folder, 'TimeSeries_step1.html')
         # plot_timeseries(TimeSeries_step2, output_folder, 'TimeSeries_step2.html')
@@ -346,7 +406,7 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", **k
 if __name__ == "__main__":
     
     # directory containing guidepoint files
-    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\gpfiles-raw"
+    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\gpfiles"
     dir_out = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\fitted"
 
     # set list of cases to process
@@ -354,8 +414,8 @@ if __name__ == "__main__":
     casedirs = [Path(dir_gp, case).as_posix() for case in caselist]
 
     # set guidepoint and slice info files to use
-    gp_suffix = "_clean"
-    si_suffix = "_proc"
+    gp_suffix = "_cim"
+    si_suffix = "_cim"
 
     # start processing...
     starttime = time.time()
