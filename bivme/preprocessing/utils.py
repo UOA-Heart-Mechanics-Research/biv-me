@@ -431,6 +431,27 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
 
     return output_gpfile, output_metadatafile
 
+def clean_CIM(folder, initial_gpfile, initial_sliceinfo, **kwargs):
+    print("Cleaning contours...", end="")
+    all_frames = pd.read_csv(os.path.join(folder, gpfile), sep="\t")
+    frames_to_fit = sorted(np.unique([i[6] for i in all_frames.values]))
+    filename = os.path.join(folder, gpfile)
+    filenameInfo = os.path.join(folder, sliceinfofile)
+
+    data_set = []
+    for num in frames_to_fit:
+        data_set.append(
+            (
+                num,
+                GPDataSet(
+                    filename, filenameInfo, case, sampling=1, time_frame_number=num
+                ),
+            )
+        )
+
+    final_data_set = Clean_contours(folder, data_set, "GPFile_CIM_clean.txt")
+    print("done")
+
 def extract_offsets(name):
 
     '''
