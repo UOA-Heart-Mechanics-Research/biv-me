@@ -346,9 +346,9 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
         print('Slice corrections applied successfully')
     
     if valve_points == True: # TODO: ability to toggle on/off RV inserts?
-        valve_types = ['MITRAL_VALVE', 'TRICUSPID_VALVE', 'PULMONARY_VALVE', 'AORTA_VALVE', 'APEX_POINT', 'RV_INSERT']
-        cim_valve_types = ['GP_VALVE_MITRAL', 'GP_VALVE_TRICUSPID', 'GP_VALVE_PULMONARY', 'GP_VALVE_AORTIC', 'GP_LV_EPI_APEX', 'GP_RV_INSERTION']
-        cim_warp_types = ['GP_VALVE_MITRAL_WARP', 'GP_VALVE_TRICUSPID_WARP', 'GP_VALVE_PULMONARY_WARP', 'GP_VALVE_AORTIC_WARP', 'GP_LV_EPI_APEX_WARP', 'GP_RV_INSERTION_WARP']
+        valve_types = ['MITRAL_VALVE', 'TRICUSPID_VALVE', 'AORTA_VALVE', 'APEX_POINT', 'RV_INSERT', 'PULMONARY_VALVE'] 
+        cim_valve_types = ['GP_VALVE_MITRAL', 'GP_VALVE_TRICUSPID', 'GP_VALVE_AORTIC', 'GP_LV_EPI_APEX', 'GP_RV_INSERTION', 'GP_VALVE_PULMONARY'] 
+        cim_warp_types = ['GP_VALVE_MITRAL_WARP', 'GP_VALVE_TRICUSPID_WARP', 'GP_VALVE_AORTIC_WARP', 'GP_LV_EPI_APEX_WARP', 'GP_VALVE_PULMONARY_WARP'] 
         
         # delete existing valve points
         print('Deleting existing valve points...')
@@ -357,10 +357,18 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
                 to_del = np.arange(0,len(points))
                 contours_CIM.delete_point(contour_type, to_del)
         
+        # ensure that sliceinfofile has all available slices
+        print('Adding missing slices...')
+
+
         # match slices beween cim and circle
+        frame_insert_point = len(contours_CIM.frame.keys())
+        count=0
         for uid,coords in uid_coords_match.items():
+            # if cim has a slice that circle doesn't
             if uid not in contours_CIM.frame.keys():
-                new_frame = Frame(image_id= uid_slice_match[uid] + coords[3] + len(contours_CIM.frame.keys()),
+                count+=1
+                new_frame = Frame(image_id= frame_insert_point + count,
                                   position = coords[0], orientation = coords[1], pixel_spacing = coords[2])
                 new_frame.time_frame = coords[3]
                 contours_CIM.add_frame(uid, new_frame)
@@ -379,9 +387,9 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
                     if ori_d < min_ori_d:
                         min_ori_d = ori_d
                         closest_ori_uid = cim_uid
-                if closest_ori_uid == closest_pos_uid:
-                    uid_slice_match.update({uid:uid_slice_match[closest_ori_uid]})
-                    uid_coords_match.update({uid:uid_coords_match[closest_ori_uid]})
+                # if closest_ori_uid == closest_pos_uid:
+                #     uid_slice_match.update({uid:uid_slice_match[closest_ori_uid]})
+                #     uid_coords_match.update({uid:uid_coords_match[closest_ori_uid]})
 
         # add valve points
         print('Adding valve points...')
@@ -803,6 +811,9 @@ def findED_ESframe(case, data_set, **kwargs):
         case_frame_dict = kwargs.get("cases_frame_dict", None)
     else:
         case_frame_dict = {"case": []}
+    
+    if "dir_write" in kwargs:
+        dir_write = kwargs.get("dir_write", None)
 
     dist_aorta_apex = []
     for data in data_set:
@@ -818,6 +829,6 @@ def findED_ESframe(case, data_set, **kwargs):
         ED_frame = 1
         ES_frame = data_set[mindist_idx][0]
 
-    with open("./results/case_id_frame.csv", "a") as f:
+    with open(dir_write, "a") as f:
         writer = csv.writer(f)
         writer.writerow((case, ED_frame, ES_frame))
