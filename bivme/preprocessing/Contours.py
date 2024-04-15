@@ -87,11 +87,19 @@ class Contours:
         frames_uid = np.genfromtxt(metadata, usecols=(0), dtype=str)
         frames_id = np.genfromtxt(metadata, usecols=(2), dtype=int)
 
-        position = np.genfromtxt(metadata, usecols=(6, 7, 8), dtype=float)
-        orientation = np.genfromtxt(
-            metadata, usecols=(10, 11, 12, 13, 14, 15), dtype=float
-        )
-        pixel_spacing = np.genfromtxt(metadata, usecols=(17, 18), dtype=float)
+        try:
+            position = np.genfromtxt(metadata, usecols=(6, 7, 8), dtype=float)
+            orientation = np.genfromtxt(
+                metadata, usecols=(10, 11, 12, 13, 14, 15), dtype=float
+            )
+            pixel_spacing = np.genfromtxt(metadata, usecols=(17, 18), dtype=float)
+
+        except:
+            position = np.genfromtxt(metadata, usecols=(4, 5, 6), dtype=float)
+            orientation = np.genfromtxt(
+                metadata, usecols=(8, 9, 10, 11, 12, 13), dtype=float
+            )
+            pixel_spacing = np.genfromtxt(metadata, usecols=(15, 16), dtype=float)
 
         for index, point in enumerate(data_set):
             new_point = Point()
@@ -695,7 +703,10 @@ class Contours:
                 if len(rv_points_index) != 0:
                     for point_index, point in enumerate(rv_points):
                         new_point = point.deep_copy_point()
-                        self.add_point("SAX_RV_OUTLET", new_point)
+                        if rv_contours[idx] == "SAX_RV_ENDOCARDIAL":
+                            self.add_point("SAX_RV_OUTLET", new_point)
+                        else:
+                            self.add_point("LAX_RV_ENDOCARDIAL", new_point)
                 continue
             elif len(rv_points_index) == 0:
                 continue

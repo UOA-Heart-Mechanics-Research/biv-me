@@ -10,7 +10,7 @@ import plotly.graph_objs as go
 from bivme.fitting.GPDataSet import *
 
 
-def generate_html(folder, gpsuffix='', frame=0):
+def generate_html(folder, gpsuffix='', sisuffix='', frame=0):
     """
     Generates an HTML file containing plots of guide points.
 
@@ -25,7 +25,7 @@ def generate_html(folder, gpsuffix='', frame=0):
     print("case", case)
 
     GPfilename = os.path.join(folder, f"GPfile{gpsuffix}.txt")
-    filenameInfo = os.path.join(folder, "SliceInfoFile.txt")
+    filenameInfo = os.path.join(folder, f"SliceInfoFile{sisuffix}.txt")
 
     # this section is only used to measure the shift
     time_frame_ED = 0 # this is the ED frame
@@ -55,15 +55,15 @@ def generate_html(folder, gpsuffix='', frame=0):
         ContourType.LAX_RV_ENDOCARDIAL,
         ContourType.LAX_LV_ENDOCARDIAL,
         ContourType.LAX_LV_EPICARDIAL,
-        ContourType.SAX_RV_OUTLET,
         ContourType.PULMONARY_PHANTOM,
-        ContourType.AORTA_VALVE,
-        ContourType.PULMONARY_VALVE,
         ContourType.TRICUSPID_PHANTOM,
         ContourType.AORTA_PHANTOM,
         ContourType.MITRAL_PHANTOM,
         ContourType.LAX_LV_EXTENT,
+        ContourType.LAX_LA_EXTENT,
         ContourType.LAX_RV_EXTENT,
+        ContourType.LAX_RA,
+        ContourType.LAX_LA,
     ]
 
     # load GP for chosen frame and apply shift measured at ED
@@ -87,19 +87,20 @@ def generate_html(folder, gpsuffix='', frame=0):
 if __name__ == "__main__":
     
     # directory containing guidepoint files
-    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\gpfiles-raw"
+    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\bivme\test\gpfiles"
     
     # set list of cases to process
-    caselist = ["RV01", "RV02", "RV03", "RV04"]
+    caselist = ["SCMR_2_corrected"]
     casedirs = [Path(dir_gp, case).as_posix() for case in caselist]
     
     # set suffix of guidepoint files to plot
     gpsuffix = '_clean'
+    sisuffix = '_proc'
     
     for case_folder in casedirs:
 
         starttime = time.time()
-        results = generate_html(case_folder, gpsuffix)
+        results = generate_html(case_folder, gpsuffix, sisuffix, frame=0)
 
         # print time taken to 1 decimal place
         print(f"Time taken: {time.time() - starttime:.1f} seconds")
