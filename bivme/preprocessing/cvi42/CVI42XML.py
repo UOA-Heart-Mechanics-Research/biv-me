@@ -308,13 +308,25 @@ class CVI42XML:
         for uid, contours in uid_contours.items():
             for key in contours:
                 self.subpixel_resolution = 1
-
+                # Joshua Dillon (15/04/2024)
+                # Adding aortic and mitral valve points from line contours - only the start and end points are needed
                 if key in contour_name_map.keys():
-                    for element in contours[key]:
-                        new_point = Point([int(element[0]), int(element[1])], uid)
-                        self.contour.add_point(contour_name_map[key], new_point)
+                    if contour_name_map[key] == 'AORTA_VALVE' or contour_name_map[key] == 'MITRAL_VALVE':
+                        # Only start and end points. Sort by x and y (pixel coordinates) and take extents
+                        points = []
+                        for element in contours[key]:
+                            new_point = Point([int(element[0]), int(element[1])], uid)
+                            points.append(new_point)
 
-                        # points_lst.append((element[0], element[1]))
+                        points = sorted(points, key=lambda k: [k.pixel[0], k.pixel[1]])
+                        self.contour.add_point(contour_name_map[key], points[0])
+                        self.contour.add_point(contour_name_map[key], points[-1])
+                        pass
+                    
+                    else:
+                        for element in contours[key]:
+                            new_point = Point([int(element[0]), int(element[1])], uid)
+                            self.contour.add_point(contour_name_map[key], new_point)
 
         """
 	

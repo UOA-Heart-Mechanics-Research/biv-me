@@ -12,16 +12,16 @@ if __name__ == "__main__":
     """
 
     # set list of cases to process
-    caselist = ["RV01", "RV02", "RV03", "RV04"]
+    caselist = ["SCMR_2_corrected", "SCMR_3", "SCMR_4", "SCMR_5"]
     
     # set directory of CVI42 .wsx files
-    dir_cvi42 = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\wsx"
+    dir_cvi42 = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\bivme\test\wsx"
 
     # set directory to save GP files
-    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\gpfiles-raw"
+    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\bivme\test\gpfiles"
 
     # set directory of corresponding DICOM images
-    dir_dicom = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\images\chicago-cmr"
+    dir_dicom = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\bivme\test\images"
     dicom_extension = ".dcm"
 
 	# plot contours?
@@ -112,3 +112,4 @@ if __name__ == "__main__":
         cvi42Contour.contour = contour
         cvi42Contour.export_contour_points(out_contour_file_name)
         cvi42Contour.export_dicom_metadata(out_metadata_file_name)
+print('Done')

@@ -44,6 +44,41 @@ def parseContours(node):
     contours = {}
     for child in keepElementNodes(node.childNodes):
         contour_name = child.getAttribute("Hash:key")
+        # Joshua Dillon (15/04/2024)
+        # Valve points may be stored as lineRoiContour in wsx files - added check for aortic and mitral valves
+        if 'lineRoiContour' in contour_name:
+            for child2 in keepElementNodes(child.childNodes):
+                if child2.getAttribute("Hash:key") == "Label":
+                    try:
+                        if child2.firstChild.data == 'AV' or child2.firstChild.data == 'MV':
+                            contour_name = child2.firstChild.data
+                            for child2 in keepElementNodes(child.childNodes):
+                                if child2.getAttribute("Hash:key") == "Points":
+                                    points = []
+                                    # # Only first and last points are needed
+                                    # child3= keepElementNodes(child2.childNodes)[0]
+                                    # x = float(child3.getElementsByTagName("Point:x")[0].firstChild.data)
+                                    # y = float(child3.getElementsByTagName("Point:y")[0].firstChild.data)
+                                    # points += [[x, y]]
+                                    # child3= keepElementNodes(child2.childNodes)[-1]
+                                    # x = float(child3.getElementsByTagName("Point:x")[0].firstChild.data)
+                                    # y = float(child3.getElementsByTagName("Point:y")[0].firstChild.data)
+                                    # points += [[x, y]]
+
+                                    for child3 in keepElementNodes(child2.childNodes):
+                                        x = float(child3.getElementsByTagName("Point:x")[0].firstChild.data)
+                                        y = float(child3.getElementsByTagName("Point:y")[0].firstChild.data)
+                                        points += [[x, y]]
+
+                                if child2.getAttribute("Hash:key") == "SubpixelResolution":
+                                    sub = int(child2.firstChild.data)
+
+                            points = np.array(points)
+                            points /= sub
+                            contours[contour_name] = points
+                        continue
+                    except:
+                        continue
         sup = 1
         for child2 in keepElementNodes(child.childNodes):
             if child2.getAttribute("Hash:key") == "Points":

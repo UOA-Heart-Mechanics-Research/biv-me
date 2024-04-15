@@ -217,17 +217,19 @@ def MultiThreadSmoothingED(biv_model, weight_GP, data_set, txtfile):
     while (isdiffeo == 1) & (high_weight > weight_GP * 1e2) & (iteration < 50):
         # print('high_weight', high_weight) ####to LOG
         displacement, err = lls_fit_model(biv_model, weight_GP, data_set, high_weight)
-
-        with open(txtfile, "a") as f:  # LDT
-            f.write(
-                "     Iteration #"
-                + str(iteration)
-                + " Weight "
-                + str(high_weight)
-                + "\t ICF error "
-                + str(err)
-                + "\n"
-            )
+        try:
+            with open(txtfile, "a") as f:  # LDT
+                f.write(
+                    "     Iteration #"
+                    + str(iteration)
+                    + " Weight "
+                    + str(high_weight)
+                    + "\t ICF error "
+                    + str(err)
+                    + "\n"
+                )
+        except:
+            pass
 
         print("     Iteration #" + str(iteration) + " ICF error " + str(err))
         isdiffeo = biv_model.is_diffeomorphic(
@@ -246,10 +248,13 @@ def MultiThreadSmoothingED(biv_model, weight_GP, data_set, txtfile):
                 high_weight = high_weight * factor
                 isdiffeo = 1
         iteration = iteration + 1
+    try:
+        with open(txtfile, "a") as f:  # LDT
+            f.write("End of the implicitly constrained fit \n")
+            f.write("--- %s seconds ---\n" % (time.time() - start_time))
 
-    with open(txtfile, "a") as f:  # LDT
-        f.write("End of the implicitly constrained fit \n")
-        f.write("--- %s seconds ---\n" % (time.time() - start_time))
+    except:
+        pass
 
     print("End of the implicitly constrained fit")
     print("--- %s seconds ---" % (time.time() - start_time))

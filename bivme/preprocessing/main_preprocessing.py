@@ -103,26 +103,26 @@ def do_preprocessing(folder, initial_gpfile, initial_sliceinfo, **kwargs):
 
 if __name__ == "__main__":
     # set directory containing GPFile and SliceInfoFile
-    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\gpfiles-raw"
+    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\bivme\test\gpfiles"
 
     # set list of cases to process
-    caselist = ["RV01", "RV02", "RV03" "RV04"]
+    caselist = ["SCMR_2_corrected", "SCMR_3", "SCMR_4", "SCMR_5"]
     casedirs = [Path(dir_gp, case).as_posix() for case in caselist]
 
     # check that all landmarks are present at each frame?
     do_landmarks_tracking = False
 
     # clean up contours (delete basal points)?
-    clean_contours = False
+    clean_contours = True
 
     # find which frames are ED and ES?
     find_EDES_frames = False
 
     # resample contours due to different temporal resolutions between slices?
-    temporal_matching = True
+    temporal_matching = False
     
     # do you want to add valve points from CIM?
-    add_cim_valve_points = True
+    add_cim_valve_points = False
     
     # do you want to add manual slice corrections from CIM?
     add_cim_slice_corrections = False
@@ -151,18 +151,27 @@ if __name__ == "__main__":
             writer.writeheader()
 
     # start processing...
-    # [do_preprocessing(folder, initial_gpfile, initial_sliceinfo) for folder in casedirs]
+    [do_preprocessing(folder, initial_gpfile, initial_sliceinfo) for folder in casedirs]
 
     # if you want to correct GP files using CIM RVLV
     # Add CIM valve points and slice corrections
-    cim_data = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\cim"
-    image_ptrs = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\images\chicago-cmr"
-    cim_offsets = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\biv\chicago\cim_offsets" # TODO: don't need this anymore since we can extract offsets from the cim_data folder
-    initial_gpfile = 'GPFile_proc.txt'
-    initial_sliceinfo = 'SliceInfoFile_proc.txt'
 
     if add_cim_valve_points == True or add_cim_slice_corrections == True:
+        cim_data = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\bivme\test\cim"
+        image_ptrs = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\bivme\test\images"
+        cim_offsets = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\biv\chicago\cim_offsets" # TODO: don't need this anymore since we can extract offsets from the cim_data folder
+        initial_gpfile = 'GPFile_proc.txt'
+        initial_sliceinfo = 'SliceInfoFile_proc.txt'
+
         [CIM_Correction(folder, initial_gpfile, initial_sliceinfo, cim_data,image_ptrs,cim_offsets,add_cim_valve_points, add_cim_slice_corrections) for folder in casedirs]
 
-    
+        # if you want to clean the contours AFTER adding CIM valve points
+        clean_contours = False
+        initial_gpfile = 'GPFile_cim.txt'
+        initial_sliceinfo = 'SliceInfoFile_cim.txt'
+        
+        if clean_contours == True:
+            [clean_CIM(folder, initial_gpfile, initial_sliceinfo) for folder in casedirs]
+
+
     

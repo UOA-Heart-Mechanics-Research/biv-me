@@ -351,7 +351,11 @@ class GPDataSet(object):
             index_imOr = (
                 np.where(["ImageOrientationPatient" in x for x in lines[0]])[0][0] + 1
             )
-            index_image_id = np.where(["frameID" in x for x in lines[0]])[0][0] + 1
+            
+            index_image_id = (
+                np.where(["frameID" in x for x in lines[0]])[0][0] + 1
+            )
+            
             index_pixel_spacing = (
                 np.where(["PixelSpacing" in x for x in lines[0]])[0][0] + 1
             )
@@ -631,6 +635,7 @@ class GPDataSet(object):
                 ContourType.SAX_RV_OUTLET,
                 ContourType.PULMONARY_PHANTOM,
                 ContourType.MITRAL_PHANTOM,
+                ContourType.AORTA_PHANTOM,
                 ContourType.LAX_LA,
                 ContourType.SAX_LV_EPICARDIAL,
                 ContourType.LAX_LV_EPICARDIAL,
@@ -653,6 +658,7 @@ class GPDataSet(object):
                 "rgb(0,206,209)",
                 "rgb(95,158,160)",
                 "rgb(128,0,0)",
+                "rgb(0,255,0)",
                 "rgb(205,92,92)",
                 "rgb(220,20,60)",
                 "rgb(255,127,80)",
@@ -669,6 +675,8 @@ class GPDataSet(object):
                 ContourType.TRICUSPID_VALVE,
                 ContourType.AORTA_VALVE,
                 ContourType.PULMONARY_VALVE,
+                ContourType.LAX_LV_EXTENT,
+                ContourType.LAX_LA_EXTENT,
             ]
         )
         points_color_map = np.array(
@@ -679,6 +687,8 @@ class GPDataSet(object):
                 "rgb(128,0,128)",
                 "rgb(0,255,0)",
                 "rgb(0,43,0)",
+                "rgb(0,0,205)",
+                "rgb(0,205,205)",
             ]
         )
 
@@ -1498,6 +1508,7 @@ class GPDataSet(object):
             ContourType.TRICUSPID_VALVE,
             ContourType.TRICUSPID_VALVE,
             ContourType.TRICUSPID_VALVE,
+            ContourType.AORTA_VALVE,
         ]
 
         lax_contours = [

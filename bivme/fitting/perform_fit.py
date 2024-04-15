@@ -21,6 +21,7 @@ from bivme.fitting.config_params import *
 # This list of contours_to _plot was taken from Liandong Lee
 contours_to_plot = [
     ContourType.LAX_RA,
+    ContourType.LAX_LA,
     ContourType.LAX_RV_ENDOCARDIAL,
     ContourType.SAX_RV_FREEWALL,
     ContourType.LAX_RV_FREEWALL,
@@ -33,6 +34,7 @@ contours_to_plot = [
     ContourType.MITRAL_VALVE,
     ContourType.TRICUSPID_VALVE,
     ContourType.AORTA_VALVE,
+    ContourType.PULMONARY_VALVE,
     ContourType.SAX_RV_EPICARDIAL,
     ContourType.LAX_RV_EPICARDIAL,
     ContourType.LAX_LV_ENDOCARDIAL,
@@ -42,6 +44,7 @@ contours_to_plot = [
     ContourType.AORTA_PHANTOM,
     ContourType.TRICUSPID_PHANTOM,
     ContourType.MITRAL_PHANTOM,
+    ContourType.PULMONARY_PHANTOM,
 ]
 
 
@@ -67,7 +70,7 @@ def write_vtk_surface(filename, vertices, faces):
     mesh.save(filename, binary=False)
 
 
-def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", **kwargs):
+def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", frames_to_fit=None, **kwargs):
     # performs all the BiVentricular fitting operations
 
     try:
@@ -100,10 +103,10 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", **k
             ED_frame = 0
             print("ED set to frame # 0")
 
-        # frames_to_fit = np.array(case_frame_dict[str(case)]) # oly fit ED and ES, if ED_ES file provided
-        frames_to_fit = np.unique(
-            [i[6] for i in all_frames.values]
-        )  # if you want to fit all _frames
+        if frames_to_fit is None:
+            frames_to_fit = np.unique(
+                [i[6] for i in all_frames.values]
+            )  # if you want to fit all _frames
 
         # path to model template files
         model_path = os.path.join(
@@ -231,6 +234,7 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", **k
 
             # Generates RV epicardial point if they have not been contoured
             # (can be commented if available) used in LL
+
             rv_epi_points, rv_epi_contour, rv_epi_slice = data_set.create_rv_epicardium(
                 rv_thickness=3
             )
@@ -256,25 +260,25 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", **k
 
             # Example on how to set different weights for different points group (R.B.)
             data_set.weights[data_set.contour_type == ContourType.MITRAL_PHANTOM] = 2
-            data_set.weights[data_set.contour_type == ContourType.AORTA_PHANTOM] = 2
-            data_set.weights[data_set.contour_type == ContourType.PULMONARY_PHANTOM] = 2
-            data_set.weights[data_set.contour_type == ContourType.TRICUSPID_PHANTOM] = 2
+            data_set.weights[data_set.contour_type == ContourType.AORTA_PHANTOM] = 1
+            data_set.weights[data_set.contour_type == ContourType.PULMONARY_PHANTOM] = 1
+            data_set.weights[data_set.contour_type == ContourType.TRICUSPID_PHANTOM] = 1
 
             data_set.weights[data_set.contour_type == ContourType.APEX_POINT] = 1
-            data_set.weights[data_set.contour_type == ContourType.RV_INSERT] = 5
-
-            data_set.weights[data_set.contour_type == ContourType.MITRAL_VALVE] = 2
-            data_set.weights[data_set.contour_type == ContourType.AORTA_VALVE] = 2
-            data_set.weights[data_set.contour_type == ContourType.PULMONARY_VALVE] = 2
+            data_set.weights[data_set.contour_type == ContourType.RV_INSERT] = 1
+            
+            data_set.weights[data_set.contour_type == ContourType.MITRAL_VALVE] = 1
+            data_set.weights[data_set.contour_type == ContourType.AORTA_VALVE]= 1
+            data_set.weights[data_set.contour_type == ContourType.PULMONARY_VALVE] = 1  
 
             # Perform linear fit (step1)
             MultiThreadSmoothingED(biventricular_model, weight_GP, data_set, Errorfile)
 
             # Plot results
-            model = biventricular_model.plot_surface(
-                "rgb(0,127,0)", "rgb(0,0,127)", "rgb(127,0,0)", "all"
-            )
-            data = model + contourPlots
+            # model = biventricular_model.plot_surface(
+            #     "rgb(0,127,0)", "rgb(0,127,127)", "rgb(127,0,0)", "all"
+            # )
+            # data = model + contourPlots
             # TimeSeries_step1.append([data, num])
 
             # Perform diffeomorphic fit (step2)
@@ -289,7 +293,7 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", **k
 
             # Plot final results
             model = biventricular_model.plot_surface(
-                "rgb(0,127,0)", "rgb(0,0,127)", "rgb(127,0,0)", "all"
+                "rgb(0,127,0)", "rgb(0,127,127)", "rgb(127,0,0)", "all"
             )
             data = model + contourPlots
             # TimeSeries_step2.append([data, num])
@@ -362,7 +366,7 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", **k
                 combined_verts = np.vstack((combined_verts, vertices))
                 combined_faces = np.vstack((combined_faces, faces_mapped + offset))
                 
-                print(f'offset now {offset}')
+                # print(f'offset now {offset}')
                 offset += len(vertices) # TODO: fix logic.... 
             
             # remove duplicate points (from chatGPT)
@@ -406,24 +410,34 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", **k
 if __name__ == "__main__":
     
     # directory containing guidepoint files
-    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\gpfiles"
-    dir_out = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\chicago-rv-mesh\analysis\fitted"
+    dir_gp = r"Z:\Sandboxes\Josh\bivme\test\gpfiles"
+    dir_out = r"Z:\Sandboxes\Josh\bivme\test\fitted"
 
     # set list of cases to process
-    caselist = ["RV01", "RV02", "RV03", "RV04"]
+    # caselist = os.listdir(dir_gp)
+    caselist = ["SCMR_5"]
     casedirs = [Path(dir_gp, case).as_posix() for case in caselist]
 
     # set guidepoint and slice info files to use
-    gp_suffix = "_cim"
-    si_suffix = "_cim"
+    gp_suffix = "_clean"
+    si_suffix = "_proc"
 
     # start processing...
     starttime = time.time()
 
-    [
-        perform_fitting(case, outdir=dir_out, gp_suffix=gp_suffix, si_suffix=si_suffix)
-        for case in casedirs
-    ]
+    overwrite = False
+
+    for case in casedirs:
+        print(f"Processing case: {os.path.basename(case)}")
+        if not overwrite and os.path.exists(os.path.join(dir_out, os.path.basename(case))):
+            print("Folder already exists for this case. Proceeding to next case")
+            continue
+        perform_fitting(case, outdir=dir_out, gp_suffix=gp_suffix, si_suffix=si_suffix, frames_to_fit=[0,8])
+
+    # [
+    #     perform_fitting(case, outdir=dir_out, gp_suffix=gp_suffix, si_suffix=si_suffix)
+    #     for case in casedirs if os.path.exists(os.path.join(dir_out, case))
+    # ]
 
     print("TOTAL CASES:", len(casedirs))
     print("TOTAL TIME: ", time.time() - starttime)

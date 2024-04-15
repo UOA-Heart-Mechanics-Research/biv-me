@@ -101,6 +101,10 @@ def ReformatFiles(folder, gpfile, sliceinfofile, temporal_matching=False, **kwar
             for index, point in enumerate(
                 contours.get_timeframe_points("LAX_LV_EXTENT", time_frames)[1]
             ):
+                # Joshua Dillon (15/04/2024) 
+                # Commented out code below that was extracting mitral valve from LAX_LV_EXTENT. Choosing to extract from LAX_LA_EXTENT instead
+                pass
+
                 # the extents has 3 points, for each extent we need to
                 # select the first 2 corresponding to the valve
                 # the output from get_timeframe_points is already sorted by timeframe
@@ -110,24 +114,27 @@ def ReformatFiles(folder, gpfile, sliceinfofile, temporal_matching=False, **kwar
                 # the mitral valve so we need to exclude them
                 # if there are aorta points on the same timeframe
                 # then is a 3ch and we need to exclude them
-                aorta_points, _ = contours.get_frame_points(
-                    "AORTA_VALVE", point.sop_instance_uid
-                )
-                atrial_extend, _ = contours.get_frame_points(
-                    "LAX_LA_EXTENT", point.sop_instance_uid
-                )
-                if len(aorta_points) > 0:
-                    continue
-                if len(atrial_extend) > 0:
-                    continue
-                if (index + 1) % 3 != 0:
-                    contours.add_point("MITRAL_VALVE", point)
+                # aorta_points, _ = contours.get_frame_points(
+                #     "AORTA_VALVE", point.sop_instance_uid
+                # )
+                # atrial_extend, _ = contours.get_frame_points(
+                #     "LAX_LA_EXTENT", point.sop_instance_uid
+                # )
+                # if len(aorta_points) > 0:
+                #     pass
+                # if len(atrial_extend) > 0:
+                #     pass
+                # # if (index + 1) % 3 != 0:
+                # #     contours.add_point("MITRAL_VALVE", point)
             del contours.points["LAX_LV_EXTENT"]
 
         if "LAX_LA_EXTENT" in contours.points.keys():
             for index, point in enumerate(
                 contours.get_timeframe_points("LAX_LA_EXTENT", time_frames)[1]
             ):
+                # Joshua Dillon (15/04/2024) 
+                # Extracting mitral valve from LAX_LA_EXTENT instead of LAX_LV_EXTENT. 
+                # Always the first two points
                 if (index + 1) % 3 != 0:
                     contours.add_point("MITRAL_VALVE", point)
             del contours.points["LAX_LA_EXTENT"]
@@ -136,9 +143,24 @@ def ReformatFiles(folder, gpfile, sliceinfofile, temporal_matching=False, **kwar
             for index, point in enumerate(
                 contours.get_timeframe_points("LAX_RV_EXTENT", time_frames)[1]
             ):
+                # Joshua Dillon (15/04/2024) 
+                # Commented out code below that was extracting tricuspid valve from LAX_RV_EXTENT. Choosing to extract from LAX_RA_EXTENT instead
+                pass
+                # if (index + 1) % 3 != 0:
+                #     contours.add_point("TRICUSPID_VALVE", point)
+            del contours.points["LAX_RV_EXTENT"]
+
+        if "LAX_RA_EXTENT" in contours.points.keys():
+            for index, point in enumerate(
+                contours.get_timeframe_points("LAX_RA_EXTENT", time_frames)[1]
+            ):
+                # Joshua Dillon (15/04/2024) 
+                # Extracting mitral valve from LAX_RA_EXTENT instead of LAX_RV_EXTENT. 
+                # Always the first two points
                 if (index + 1) % 3 != 0:
                     contours.add_point("TRICUSPID_VALVE", point)
-            del contours.points["LAX_RV_EXTENT"]
+            del contours.points["LAX_RA_EXTENT"]
+
     except:
         err = "Computing valve landmarks"
         print(case, "Fail", err)
@@ -346,9 +368,9 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
         print('Slice corrections applied successfully')
     
     if valve_points == True: # TODO: ability to toggle on/off RV inserts?
-        valve_types = ['MITRAL_VALVE', 'TRICUSPID_VALVE', 'PULMONARY_VALVE', 'AORTA_VALVE', 'APEX_POINT', 'RV_INSERT']
-        cim_valve_types = ['GP_VALVE_MITRAL', 'GP_VALVE_TRICUSPID', 'GP_VALVE_PULMONARY', 'GP_VALVE_AORTIC', 'GP_LV_EPI_APEX', 'GP_RV_INSERTION']
-        cim_warp_types = ['GP_VALVE_MITRAL_WARP', 'GP_VALVE_TRICUSPID_WARP', 'GP_VALVE_PULMONARY_WARP', 'GP_VALVE_AORTIC_WARP', 'GP_LV_EPI_APEX_WARP', 'GP_RV_INSERTION_WARP']
+        valve_types = ['MITRAL_VALVE', 'TRICUSPID_VALVE', 'AORTA_VALVE', 'APEX_POINT', 'RV_INSERT', 'PULMONARY_VALVE'] 
+        cim_valve_types = ['GP_VALVE_MITRAL', 'GP_VALVE_TRICUSPID', 'GP_VALVE_AORTIC', 'GP_LV_EPI_APEX', 'GP_RV_INSERTION', 'GP_VALVE_PULMONARY'] 
+        cim_warp_types = ['GP_VALVE_MITRAL_WARP', 'GP_VALVE_TRICUSPID_WARP', 'GP_VALVE_AORTIC_WARP', 'GP_LV_EPI_APEX_WARP', 'GP_VALVE_PULMONARY_WARP'] 
         
         # delete existing valve points
         print('Deleting existing valve points...')
@@ -357,10 +379,18 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
                 to_del = np.arange(0,len(points))
                 contours_CIM.delete_point(contour_type, to_del)
         
+        # ensure that sliceinfofile has all available slices
+        print('Adding missing slices...')
+
+
         # match slices beween cim and circle
+        frame_insert_point = len(contours_CIM.frame.keys())
+        count=0
         for uid,coords in uid_coords_match.items():
+            # if cim has a slice that circle doesn't
             if uid not in contours_CIM.frame.keys():
-                new_frame = Frame(image_id= uid_slice_match[uid] + coords[3] + len(contours_CIM.frame.keys()),
+                count+=1
+                new_frame = Frame(image_id= frame_insert_point + count,
                                   position = coords[0], orientation = coords[1], pixel_spacing = coords[2])
                 new_frame.time_frame = coords[3]
                 contours_CIM.add_frame(uid, new_frame)
@@ -379,9 +409,9 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
                     if ori_d < min_ori_d:
                         min_ori_d = ori_d
                         closest_ori_uid = cim_uid
-                if closest_ori_uid == closest_pos_uid:
-                    uid_slice_match.update({uid:uid_slice_match[closest_ori_uid]})
-                    uid_coords_match.update({uid:uid_coords_match[closest_ori_uid]})
+                # if closest_ori_uid == closest_pos_uid:
+                #     uid_slice_match.update({uid:uid_slice_match[closest_ori_uid]})
+                #     uid_coords_match.update({uid:uid_coords_match[closest_ori_uid]})
 
         # add valve points
         print('Adding valve points...')
@@ -430,6 +460,27 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
     cvi_cont.export_dicom_metadata(output_metadatafile)
 
     return output_gpfile, output_metadatafile
+
+def clean_CIM(folder, initial_gpfile, initial_sliceinfo, **kwargs):
+    print("Cleaning contours...", end="")
+    all_frames = pd.read_csv(os.path.join(folder, gpfile), sep="\t")
+    frames_to_fit = sorted(np.unique([i[6] for i in all_frames.values]))
+    filename = os.path.join(folder, gpfile)
+    filenameInfo = os.path.join(folder, sliceinfofile)
+
+    data_set = []
+    for num in frames_to_fit:
+        data_set.append(
+            (
+                num,
+                GPDataSet(
+                    filename, filenameInfo, case, sampling=1, time_frame_number=num
+                ),
+            )
+        )
+
+    final_data_set = Clean_contours(folder, data_set, "GPFile_CIM_clean.txt")
+    print("done")
 
 def extract_offsets(name):
 
@@ -782,6 +833,9 @@ def findED_ESframe(case, data_set, **kwargs):
         case_frame_dict = kwargs.get("cases_frame_dict", None)
     else:
         case_frame_dict = {"case": []}
+    
+    if "dir_write" in kwargs:
+        dir_write = kwargs.get("dir_write", None)
 
     dist_aorta_apex = []
     for data in data_set:
@@ -797,6 +851,6 @@ def findED_ESframe(case, data_set, **kwargs):
         ED_frame = 1
         ES_frame = data_set[mindist_idx][0]
 
-    with open("./results/case_id_frame.csv", "a") as f:
+    with open(dir_write, "a") as f:
         writer = csv.writer(f)
         writer.writerow((case, ED_frame, ES_frame))
