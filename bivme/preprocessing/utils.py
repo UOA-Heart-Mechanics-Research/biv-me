@@ -101,6 +101,10 @@ def ReformatFiles(folder, gpfile, sliceinfofile, temporal_matching=False, **kwar
             for index, point in enumerate(
                 contours.get_timeframe_points("LAX_LV_EXTENT", time_frames)[1]
             ):
+                # Joshua Dillon (15/04/2024) 
+                # Commented out code below that was extracting mitral valve from LAX_LV_EXTENT. Choosing to extract from LAX_LA_EXTENT instead
+                pass
+
                 # the extents has 3 points, for each extent we need to
                 # select the first 2 corresponding to the valve
                 # the output from get_timeframe_points is already sorted by timeframe
@@ -110,24 +114,27 @@ def ReformatFiles(folder, gpfile, sliceinfofile, temporal_matching=False, **kwar
                 # the mitral valve so we need to exclude them
                 # if there are aorta points on the same timeframe
                 # then is a 3ch and we need to exclude them
-                aorta_points, _ = contours.get_frame_points(
-                    "AORTA_VALVE", point.sop_instance_uid
-                )
-                atrial_extend, _ = contours.get_frame_points(
-                    "LAX_LA_EXTENT", point.sop_instance_uid
-                )
-                if len(aorta_points) > 0:
-                    continue
-                if len(atrial_extend) > 0:
-                    continue
-                if (index + 1) % 3 != 0:
-                    contours.add_point("MITRAL_VALVE", point)
+                # aorta_points, _ = contours.get_frame_points(
+                #     "AORTA_VALVE", point.sop_instance_uid
+                # )
+                # atrial_extend, _ = contours.get_frame_points(
+                #     "LAX_LA_EXTENT", point.sop_instance_uid
+                # )
+                # if len(aorta_points) > 0:
+                #     pass
+                # if len(atrial_extend) > 0:
+                #     pass
+                # # if (index + 1) % 3 != 0:
+                # #     contours.add_point("MITRAL_VALVE", point)
             del contours.points["LAX_LV_EXTENT"]
 
         if "LAX_LA_EXTENT" in contours.points.keys():
             for index, point in enumerate(
                 contours.get_timeframe_points("LAX_LA_EXTENT", time_frames)[1]
             ):
+                # Joshua Dillon (15/04/2024) 
+                # Extracting mitral valve from LAX_LA_EXTENT instead of LAX_LV_EXTENT. 
+                # Always the first two points
                 if (index + 1) % 3 != 0:
                     contours.add_point("MITRAL_VALVE", point)
             del contours.points["LAX_LA_EXTENT"]
@@ -136,9 +143,24 @@ def ReformatFiles(folder, gpfile, sliceinfofile, temporal_matching=False, **kwar
             for index, point in enumerate(
                 contours.get_timeframe_points("LAX_RV_EXTENT", time_frames)[1]
             ):
+                # Joshua Dillon (15/04/2024) 
+                # Commented out code below that was extracting tricuspid valve from LAX_RV_EXTENT. Choosing to extract from LAX_RA_EXTENT instead
+                pass
+                # if (index + 1) % 3 != 0:
+                #     contours.add_point("TRICUSPID_VALVE", point)
+            del contours.points["LAX_RV_EXTENT"]
+
+        if "LAX_RA_EXTENT" in contours.points.keys():
+            for index, point in enumerate(
+                contours.get_timeframe_points("LAX_RA_EXTENT", time_frames)[1]
+            ):
+                # Joshua Dillon (15/04/2024) 
+                # Extracting mitral valve from LAX_RA_EXTENT instead of LAX_RV_EXTENT. 
+                # Always the first two points
                 if (index + 1) % 3 != 0:
                     contours.add_point("TRICUSPID_VALVE", point)
-            del contours.points["LAX_RV_EXTENT"]
+            del contours.points["LAX_RA_EXTENT"]
+
     except:
         err = "Computing valve landmarks"
         print(case, "Fail", err)
