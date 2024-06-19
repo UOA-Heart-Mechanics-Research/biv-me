@@ -575,13 +575,15 @@ class GPDataSet(object):
             # (2) Project points to coords X-Y in 2D plane
             # -------------------------------------------------------------------------------
             P_xy = tools.rodrigues_rot(P_centered, normal_valve, [0, 0, 1])
-            # center, r = tools.fit_circle_2d(P_xy[:, 0], P_xy[:, 1])
-            center, axis_l, rotation = tools.fit_elipse_2d(P_xy[:, :2])
+            center, r = tools.fit_circle_2d(P_xy[:, 0], P_xy[:, 1])
+            # center, axis_l,rotation = tools.fit_elipse_2d(P_xy[:,:2])
             # C = np.array([center[0], center[1], 0]) + P_mean
 
             # --- Generate points for fitting circle
             t = np.linspace(-np.pi, np.pi, n)
-            new_points = tools.generate_2Delipse_by_vectors(t, center, axis_l, rotation)
+            # new_points = tools.generate_2Delipse_by_vectors(t, center, axis_l,
+            #                                          rotation)
+            new_points = tools.generate_2Delipse_by_vectors(t, center, r)
 
         new_points = np.array(
             [new_points[:, 0], new_points[:, 1], [0] * new_points.shape[0]]
