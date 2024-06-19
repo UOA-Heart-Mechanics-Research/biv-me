@@ -1,4 +1,4 @@
-import os
+import os,sys
 import numpy as np
 import time
 import pandas as pd
@@ -6,6 +6,9 @@ import pyvista as pv
 import plotly.graph_objs as go
 from pathlib import Path
 from plotly.offline import plot
+
+# add bivme to path
+sys.path.append(r"C:\Users\jdil469\Code\biv-me")
 
 from bivme.fitting.BiventricularModel import BiventricularModel
 from bivme.fitting.GPDataSet import GPDataSet
@@ -100,8 +103,8 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
         try:
             ED_frame = int(case_frame_dict[str(case)][0])
         except:
-            ED_frame = 0
-            print("ED set to frame # 0")
+            ED_frame = 1
+            print("ED set to frame # 1")
 
         if frames_to_fit is None:
             frames_to_fit = np.unique(
@@ -243,18 +246,30 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
             # We do not have any pulmonary points or aortic points in our dataset but if you do,
             # I recommend you to do the same.
 
-            mitral_points = data_set.create_valve_phantom_points(
-                30, ContourType.MITRAL_VALVE
-            )
-            tri_points = data_set.create_valve_phantom_points(
-                30, ContourType.TRICUSPID_VALVE
-            )
-            pulmonary_points = data_set.create_valve_phantom_points(
-                20, ContourType.PULMONARY_VALVE
-            )
-            aorta_points = data_set.create_valve_phantom_points(
-                20, ContourType.AORTA_VALVE
-            )
+            try:
+
+                mitral_points = data_set.create_valve_phantom_points(20, ContourType.MITRAL_VALVE)
+            except:
+                print('Error in creating mitral phantom points')
+            
+            try:
+                tri_points = data_set.create_valve_phantom_points(20, ContourType.TRICUSPID_VALVE)
+
+            except:
+                print('Error in creating tricuspid phantom points')
+
+            try:
+                pulmonary_points = data_set.create_valve_phantom_points(20, ContourType.PULMONARY_VALVE) 
+                
+            except:
+                print('Error in creating pulmonary phantom points')    
+                
+            try:
+                aorta_points = data_set.create_valve_phantom_points(20, ContourType.AORTA_VALVE)
+
+            except:
+                print('Error in creating aorta phantom points')
+                pass
 
             contourPlots = data_set.PlotDataSet(contours_to_plot)
 
@@ -410,17 +425,17 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
 if __name__ == "__main__":
     
     # directory containing guidepoint files
-    dir_gp = r"Z:\Sandboxes\Josh\bivme\test\gpfiles"
-    dir_out = r"Z:\Sandboxes\Josh\bivme\test\fitted"
+    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\projects\bivme\suiteheart\gpfiles\processed"
+    dir_out = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\projects\bivme\suiteheart\fitted"
 
     # set list of cases to process
     # caselist = os.listdir(dir_gp)
-    caselist = ["SCMR_5"]
+    caselist = ["cardiohance_022"]
     casedirs = [Path(dir_gp, case).as_posix() for case in caselist]
 
     # set guidepoint and slice info files to use
     gp_suffix = "_clean"
-    si_suffix = "_proc"
+    si_suffix = ""
 
     # start processing...
     starttime = time.time()
@@ -432,7 +447,7 @@ if __name__ == "__main__":
         if not overwrite and os.path.exists(os.path.join(dir_out, os.path.basename(case))):
             print("Folder already exists for this case. Proceeding to next case")
             continue
-        perform_fitting(case, outdir=dir_out, gp_suffix=gp_suffix, si_suffix=si_suffix, frames_to_fit=[0,8])
+        perform_fitting(case, outdir=dir_out, gp_suffix=gp_suffix, si_suffix=si_suffix, frames_to_fit=None)
 
     # [
     #     perform_fitting(case, outdir=dir_out, gp_suffix=gp_suffix, si_suffix=si_suffix)
