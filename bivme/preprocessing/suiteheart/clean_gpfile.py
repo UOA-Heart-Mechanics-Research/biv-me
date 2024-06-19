@@ -36,4 +36,5 @@ if __name__ == "__main__":
                     ),
                 )
             )
+        #TODO: Clean contours from 3Ch slice
         Clean_contours(folder, data_set, "GPFile_clean.txt")
