@@ -10,6 +10,14 @@ from bivme.preprocessing.utils import Clean_contours
 from bivme.fitting.GPDataSet import GPDataSet
 
 if __name__ == "__main__":
+    '''
+    Cleans LAX contours from GPFile
+
+    Author: Joshua Dillon
+    Last updated: 2024-06-19
+    '''
+
+
     # set directory containing GPFile and SliceInfoFile
     dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\projects\bivme\suiteheart\gpfiles\processed"
 

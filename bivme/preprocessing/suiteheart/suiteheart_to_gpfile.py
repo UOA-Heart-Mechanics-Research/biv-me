@@ -317,6 +317,13 @@ def write_slice_info_file(folder, sliceinfofile):
     
 
 if __name__ == "__main__":
+    '''
+    Converts between SuiteHeart .mat files and GPFile.txt and SliceInfoFile.txt for use in biv fitting
+
+    Author: Joshua Dillon
+    Last updated: 2024-06-19
+    '''
+
     dir_mat = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\collaborations\suiteheart\test\exports"
     dir_out = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\projects\bivme\suiteheart\gpfiles\processed"
 
