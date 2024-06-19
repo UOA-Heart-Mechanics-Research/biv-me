@@ -335,7 +335,7 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
             with open(Modelfile, "w") as file:
                 file.write(
                     Model_Dataframe.to_csv(
-                        header=True, index=False, sep=",", line_terminator="\n"
+                        header=True, index=False, sep=",", lineterminator="\n"
                     )
                 )
 
@@ -343,6 +343,7 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
             output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
             output_folder_vtk.mkdir(exist_ok=True)
             mesh_type = ["epicardium", "LV_endocardium", "RV_freewall", "RV_septum"]
+            mesh_data = {"LV_endocardium": 0, "RV_septum": 1, "RV_freewall": 2, "epicardium": 3}
             for i in range(4):
                 vertices = np.vstack((data[i].x, data[i].y, data[i].z)).transpose()
                 faces = np.vstack((data[i].i, data[i].j, data[i].k)).transpose()
@@ -350,6 +351,22 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
                     output_folder_vtk, f"{case}_{mesh_type[i]}_{num:03}.vtk"
                 )
                 write_vtk_surface(meshpath, vertices, faces)
+
+                start_fi = biventricular_model.surface_start_end[mesh_data[mesh_type[i]]][0]
+                end_fi = biventricular_model.surface_start_end[mesh_data[mesh_type[i]]][1] + 1
+                faces_et = biventricular_model.et_indices[start_fi:end_fi]
+                
+                unique_inds = np.unique(faces_et.flatten())
+                vertices = biventricular_model.et_pos[unique_inds]
+                
+                # remap faces/indices to 0-indexing
+                mapping = {old_index: new_index for new_index, old_index in enumerate(unique_inds)}
+                faces_mapped = np.vectorize(mapping.get)(faces_et)    
+
+                meshpath = Path(
+                    output_folder_vtk, f"{case}_{mesh_type[i]}_{num:03}.vtk"
+                )
+                write_vtk_surface(meshpath, vertices, faces_mapped)
                 
             # save closed RV mesh
             output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
