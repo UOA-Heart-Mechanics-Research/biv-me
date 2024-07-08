@@ -41,7 +41,7 @@ class Frame():
             T = np.dot(T, S)
         return T
     
-def get_intersections(point_list1, point_list2, distance_cutoff=4.5):
+def get_intersections(point_list1, point_list2, distance_cutoff=1):
 
     """ Finds the points that are within a given cutoff distance between two lists """
 
@@ -57,10 +57,28 @@ def get_intersections(point_list1, point_list2, distance_cutoff=4.5):
 
     return pairs
 
-def get_landmarks_from_intersections(point_list1, point_list2, distance_cutoff=4.5):
-    pairs = get_intersections(point_list1, point_list2, distance_cutoff)
+def get_landmarks_from_intersections(point_list1, point_list2, distance_cutoff=1):
+    while True:
+        pairs = get_intersections(point_list1, point_list2, distance_cutoff)
+
+        # If not enough intersections, increase distance cutoff
+        if len(pairs) <= 2:
+            distance_cutoff += 0.5
+            continue
+        
+        # If not enough unique pairs, increase distance cutoff
+        landmarkplane = point_list2[pairs[:,1],:]
+        landmarkplane=np.unique(landmarkplane, axis=0)
+        if len(landmarkplane) < 2:
+            distance_cutoff += 0.5
+            continue
+        
+        # Otherwise proceed
+        break
+    
     # Valve points will be extents of the intersection points
     landmarkplane = point_list2[pairs[:,1],:]
+    landmarkplane=np.unique(landmarkplane, axis=0)
     # Find extent
     x = [v[0] for v in landmarkplane]
     y = [v[1] for v in landmarkplane]
@@ -240,11 +258,11 @@ def process_lax(laxfile, num_sax_slices):
             
             # Determine mitral valve points
             if len(la_endo) > 0:
-                mv = get_landmarks_from_intersections(lv_endo, la_endo, distance_cutoff=5)
+                mv = get_landmarks_from_intersections(lv_endo, la_endo, distance_cutoff=1)
             else:
                 mv = []
             if len(ra_endo) > 0:
-                tv = get_landmarks_from_intersections(rv_endo, ra_endo, distance_cutoff=5)
+                tv = get_landmarks_from_intersections(rv_endo, ra_endo, distance_cutoff=1)
             else:
                 tv = []
             
