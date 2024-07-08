@@ -19,15 +19,17 @@ if __name__ == "__main__":
 
 
     # set directory containing GPFile and SliceInfoFile
-    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\projects\bivme\suiteheart\gpfiles\processed"
+    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\stf\bivme\processed"
 
-    caselist = ["cardiohance_022"]
+    # caselist = ["cardiohance_022"]
+    caselist = os.listdir(dir_gp)
     casedirs = [Path(dir_gp, case).as_posix() for case in caselist]
 
     initial_gpfile = "GPFile.txt"
     initial_sliceinfo = "SliceInfoFile.txt"
 
     for folder in casedirs:
+        print(f"Cleaning {folder}")
         all_frames = pd.read_csv(os.path.join(folder, initial_gpfile), sep="\t")
         frames_to_fit = sorted(np.unique([i[6] for i in all_frames.values]))
         data_set = []

@@ -114,9 +114,9 @@ def process_sax(saxfile):
     sax_gp = []
 
     for phase in range(num_phases):
-        print(f"Processing frame {phase+1}")
+        # print(f"Processing frame {phase+1}")
         for slice in range(num_slices):
-            print(f"Processing slice {slice+1}")
+            # print(f"Processing slice {slice+1}")
             # Get img2world transform
             position = sax_mat['image_position'][phase][slice][0]
             orientation = sax_mat['orientation'][phase][slice][0]
@@ -199,9 +199,9 @@ def process_lax(laxfile, num_sax_slices):
     lax_gp = []
 
     for phase in range(num_phases):
-        print(f"Processing frame {phase+1}")
+        # print(f"Processing frame {phase+1}")
         for slice in range(num_slices):
-            print(f"Processing slice {slice+1}")
+            # print(f"Processing slice {slice+1}")
             # Get img2world transform
             position = lax_mat['image_position'][phase][slice][0]
             orientation = lax_mat['orientation'][phase][slice][0]
@@ -338,13 +338,14 @@ if __name__ == "__main__":
     Converts between SuiteHeart .mat files and GPFile.txt and SliceInfoFile.txt for use in biv fitting
 
     Author: Joshua Dillon
-    Last updated: 2024-06-19
+    Last updated: 2024-07-09
     '''
 
-    dir_mat = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\collaborations\suiteheart\test\exports"
-    dir_out = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\projects\bivme\suiteheart\gpfiles\processed"
+    dir_mat = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\stf\suiteheart"
+    dir_out = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\stf\bivme"
 
-    caselist  = ["cardiohance_022"]
+    # caselist  = ["cardiohance_022"]
+    caselist = os.listdir(dir_mat)
     casedirs = [Path(dir_mat, case).as_posix() for case in caselist]
 
     for folder in casedirs:
