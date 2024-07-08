@@ -79,12 +79,14 @@ def get_landmarks_from_intersections(point_list1, point_list2, distance_cutoff=4
                 if dist > max_dist:
                     max_dist = dist
                     landmarks = np.array([landmarkplane[i], landmarkplane[j]], dtype=float)
+
+    if len(landmarks)==0:
+        pass
     return landmarks
 
-def process_sax(folder):
-    # Find all SAX files
-    sax_files = glob.glob(os.path.join(folder, "*SAX.mat"))
-    sax_mat = sio.loadmat(sax_files[0])
+def process_sax(saxfile):
+    # Load sax matlab export
+    sax_mat = sio.loadmat(saxfile)
 
     sax_contours = {'lv_endo': 'lv_endo', 'lv_epi': 'lv_epi', 'rv_endo': 'rv_endo'}
 
@@ -167,10 +169,9 @@ def process_sax(folder):
 
     return sax_gp, num_slices
 
-def process_lax(folder, num_sax_slices):
-    # Find all LAX files
-    lax_files = glob.glob(os.path.join(folder, "*LAX.mat"))
-    lax_mat = sio.loadmat(lax_files[0])
+def process_lax(laxfile, num_sax_slices):
+    # Load lax matlab export
+    lax_mat = sio.loadmat(laxfile)
 
     lax_contours = {'lv_endo': 'lv_endo', 'lv_epi': 'lv_epi', 'rv_endo': 'rv_endo', 'la_endo': 'la_endo', 'ra_endo': 'ra_endo'}
 
@@ -288,12 +289,10 @@ def process_lax(folder, num_sax_slices):
 
     return lax_gp
 
-def write_slice_info_file(folder, sliceinfofile):
+def write_slice_info_file(saxfile,laxfile, sliceinfofile):
     # Find all slices
-    sax_files = glob.glob(os.path.join(folder, "*SAX.mat"))
-    lax_files = glob.glob(os.path.join(folder, "*LAX.mat"))
-    sax_mat = sio.loadmat(sax_files[0])
-    lax_mat = sio.loadmat(lax_files[0])
+    sax_mat = sio.loadmat(saxfile)
+    lax_mat = sio.loadmat(laxfile)
 
     num_sax_slices = sax_mat['slice_number'][0][0]
     num_lax_slices = lax_mat['slice_number'][0][0]
@@ -335,8 +334,15 @@ if __name__ == "__main__":
         if not os.path.exists(os.path.join(dir_out, os.path.basename(folder))):
             os.makedirs(os.path.join(dir_out, os.path.basename(folder)))
 
-        sax_gp, num_sax_slices = process_sax(folder)
-        lax_gp = process_lax(folder, num_sax_slices)
+        # Find SAX and LAX files
+        matfiles = glob.glob(os.path.join(folder, "*.mat"))
+        laxfile = [f for f in matfiles if "LAX" in f][0]
+        saxfile = [f for f in matfiles if "LAX" not in f][0]
+
+        sax_gp, num_sax_slices = process_sax(saxfile)
+        lax_gp = process_lax(laxfile, num_sax_slices)
+
+        # Write GPFile
         gpfile = os.path.join(dir_out, os.path.basename(folder), "GPFile.txt")
         with open(gpfile, 'w') as f:
             f.write("x\ty\tz\tcontour type\tsliceID\tweight\ttime frame\n")
@@ -348,5 +354,5 @@ if __name__ == "__main__":
 
         # Write slice info file
         sliceinfofile = os.path.join(dir_out, os.path.basename(folder), "SliceInfoFile.txt")
-        write_slice_info_file(folder, sliceinfofile)
+        write_slice_info_file(saxfile,laxfile, sliceinfofile)
         print(f"Saved SliceInfoFile to {sliceinfofile}")
