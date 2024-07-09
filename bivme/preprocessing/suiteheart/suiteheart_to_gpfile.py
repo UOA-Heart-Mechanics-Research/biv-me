@@ -152,15 +152,23 @@ def process_sax(saxfile):
 
             # Split free wall and septum
             # Find pairs of points between rv endo and lv epi that are close to another
-            pairs = get_intersections(rv_endo, lv_epi, distance_cutoff=1)
-            if len(pairs) > 0:
-                rv_septum = rv_endo[np.unique(pairs[:,0])] # deletes intersection from RV endo pts
-                rv_fw = np.array([pnt.tolist() for i, pnt in enumerate(rv_endo) if i not in np.unique(pairs[:,0])], 
-                                        dtype=float)
-                lv_epi = np.array([pnt.tolist() for i, pnt in enumerate(lv_epi) if i not in np.unique(pairs[:,1])], 
-                                        dtype=float)
-            else:
-                rv_septum = []
+            cutoff = 1
+            while True:
+                pairs = get_intersections(rv_endo, lv_epi, distance_cutoff=cutoff)
+                if len(pairs) > 0:
+                    rv_septum = rv_endo[np.unique(pairs[:,0])] # deletes intersection from RV endo pts
+                    rv_fw = np.array([pnt.tolist() for i, pnt in enumerate(rv_endo) if i not in np.unique(pairs[:,0])], 
+                                            dtype=float)
+                    lv_epi = np.array([pnt.tolist() for i, pnt in enumerate(lv_epi) if i not in np.unique(pairs[:,1])], 
+                                            dtype=float)
+                    break
+                elif cutoff < 5:
+                    cutoff += 0.5
+                    continue
+                else:
+                    rv_septum = []
+                    break
+            
 
 
             points2D = [lv_endo, lv_epi, rv_fw, rv_septum, rv_inserts]
@@ -249,26 +257,89 @@ def process_lax(laxfile, saxfile):
             # Find pairs of points between rv endo and lv epi that are close to another
             rv_fw = []
             rv_septum = []
+            cutoff = 1
             if len(rv_endo) > 0:
-                pairs = get_intersections(rv_endo, lv_epi, distance_cutoff=1)
-                if len(pairs) > 0:
-                    rv_septum = rv_endo[np.unique(pairs[:,0])]
-                    rv_fw = np.array([pnt.tolist() for i, pnt in enumerate(rv_endo) if i not in np.unique(pairs[:,0])], 
-                                            dtype=float)
-                    lv_epi = np.array([pnt.tolist() for i, pnt in enumerate(lv_epi) if i not in np.unique(pairs[:,1])],
-                                            dtype=float)
-                else:
-                    rv_septum = []
-            
+                while True:
+                    pairs = get_intersections(rv_endo, lv_epi, distance_cutoff=cutoff)
+                    if len(pairs) > 0:
+                        rv_septum = rv_endo[np.unique(pairs[:,0])]
+                        rv_fw = np.array([pnt.tolist() for i, pnt in enumerate(rv_endo) if i not in np.unique(pairs[:,0])], 
+                                                dtype=float)
+                        lv_epi = np.array([pnt.tolist() for i, pnt in enumerate(lv_epi) if i not in np.unique(pairs[:,1])],
+                                                dtype=float)
+                        break
+                    elif cutoff < 5:
+                        cutoff += 0.5
+                        continue
+                    else:
+                        rv_septum = []
+                        break
+                
             # Determine mitral valve points
-            if len(la_endo) > 0:
-                mv = get_landmarks_from_intersections(lv_endo, la_endo, distance_cutoff=1)
+            # Attempt to extract from MV annulus in SAX matlab export
+            # Stored as direction and magnitude in 3D - don't ask why...
+            # try:
+            #     mv_dir = np.array([sax_mat['mv_annulus'][phase][slice][0][0][0][0], 
+            #                     sax_mat['mv_annulus'][phase][slice][1][0][0][0]])
+            #     mv_mag = np.array([sax_mat['mv_annulus'][phase][slice][0][0][1][0][0], 
+            #                         sax_mat['mv_annulus'][phase][slice][1][0][1][0][0]])
+            #     mv=[]
+            #     for i in range(len(mv_dir)):
+            #         mv.append(mv_dir[i] * mv_mag[i])
+            # except:
+            #     mv = []
+            mv=[]
+            if len(mv) == 0:
+                # print('No MV annulus found')
+                # Try to extract from intersection of LV endo and LA endo
+                if len(la_endo) > 0:
+                    mv = get_landmarks_from_intersections(lv_endo, la_endo, distance_cutoff=1)
+                else:
+                    mv = []
             else:
-                mv = []
-            if len(ra_endo) > 0:
-                tv = get_landmarks_from_intersections(rv_endo, ra_endo, distance_cutoff=1)
+                # Convert back to 2D for now
+                mv_2D = []
+                for points in mv:
+                    points = np.array([points[0], points[1], points[2], 1])
+                    # Transform to image space
+                    points = np.dot(points, np.linalg.inv(img2world.T))
+                    points = points[:2]
+                    mv_2D.append(points)
+                mv = np.array([mv_2D[0], mv_2D[1]])
+                
+            # Determine tricuspid valve points
+            # Attempt to extract from TV annulus in SAX matlab export
+            # Stored as direction and magnitude in 3D - don't ask why...
+            # TODO: Figure out why only one point stored for tv annulus
+
+            # try:
+            #     tv_dir = np.array([sax_mat['tv_annulus'][phase][slice][0][0][0][0],
+            #                         sax_mat['tv_annulus'][phase][slice][1][0][0][0]])
+            #     tv_mag = np.array([sax_mat['tv_annulus'][phase][slice][0][0][1][0][0],
+            #                         sax_mat['tv_annulus'][phase][slice][1][0][1][0][0]])
+            #     tv=[]
+            #     for i in range(len(tv_dir)):
+            #         tv.append(tv_dir[i] * tv_mag[i])
+            # except:
+            #     tv = []
+            tv=[]
+            if len(tv) == 0:
+                # print('No TV annulus found')
+                # Try to extract from intersection of RV endo and RA endo
+                if len(ra_endo) > 0:
+                    tv = get_landmarks_from_intersections(rv_endo, ra_endo, distance_cutoff=1)
+                else:
+                    tv = []
             else:
-                tv = []
+                # Convert back to 2D for now
+                tv_2D = []
+                for points in tv:
+                    points = np.array([points[0], points[1], points[2], 1])
+                    # Transform to image space
+                    points = np.dot(points, np.linalg.inv(img2world.T))
+                    points = points[:2]
+                    tv_2D.append(points)
+                tv = np.array([tv_2D[0], tv_2D[1]])
             
             if len(rv_endo) > 0: # therefore it is a 4Ch slice -> get lv epi apex
                 mv_centroid = np.mean(mv, axis=0)
