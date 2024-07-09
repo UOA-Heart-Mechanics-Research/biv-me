@@ -126,16 +126,16 @@ def process_sax(saxfile):
 
             # Check if contours exist
             if sax_mat[sax_contours['lv_endo']][phase][slice][0].shape[0] == 0:
-                print(f"Contour {sax_contours['lv_endo']} does not exist in frame {phase+1}, slice {slice+1}")
-                print(f"Skipping...")
+                # print(f"Contour {sax_contours['lv_endo']} does not exist in frame {phase+1}, slice {slice+1}")
+                # print(f"Skipping...")
                 continue
             elif sax_mat[sax_contours['lv_epi']][phase][slice][0].shape[0] == 0:
-                print(f"Contour {sax_contours['lv_epi']} does not exist in frame {phase+1}, slice {slice+1}")
-                print(f"Skipping...")
+                # print(f"Contour {sax_contours['lv_epi']} does not exist in frame {phase+1}, slice {slice+1}")
+                # print(f"Skipping...")
                 continue
             elif sax_mat[sax_contours['rv_endo']][phase][slice][0].shape[0] == 0:
-                print(f"Contour {sax_contours['rv_endo']} does not exist in frame {phase+1}, slice {slice+1}")
-                print(f"Skipping...")
+                # print(f"Contour {sax_contours['rv_endo']} does not exist in frame {phase+1}, slice {slice+1}")
+                # print(f"Skipping...")
                 continue
 
             # Get contours
@@ -211,12 +211,12 @@ def process_lax(laxfile, num_sax_slices):
 
             # Check if contours exist
             if lax_mat[lax_contours['lv_endo']][phase][slice][0].shape[0] == 0:
-                print(f"Contour {lax_contours['lv_endo']} does not exist in frame {phase+1}, slice {slice+1}")
-                print(f"Skipping...")
+                # print(f"Contour {lax_contours['lv_endo']} does not exist in frame {phase+1}, slice {slice+1}")
+                # print(f"Skipping...")
                 continue
             elif lax_mat[lax_contours['lv_epi']][phase][slice][0].shape[0] == 0:
-                print(f"Contour {lax_contours['lv_epi']} does not exist in frame {phase+1}, slice {slice+1}")
-                print(f"Skipping...")
+                # print(f"Contour {lax_contours['lv_epi']} does not exist in frame {phase+1}, slice {slice+1}")
+                # print(f"Skipping...")
                 continue
 
             # Get contours
