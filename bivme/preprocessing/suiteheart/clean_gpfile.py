@@ -47,4 +47,6 @@ if __name__ == "__main__":
                 )
             )
         #TODO: Clean contours from 3Ch slice
-        Clean_contours(folder, data_set, "GPFile_clean.txt")
+        for i in range(0,len(data_set)):
+            data_set[i][1].clean_MV_3D()
+        Clean_contours(folder, data_set, "GPFile_clean-test.txt")

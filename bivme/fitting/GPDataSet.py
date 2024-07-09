@@ -1492,6 +1492,63 @@ class GPDataSet(object):
             pos_z - self.frames[new_frame].position[2] for new_frame in frame_subset
         ]
         return frame_subset[np.argmin(distance)]
+    
+    def clean_MV_3D(self):
+        """
+        Author: Joshua Dillon
+        ----------------------------------------------
+        # Delete the points within the mitral valve plane estimated in 3D space
+
+        """
+
+        mitral_points = self.points_coordinates[
+            self.contour_type == ContourType.MITRAL_VALVE
+        ]
+
+        # LAX contours to delete
+        lax_contours = [
+            ContourType.LAX_LV_ENDOCARDIAL,
+            ContourType.LAX_LV_EPICARDIAL,
+        ]
+
+        del_idx = []
+
+        # Create mv phantom plane
+        self.create_valve_phantom_points(30,ContourType.MITRAL_VALVE)
+        phantom_points = self.points_coordinates[self.contour_type == ContourType.MITRAL_PHANTOM]
+        # Get radius of mitral valve plane as euclidian distance
+        mitral_radii = [np.linalg.norm(point - self.mitral_centroid) for point in phantom_points]
+        mitral_radius = np.mean(mitral_radii)
+
+        # Calculate the normal to the mitral valve plane
+        lv_length = np.linalg.norm(self.mitral_centroid - self.apex)
+        mitral_normal = (self.mitral_centroid - self.apex) / lv_length
+
+
+        # Find LAX points normal to the mitral valve plane
+        for pt_idx, point in enumerate(self.points_coordinates):
+            contour = self.contour_type[pt_idx]
+            sliceid = self.slice_number[pt_idx]
+
+            if contour in lax_contours:
+                point_normal = np.dot(point - self.mitral_centroid, mitral_normal)
+                # Get points tangent to the mitral valve plane
+                point_tangent = point - point_normal * mitral_normal
+                radius = np.linalg.norm(point_tangent - self.mitral_centroid)
+                if radius < mitral_radius and point_normal > 0 and np.abs(point_normal) < lv_length/5:
+                    del_idx.append(pt_idx)
+        
+
+        self.points_coordinates = [
+            k for i, k in enumerate(self.points_coordinates) if i not in del_idx
+        ]
+        self.slice_number = [
+            k for i, k in enumerate(self.slice_number) if i not in del_idx
+        ]
+        self.weights = [k for i, k in enumerate(self.weights) if i not in del_idx]
+        self.contour_type = [
+            k for i, k in enumerate(self.contour_type) if i not in del_idx
+        ]
 
     def clean_LAX_contour(self):
         """
@@ -1527,14 +1584,14 @@ class GPDataSet(object):
             contour = self.contour_type[pt_idx]
             sliceid = self.slice_number[pt_idx]
 
-            aorta_points = self.points_coordinates[
-                (self.contour_type == ContourType.AORTA_VALVE)
-                & (self.slice_number == sliceid)
+            aorta = np.array([c == ContourType.AORTA_VALVE for c in self.contour_type])
+            aorta_points = np.array(self.points_coordinates)[
+                (aorta) & (self.slice_number == sliceid)
             ]
 
             # this part deletes the points in between tricuspid valves and mitral valves
             if contour in lax_contours:
-                extent_points = self.points_coordinates[
+                extent_points = np.array(self.points_coordinates)[
                     (self.contour_type == valve_contours[lax_contours.index(contour)])
                     & (self.slice_number == sliceid)
                 ]
