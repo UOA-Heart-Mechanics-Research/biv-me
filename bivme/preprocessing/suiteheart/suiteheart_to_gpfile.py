@@ -185,9 +185,9 @@ def process_sax(saxfile):
                     string = f"{point[0]:.3f}\t{point[1]:.3f}\t{point[2]:.3f}\t{points_contypes[i]}\t{slice+1}\t1.0\t{phase+1}\n"
                     sax_gp.append(string)
 
-    return sax_gp, num_slices
+    return sax_gp
 
-def process_lax(laxfile, num_sax_slices):
+def process_lax(laxfile, saxfile):
     # Load lax matlab export
     lax_mat = sio.loadmat(laxfile)
 
@@ -195,6 +195,10 @@ def process_lax(laxfile, num_sax_slices):
 
     num_phases = lax_mat['phase_number'][0][0]
     num_slices = lax_mat['slice_number'][0][0]
+
+    # Load sax matlab export
+    sax_mat = sio.loadmat(saxfile)
+    num_sax_slices = sax_mat['slice_number'][0][0]
 
     lax_gp = []
 
@@ -358,8 +362,8 @@ if __name__ == "__main__":
         laxfile = [f for f in matfiles if "LAX" in f][0]
         saxfile = [f for f in matfiles if "LAX" not in f][0]
 
-        sax_gp, num_sax_slices = process_sax(saxfile)
-        lax_gp = process_lax(laxfile, num_sax_slices)
+        sax_gp = process_sax(saxfile)
+        lax_gp = process_lax(laxfile, saxfile)
 
         # Write GPFile
         gpfile = os.path.join(dir_out, os.path.basename(folder), "GPFile.txt")
