@@ -1580,17 +1580,22 @@ class GPDataSet(object):
 
         del_idx = []
 
-        for pt_idx, point in enumerate(self.points_coordinates):
-            contour = self.contour_type[pt_idx]
-            sliceid = self.slice_number[pt_idx]
+        for contour in lax_contours:
+            indices = [i for i, c in enumerate(self.contour_type) if c == contour]
+            points = np.array(self.points_coordinates)[indices]
+            for i in range(len(points)):
+                pt_idx = indices[i]
+                point = self.points_coordinates[pt_idx]
 
-            aorta = np.array([c == ContourType.AORTA_VALVE for c in self.contour_type])
-            aorta_points = np.array(self.points_coordinates)[
-                (aorta) & (self.slice_number == sliceid)
-            ]
+                sliceid = self.slice_number[pt_idx]
+                # aorta_points = np.array(self.points_coordinates)[
+                #     (aorta) & (self.slice_number == sliceid)
+                # ]
+                # aorta_points = np.array(self.points_coordinates)[
+                #     (self.contour_type == ContourType.AORTA_VALVE) & (self.slice_number == sliceid)
+                # ]
 
-            # this part deletes the points in between tricuspid valves and mitral valves
-            if contour in lax_contours:
+                # this part deletes the points in between tricuspid valves and mitral valves
                 extent_points = np.array(self.points_coordinates)[
                     (self.contour_type == valve_contours[lax_contours.index(contour)])
                     & (self.slice_number == sliceid)
@@ -1598,11 +1603,10 @@ class GPDataSet(object):
 
                 # this part deletes the lax_epicardial points for the 3ch view, as some of them
                 # are wrongly labelled in the BioBank dataset
-                if len(aorta_points) == 2 and contour == ContourType.LAX_LV_EPICARDIAL:
-                    del_idx.append(pt_idx)
+                # if len(aorta_points) == 2 and contour == ContourType.LAX_LV_EPICARDIAL:
+                #     del_idx.append(pt_idx)
 
-                elif len(extent_points) == 2:
-                    # print(sliceid, valve_contours[lax_contours.index(contour)],contour, len(extent_points))
+                if len(extent_points) == 2:
                     valve_dist = np.linalg.norm(extent_points[1] - extent_points[0])
                     distance1 = np.linalg.norm(extent_points[1] - point)
                     distance2 = np.linalg.norm(extent_points[0] - point)
