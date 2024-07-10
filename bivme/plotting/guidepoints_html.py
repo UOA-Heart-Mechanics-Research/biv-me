@@ -90,10 +90,11 @@ def generate_html(folder, gpsuffix='', sisuffix='', frame=1):
 if __name__ == "__main__":
     
     # directory containing guidepoint files
-    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\projects\bivme\suiteheart\gpfiles\processed"
+    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\stf\bivme\processed"
     
     # set list of cases to process
-    caselist = ["cardiohance_022"]
+    # caselist = ["cardiohance_022"]
+    caselist = os.listdir(dir_gp)
     casedirs = [Path(dir_gp, case).as_posix() for case in caselist]
     
     # set suffix of guidepoint files to plot

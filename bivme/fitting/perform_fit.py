@@ -442,12 +442,12 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
 if __name__ == "__main__":
     
     # directory containing guidepoint files
-    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\projects\bivme\suiteheart\gpfiles\processed"
-    dir_out = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\projects\bivme\suiteheart\fitted"
+    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\stf\bivme\processed"
+    dir_out = r"C:\Users\jdil469\misc-data\suiteheart\fitted"
 
     # set list of cases to process
-    # caselist = os.listdir(dir_gp)
-    caselist = ["cardiohance_022"]
+    caselist = os.listdir(dir_gp)
+    # caselist = ["cardiohance_022"]
     casedirs = [Path(dir_gp, case).as_posix() for case in caselist]
 
     # set guidepoint and slice info files to use

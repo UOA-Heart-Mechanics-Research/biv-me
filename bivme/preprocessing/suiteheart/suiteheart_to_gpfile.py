@@ -403,8 +403,18 @@ def write_slice_info_file(saxfile,laxfile, sliceinfofile):
             uid = lax_mat['uid'][0][slice-num_sax_slices][0]
         
         string = f"{uid}\tframeID:\t{slice+1}\tImagePositionPatient\t{position[0]:.3f}\t{position[1]:.3f}\t{position[2]:.3f}\tImageOrientationPatient\t{orientation[0]:.3f}\t{orientation[1]:3f}\t{orientation[2]:.3f}\t{orientation[3]:.3f}\t{orientation[4]:.3f}\t{orientation[5]:.3f}\tPixelSpacing\t{spacing[0]:.3f}\t{spacing[1]:.3f}\n"
-        with open(sliceinfofile, 'a') as f:
-            f.write(string)
+        
+        # Get around network disconnects
+        count=0
+        while True:
+            if count<100000000000000000000000000000:
+                count+=1
+                try:
+                    with open(sliceinfofile, 'a') as f:
+                        f.write(string)
+                    break
+                except:
+                    pass
     
     
 
@@ -417,7 +427,7 @@ if __name__ == "__main__":
     '''
 
     dir_mat = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\stf\suiteheart"
-    dir_out = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\stf\bivme"
+    dir_out = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\stf\bivme\processed"
 
     # caselist  = ["cardiohance_022"]
     caselist = os.listdir(dir_mat)

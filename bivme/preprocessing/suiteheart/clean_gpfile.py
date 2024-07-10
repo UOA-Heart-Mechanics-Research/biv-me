@@ -2,6 +2,7 @@ import os,sys
 import pandas as pd
 import numpy as np
 from pathlib import Path
+import time
 
 # add bivme to path
 sys.path.append(r"C:\Users\jdil469\Code\biv-me")
@@ -29,6 +30,7 @@ if __name__ == "__main__":
     initial_sliceinfo = "SliceInfoFile.txt"
 
     for folder in casedirs:
+        start_time = time.time()
         print(f"Cleaning {folder}")
         all_frames = pd.read_csv(os.path.join(folder, initial_gpfile), sep="\t")
         frames_to_fit = sorted(np.unique([i[6] for i in all_frames.values]))
@@ -46,7 +48,8 @@ if __name__ == "__main__":
                     ),
                 )
             )
-        #TODO: Clean contours from 3Ch slice
+        #TODO: Speed up
         for i in range(0,len(data_set)):
             data_set[i][1].clean_MV_3D()
-        Clean_contours(folder, data_set, "GPFile_clean-test.txt")
+        Clean_contours(folder, data_set, "GPFile_clean.txt")
+        print(f"Time to run clean contours: {time.time()-start_time} seconds")
