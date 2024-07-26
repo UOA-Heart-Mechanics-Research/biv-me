@@ -4,7 +4,7 @@ import  warnings
 
 import matplotlib
 import matplotlib.pyplot as plt
-cmap = plt.cm.get_cmap('gist_rainbow')
+# cmap = plt.cm.get_cmap('gist_rainbow')
 from copy import deepcopy
 
 

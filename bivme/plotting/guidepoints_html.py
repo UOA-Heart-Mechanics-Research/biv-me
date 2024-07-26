@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import time
 import pandas as pd
@@ -7,10 +8,12 @@ from pathlib import Path
 from plotly.offline import plot
 import plotly.graph_objs as go
 
+# add bivme to path
+sys.path.append(r"C:\Users\jdil469\Code\biv-me")
 from bivme.fitting.GPDataSet import *
 
 
-def generate_html(folder, gpsuffix='', sisuffix='', frame=0):
+def generate_html(folder, gpsuffix='', sisuffix='', frame=1):
     """
     Generates an HTML file containing plots of guide points.
 
@@ -28,7 +31,7 @@ def generate_html(folder, gpsuffix='', sisuffix='', frame=0):
     filenameInfo = os.path.join(folder, f"SliceInfoFile{sisuffix}.txt")
 
     # this section is only used to measure the shift
-    time_frame_ED = 0 # this is the ED frame
+    time_frame_ED = 1 # this is the ED frame
     ED_dataset = GPDataSet(
         GPfilename, filenameInfo, case, sampling=1, time_frame_number=time_frame_ED
     )
@@ -87,20 +90,21 @@ def generate_html(folder, gpsuffix='', sisuffix='', frame=0):
 if __name__ == "__main__":
     
     # directory containing guidepoint files
-    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Josh\bivme\test\gpfiles"
+    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\stf\bivme\processed"
     
     # set list of cases to process
-    caselist = ["SCMR_2_corrected"]
+    # caselist = ["cardiohance_022"]
+    caselist = os.listdir(dir_gp)
     casedirs = [Path(dir_gp, case).as_posix() for case in caselist]
     
     # set suffix of guidepoint files to plot
     gpsuffix = '_clean'
-    sisuffix = '_proc'
+    sisuffix = ''
     
     for case_folder in casedirs:
 
         starttime = time.time()
-        results = generate_html(case_folder, gpsuffix, sisuffix, frame=0)
+        results = generate_html(case_folder, gpsuffix, sisuffix, frame=1)
 
         # print time taken to 1 decimal place
         print(f"Time taken: {time.time() - starttime:.1f} seconds")

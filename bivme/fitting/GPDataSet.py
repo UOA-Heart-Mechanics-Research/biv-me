@@ -575,13 +575,15 @@ class GPDataSet(object):
             # (2) Project points to coords X-Y in 2D plane
             # -------------------------------------------------------------------------------
             P_xy = tools.rodrigues_rot(P_centered, normal_valve, [0, 0, 1])
-            # center, r = tools.fit_circle_2d(P_xy[:, 0], P_xy[:, 1])
-            center, axis_l, rotation = tools.fit_elipse_2d(P_xy[:, :2])
+            center, r = tools.fit_circle_2d(P_xy[:, 0], P_xy[:, 1])
+            # center, axis_l,rotation = tools.fit_elipse_2d(P_xy[:,:2])
             # C = np.array([center[0], center[1], 0]) + P_mean
 
             # --- Generate points for fitting circle
             t = np.linspace(-np.pi, np.pi, n)
-            new_points = tools.generate_2Delipse_by_vectors(t, center, axis_l, rotation)
+            # new_points = tools.generate_2Delipse_by_vectors(t, center, axis_l,
+            #                                          rotation)
+            new_points = tools.generate_2Delipse_by_vectors(t, center, r)
 
         new_points = np.array(
             [new_points[:, 0], new_points[:, 1], [0] * new_points.shape[0]]
@@ -1490,6 +1492,63 @@ class GPDataSet(object):
             pos_z - self.frames[new_frame].position[2] for new_frame in frame_subset
         ]
         return frame_subset[np.argmin(distance)]
+    
+    def clean_MV_3D(self):
+        """
+        Author: Joshua Dillon
+        ----------------------------------------------
+        # Delete the points within the mitral valve plane estimated in 3D space
+
+        """
+
+        mitral_points = self.points_coordinates[
+            self.contour_type == ContourType.MITRAL_VALVE
+        ]
+
+        # LAX contours to delete
+        lax_contours = [
+            ContourType.LAX_LV_ENDOCARDIAL,
+            ContourType.LAX_LV_EPICARDIAL,
+        ]
+
+        del_idx = []
+
+        # Create mv phantom plane
+        self.create_valve_phantom_points(30,ContourType.MITRAL_VALVE)
+        phantom_points = self.points_coordinates[self.contour_type == ContourType.MITRAL_PHANTOM]
+        # Get radius of mitral valve plane as euclidian distance
+        mitral_radii = [np.linalg.norm(point - self.mitral_centroid) for point in phantom_points]
+        mitral_radius = np.mean(mitral_radii)
+
+        # Calculate the normal to the mitral valve plane
+        lv_length = np.linalg.norm(self.mitral_centroid - self.apex)
+        mitral_normal = (self.mitral_centroid - self.apex) / lv_length
+
+
+        # Find LAX points normal to the mitral valve plane
+        for pt_idx, point in enumerate(self.points_coordinates):
+            contour = self.contour_type[pt_idx]
+            sliceid = self.slice_number[pt_idx]
+
+            if contour in lax_contours:
+                point_normal = np.dot(point - self.mitral_centroid, mitral_normal)
+                # Get points tangent to the mitral valve plane
+                point_tangent = point - point_normal * mitral_normal
+                radius = np.linalg.norm(point_tangent - self.mitral_centroid)
+                if radius < mitral_radius and point_normal > 0 and np.abs(point_normal) < lv_length/5:
+                    del_idx.append(pt_idx)
+        
+
+        self.points_coordinates = [
+            k for i, k in enumerate(self.points_coordinates) if i not in del_idx
+        ]
+        self.slice_number = [
+            k for i, k in enumerate(self.slice_number) if i not in del_idx
+        ]
+        self.weights = [k for i, k in enumerate(self.weights) if i not in del_idx]
+        self.contour_type = [
+            k for i, k in enumerate(self.contour_type) if i not in del_idx
+        ]
 
     def clean_LAX_contour(self):
         """
@@ -1521,29 +1580,33 @@ class GPDataSet(object):
 
         del_idx = []
 
-        for pt_idx, point in enumerate(self.points_coordinates):
-            contour = self.contour_type[pt_idx]
-            sliceid = self.slice_number[pt_idx]
+        for contour in lax_contours:
+            indices = [i for i, c in enumerate(self.contour_type) if c == contour]
+            points = np.array(self.points_coordinates)[indices]
+            for i in range(len(points)):
+                pt_idx = indices[i]
+                point = self.points_coordinates[pt_idx]
 
-            aorta_points = self.points_coordinates[
-                (self.contour_type == ContourType.AORTA_VALVE)
-                & (self.slice_number == sliceid)
-            ]
+                sliceid = self.slice_number[pt_idx]
+                # aorta_points = np.array(self.points_coordinates)[
+                #     (aorta) & (self.slice_number == sliceid)
+                # ]
+                # aorta_points = np.array(self.points_coordinates)[
+                #     (self.contour_type == ContourType.AORTA_VALVE) & (self.slice_number == sliceid)
+                # ]
 
-            # this part deletes the points in between tricuspid valves and mitral valves
-            if contour in lax_contours:
-                extent_points = self.points_coordinates[
+                # this part deletes the points in between tricuspid valves and mitral valves
+                extent_points = np.array(self.points_coordinates)[
                     (self.contour_type == valve_contours[lax_contours.index(contour)])
                     & (self.slice_number == sliceid)
                 ]
 
                 # this part deletes the lax_epicardial points for the 3ch view, as some of them
                 # are wrongly labelled in the BioBank dataset
-                if len(aorta_points) == 2 and contour == ContourType.LAX_LV_EPICARDIAL:
-                    del_idx.append(pt_idx)
+                # if len(aorta_points) == 2 and contour == ContourType.LAX_LV_EPICARDIAL:
+                #     del_idx.append(pt_idx)
 
-                elif len(extent_points) == 2:
-                    # print(sliceid, valve_contours[lax_contours.index(contour)],contour, len(extent_points))
+                if len(extent_points) == 2:
                     valve_dist = np.linalg.norm(extent_points[1] - extent_points[0])
                     distance1 = np.linalg.norm(extent_points[1] - point)
                     distance2 = np.linalg.norm(extent_points[0] - point)

@@ -1,4 +1,4 @@
-import os
+import os,sys
 import numpy as np
 import time
 import pandas as pd
@@ -6,6 +6,9 @@ import pyvista as pv
 import plotly.graph_objs as go
 from pathlib import Path
 from plotly.offline import plot
+
+# add bivme to path
+sys.path.append(r"C:\Users\jdil469\Code\biv-me")
 
 from bivme.fitting.BiventricularModel import BiventricularModel
 from bivme.fitting.GPDataSet import GPDataSet
@@ -100,8 +103,8 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
         try:
             ED_frame = int(case_frame_dict[str(case)][0])
         except:
-            ED_frame = 0
-            print("ED set to frame # 0")
+            ED_frame = 1
+            print("ED set to frame # 1")
 
         if frames_to_fit is None:
             frames_to_fit = np.unique(
@@ -243,18 +246,30 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
             # We do not have any pulmonary points or aortic points in our dataset but if you do,
             # I recommend you to do the same.
 
-            mitral_points = data_set.create_valve_phantom_points(
-                30, ContourType.MITRAL_VALVE
-            )
-            tri_points = data_set.create_valve_phantom_points(
-                30, ContourType.TRICUSPID_VALVE
-            )
-            pulmonary_points = data_set.create_valve_phantom_points(
-                20, ContourType.PULMONARY_VALVE
-            )
-            aorta_points = data_set.create_valve_phantom_points(
-                20, ContourType.AORTA_VALVE
-            )
+            try:
+
+                mitral_points = data_set.create_valve_phantom_points(20, ContourType.MITRAL_VALVE)
+            except:
+                print('Error in creating mitral phantom points')
+            
+            try:
+                tri_points = data_set.create_valve_phantom_points(20, ContourType.TRICUSPID_VALVE)
+
+            except:
+                print('Error in creating tricuspid phantom points')
+
+            try:
+                pulmonary_points = data_set.create_valve_phantom_points(20, ContourType.PULMONARY_VALVE) 
+                
+            except:
+                print('Error in creating pulmonary phantom points')    
+                
+            try:
+                aorta_points = data_set.create_valve_phantom_points(20, ContourType.AORTA_VALVE)
+
+            except:
+                print('Error in creating aorta phantom points')
+                pass
 
             contourPlots = data_set.PlotDataSet(contours_to_plot)
 
@@ -320,7 +335,7 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
             with open(Modelfile, "w") as file:
                 file.write(
                     Model_Dataframe.to_csv(
-                        header=True, index=False, sep=",", line_terminator="\n"
+                        header=True, index=False, sep=",", lineterminator="\n"
                     )
                 )
 
@@ -328,6 +343,7 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
             output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
             output_folder_vtk.mkdir(exist_ok=True)
             mesh_type = ["epicardium", "LV_endocardium", "RV_freewall", "RV_septum"]
+            mesh_data = {"LV_endocardium": 0, "RV_septum": 1, "RV_freewall": 2, "epicardium": 3}
             for i in range(4):
                 vertices = np.vstack((data[i].x, data[i].y, data[i].z)).transpose()
                 faces = np.vstack((data[i].i, data[i].j, data[i].k)).transpose()
@@ -335,6 +351,22 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
                     output_folder_vtk, f"{case}_{mesh_type[i]}_{num:03}.vtk"
                 )
                 write_vtk_surface(meshpath, vertices, faces)
+
+                start_fi = biventricular_model.surface_start_end[mesh_data[mesh_type[i]]][0]
+                end_fi = biventricular_model.surface_start_end[mesh_data[mesh_type[i]]][1] + 1
+                faces_et = biventricular_model.et_indices[start_fi:end_fi]
+                
+                unique_inds = np.unique(faces_et.flatten())
+                vertices = biventricular_model.et_pos[unique_inds]
+                
+                # remap faces/indices to 0-indexing
+                mapping = {old_index: new_index for new_index, old_index in enumerate(unique_inds)}
+                faces_mapped = np.vectorize(mapping.get)(faces_et)    
+
+                meshpath = Path(
+                    output_folder_vtk, f"{case}_{mesh_type[i]}_{num:03}.vtk"
+                )
+                write_vtk_surface(meshpath, vertices, faces_mapped)
                 
             # save closed RV mesh
             output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
@@ -410,17 +442,17 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
 if __name__ == "__main__":
     
     # directory containing guidepoint files
-    dir_gp = r"Z:\Sandboxes\Josh\bivme\test\gpfiles"
-    dir_out = r"Z:\Sandboxes\Josh\bivme\test\fitted"
+    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\stf\bivme\processed"
+    dir_out = r"C:\Users\jdil469\misc-data\suiteheart\fitted"
 
     # set list of cases to process
-    # caselist = os.listdir(dir_gp)
-    caselist = ["SCMR_5"]
+    caselist = os.listdir(dir_gp)
+    # caselist = ["cardiohance_022"]
     casedirs = [Path(dir_gp, case).as_posix() for case in caselist]
 
     # set guidepoint and slice info files to use
     gp_suffix = "_clean"
-    si_suffix = "_proc"
+    si_suffix = ""
 
     # start processing...
     starttime = time.time()
@@ -432,7 +464,7 @@ if __name__ == "__main__":
         if not overwrite and os.path.exists(os.path.join(dir_out, os.path.basename(case))):
             print("Folder already exists for this case. Proceeding to next case")
             continue
-        perform_fitting(case, outdir=dir_out, gp_suffix=gp_suffix, si_suffix=si_suffix, frames_to_fit=[0,8])
+        perform_fitting(case, outdir=dir_out, gp_suffix=gp_suffix, si_suffix=si_suffix, frames_to_fit=None)
 
     # [
     #     perform_fitting(case, outdir=dir_out, gp_suffix=gp_suffix, si_suffix=si_suffix)

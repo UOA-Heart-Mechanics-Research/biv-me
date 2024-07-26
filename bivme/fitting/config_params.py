@@ -9,7 +9,7 @@
 
 import multiprocessing
 
-measure_shift_EDonly = True # do you want to measure ED shift only at ED?
+measure_shift_EDonly = False # do you want to measure ED shift only at ED?
 
 # Set the following weights:
 # RB set of weights: [10, 1e6, 500]
