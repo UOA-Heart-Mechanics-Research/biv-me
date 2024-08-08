@@ -278,69 +278,35 @@ def process_lax(laxfile, saxfile):
                 
             # Determine mitral valve points
             # Attempt to extract from MV annulus in SAX matlab export
-            # Stored as direction and magnitude in 3D - don't ask why...
-            # try:
-            #     mv_dir = np.array([sax_mat['mv_annulus'][phase][slice][0][0][0][0], 
-            #                     sax_mat['mv_annulus'][phase][slice][1][0][0][0]])
-            #     mv_mag = np.array([sax_mat['mv_annulus'][phase][slice][0][0][1][0][0], 
-            #                         sax_mat['mv_annulus'][phase][slice][1][0][1][0][0]])
-            #     mv=[]
-            #     for i in range(len(mv_dir)):
-            #         mv.append(mv_dir[i] * mv_mag[i])
-            # except:
-            #     mv = []
-            mv=[]
+            try:
+                mv1 = lax_mat['mv_annulus'][phase][slice][0][0][2][0]
+                mv2 = lax_mat['mv_annulus'][phase][slice][0][0][2][1]
+                mv=np.array([mv1,mv2])
+            except:
+                mv = []
+
             if len(mv) == 0:
-                # print('No MV annulus found')
                 # Try to extract from intersection of LV endo and LA endo
                 if len(la_endo) > 0:
                     mv = get_landmarks_from_intersections(lv_endo, la_endo, distance_cutoff=1)
                 else:
                     mv = []
-            else:
-                # Convert back to 2D for now
-                mv_2D = []
-                for points in mv:
-                    points = np.array([points[0], points[1], points[2], 1])
-                    # Transform to image space
-                    points = np.dot(points, np.linalg.inv(img2world.T))
-                    points = points[:2]
-                    mv_2D.append(points)
-                mv = np.array([mv_2D[0], mv_2D[1]])
-                
+    
             # Determine tricuspid valve points
             # Attempt to extract from TV annulus in SAX matlab export
-            # Stored as direction and magnitude in 3D - don't ask why...
-            # TODO: Figure out why only one point stored for tv annulus
+            try:
+                tv1 = lax_mat['tv_annulus'][phase][slice][0][0][2][0]
+                tv2 = lax_mat['tv_annulus'][phase][slice][0][0][2][1]
+                tv=np.array([tv1,tv2])
+            except:
+                tv = []
 
-            # try:
-            #     tv_dir = np.array([sax_mat['tv_annulus'][phase][slice][0][0][0][0],
-            #                         sax_mat['tv_annulus'][phase][slice][1][0][0][0]])
-            #     tv_mag = np.array([sax_mat['tv_annulus'][phase][slice][0][0][1][0][0],
-            #                         sax_mat['tv_annulus'][phase][slice][1][0][1][0][0]])
-            #     tv=[]
-            #     for i in range(len(tv_dir)):
-            #         tv.append(tv_dir[i] * tv_mag[i])
-            # except:
-            #     tv = []
-            tv=[]
             if len(tv) == 0:
-                # print('No TV annulus found')
                 # Try to extract from intersection of RV endo and RA endo
                 if len(ra_endo) > 0:
                     tv = get_landmarks_from_intersections(rv_endo, ra_endo, distance_cutoff=1)
                 else:
                     tv = []
-            else:
-                # Convert back to 2D for now
-                tv_2D = []
-                for points in tv:
-                    points = np.array([points[0], points[1], points[2], 1])
-                    # Transform to image space
-                    points = np.dot(points, np.linalg.inv(img2world.T))
-                    points = points[:2]
-                    tv_2D.append(points)
-                tv = np.array([tv_2D[0], tv_2D[1]])
             
             if len(rv_endo) > 0: # therefore it is a 4Ch slice -> get lv epi apex
                 mv_centroid = np.mean(mv, axis=0)
@@ -431,7 +397,7 @@ if __name__ == "__main__":
     casedirs = [Path(dir_mat, case).as_posix() for case in caselist]
 
     for folder in casedirs:
-        print(folder)
+        print(os.path.basename(folder))
         if not os.path.exists(os.path.join(dir_out, os.path.basename(folder))):
             os.makedirs(os.path.join(dir_out, os.path.basename(folder)))
 
