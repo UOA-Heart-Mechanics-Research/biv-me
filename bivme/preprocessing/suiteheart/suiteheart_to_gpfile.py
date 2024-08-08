@@ -3,6 +3,7 @@ import numpy as np
 import glob
 from pathlib import Path
 import scipy.io as sio
+import argparse
 
 
 class Frame():
@@ -404,17 +405,9 @@ def write_slice_info_file(saxfile,laxfile, sliceinfofile):
         
         string = f"{uid}\tframeID:\t{slice+1}\tImagePositionPatient\t{position[0]:.3f}\t{position[1]:.3f}\t{position[2]:.3f}\tImageOrientationPatient\t{orientation[0]:.3f}\t{orientation[1]:3f}\t{orientation[2]:.3f}\t{orientation[3]:.3f}\t{orientation[4]:.3f}\t{orientation[5]:.3f}\tPixelSpacing\t{spacing[0]:.3f}\t{spacing[1]:.3f}\n"
         
-        # Get around network disconnects
-        count=0
-        while True:
-            if count<100000000000000000000000000000:
-                count+=1
-                try:
-                    with open(sliceinfofile, 'a') as f:
-                        f.write(string)
-                    break
-                except:
-                    pass
+        # Append to slice info file
+        with open(sliceinfofile, 'a') as f:
+            f.write(string)
     
     
 
@@ -423,13 +416,17 @@ if __name__ == "__main__":
     Converts between SuiteHeart .mat files and GPFile.txt and SliceInfoFile.txt for use in biv fitting
 
     Author: Joshua Dillon
-    Last updated: 2024-07-09
+    Last updated: 2024-08-08
     '''
 
-    dir_mat = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\stf\suiteheart"
-    dir_out = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\stf\bivme\processed"
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data-dir', '-d', action='store', help='path to directory containing .mat files exported from suiteheart')
+    parser.add_argument('--out-dir', '-o', action='store', help='path to output directory for gpfile and sliceinfofile')
+    args = parser.parse_args()
 
-    # caselist  = ["cardiohance_022"]
+    dir_mat = args.data_dir
+    dir_out = args.out_dir
+
     caselist = os.listdir(dir_mat)
     casedirs = [Path(dir_mat, case).as_posix() for case in caselist]
 
