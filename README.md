@@ -27,6 +27,16 @@ Contents:
 - perform_fit: script that contains the routine to perform the biventricular fitting
 - run_parallel: allows fitting using parallel CPUs. Each patient is assigned to one CPU.
 
+Installation ![Python versions](https://img.shields.io/badge/python-3.12-blue)
+-----------------------------------------------
+The easiest way to get this repo setup is to use the provided conda environment (python 3.12).
+The conda environment named biv312 can be created and activated with
+
+```
+conda env create -f environment.yml
+conda activate biv312
+```
+
 Usage:
 -----------------------------------------------
 
