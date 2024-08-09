@@ -213,9 +213,7 @@ def process_lax(laxfile, saxfile):
     lax_gp = []
 
     for phase in range(num_phases):
-        # print(f"Processing frame {phase+1}")
         for slice in range(num_slices):
-            # print(f"Processing slice {slice+1}")
             # Get img2world transform
             position = lax_mat['image_position'][phase][slice][0]
             orientation = lax_mat['orientation'][phase][slice][0]
@@ -278,44 +276,43 @@ def process_lax(laxfile, saxfile):
                         break
                 
             # Determine mitral valve points
-            # Attempt to extract from MV annulus in SAX matlab export
+            # Present on all slices (2ch, 3ch, 4ch)
+            # Attempt to extract from MV annulus in LAX matlab export
             try:
                 mv1 = lax_mat['mv_annulus'][phase][slice][0][0][2][0]
                 mv2 = lax_mat['mv_annulus'][phase][slice][0][0][2][1]
                 mv=np.array([mv1,mv2])
             except:
-                mv = []
-
-            if len(mv) == 0:
+                logger.info(f"MV annulus not found in {laxfile}")
                 # Try to extract from intersection of LV endo and LA endo
                 if len(la_endo) > 0:
                     mv = get_landmarks_from_intersections(lv_endo, la_endo, distance_cutoff=1)
                 else:
                     mv = []
-    
-            # Determine tricuspid valve points
-            # Attempt to extract from TV annulus in SAX matlab export
-            try:
-                tv1 = lax_mat['tv_annulus'][phase][slice][0][0][2][0]
-                tv2 = lax_mat['tv_annulus'][phase][slice][0][0][2][1]
-                tv=np.array([tv1,tv2])
-            except:
-                tv = []
-
-            if len(tv) == 0:
-                # Try to extract from intersection of RV endo and RA endo
-                if len(ra_endo) > 0:
-                    tv = get_landmarks_from_intersections(rv_endo, ra_endo, distance_cutoff=1)
-                else:
-                    tv = []
             
-            if len(rv_endo) > 0: # therefore it is a 4Ch slice -> get lv epi apex
+            if len(rv_endo) > 0: # therefore it is a 4Ch slice -> get lv epi apex and tv points
+                # Determine LV apex
                 mv_centroid = np.mean(mv, axis=0)
                 # Get lv epi point furthest from centroid
                 distances = [np.sqrt((v[0] - mv_centroid[0])**2 + (v[1] - mv_centroid[1])**2) for v in lv_epi]
                 lv_apex = lv_epi[np.argmax(distances)]
+
+                # Determine tricuspid valve points
+                # Attempt to extract from TV annulus in LAX matlab export
+                try:
+                    tv1 = lax_mat['tv_annulus'][phase][slice][0][0][2][0]
+                    tv2 = lax_mat['tv_annulus'][phase][slice][0][0][2][1]
+                    tv=np.array([tv1,tv2])
+                except:
+                    logger.info(f"TV annulus not found in {laxfile}")
+                    # Try to extract from intersection of RV endo and RA endo
+                    if len(ra_endo) > 0:
+                        tv = get_landmarks_from_intersections(rv_endo, ra_endo, distance_cutoff=1)
+                    else:
+                        tv = []
             else:
                 lv_apex = []
+                tv = []
             
             points2D = [lv_endo, lv_epi, rv_fw, rv_septum, mv, tv, lv_apex]
             points_contypes = ['LAX_LV_ENDOCARDIAL', 'LAX_LV_EPICARDIAL', 'LAX_RV_FREEWALL', 'LAX_RV_SEPTUM', 'MITRAL_VALVE', 'TRICUSPID_VALVE', 'APEX_POINT']
