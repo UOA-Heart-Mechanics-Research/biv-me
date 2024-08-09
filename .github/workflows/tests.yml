@@ -13,6 +13,7 @@ on:
       - "main"
     paths:
       - ".github/workflows/tests.yml"
+  workflow_dispatch:
 
 jobs:
   test:
