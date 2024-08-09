@@ -4,6 +4,7 @@ import glob
 from pathlib import Path
 import scipy.io as sio
 import argparse
+from loguru import logger
 
 
 class Frame():
@@ -397,7 +398,8 @@ if __name__ == "__main__":
     casedirs = [Path(dir_mat, case).as_posix() for case in caselist]
 
     for folder in casedirs:
-        print(os.path.basename(folder))
+        logger.info(f"Processing {os.path.basename(folder)}")
+
         if not os.path.exists(os.path.join(dir_out, os.path.basename(folder))):
             os.makedirs(os.path.join(dir_out, os.path.basename(folder)))
 
@@ -410,16 +412,24 @@ if __name__ == "__main__":
         lax_gp = process_lax(laxfile, saxfile)
 
         # Write GPFile
-        gpfile = os.path.join(dir_out, os.path.basename(folder), "GPFile.txt")
+        gpfile = os.path.join(dir_out, os.path.basename(folder))
+        assert os.path.exists(gpfile), f"Cannot write to {os.path.join(gpfile, 'GPFile.txt')}!"
+        gpfile = os.path.join(gpfile, "GPFile.txt")
+
         with open(gpfile, 'w') as f:
             f.write("x\ty\tz\tcontour type\tsliceID\tweight\ttime frame\n")
             for line in sax_gp:
                 f.write(line)
             for line in lax_gp:
                 f.write(line)
-        print(f"Saved GPFile to {gpfile}")
+        
+        logger.success(f"Saved GPFile to {gpfile}")
 
         # Write slice info file
-        sliceinfofile = os.path.join(dir_out, os.path.basename(folder), "SliceInfoFile.txt")
+        sliceinfofile = os.path.join(dir_out, os.path.basename(folder))
+        assert os.path.exists(sliceinfofile), f"Cannot write to {os.path.join(sliceinfofile, 'SliceInfoFile.txt')}!"
+        sliceinfofile = os.path.join(sliceinfofile, "SliceInfoFile.txt")
+
         write_slice_info_file(saxfile,laxfile, sliceinfofile)
-        print(f"Saved SliceInfoFile to {sliceinfofile}")
+        
+        logger.success(f"Saved SliceInfoFile to {sliceinfofile}")
