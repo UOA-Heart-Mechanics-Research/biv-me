@@ -1,5 +1,5 @@
 
-Biventricular model fitting framework
+Biventricular model fitting framework ![Tests](https://github.com/mCodingLLC/SlapThatLikeButton-TestingStarterProject/actions/workflows/tests.yml/badge.svg)
 -----------------------------------------------
 This is an import of the KCL BiV modelling code (originally called BiV_Modelling).
 
@@ -17,7 +17,7 @@ the topology of the mesh.
 Documentation: https://github.kcl.ac.uk/pages/YoungLab/BiV_Modelling/
 
 
-Contents: 
+Contents 
 -----------------------------------------------
 - BiVFitting: contains the code that performs patient-specific biventricular mesh customization. 
 - model: contains .txt files required by the fitting modules
@@ -33,11 +33,17 @@ The easiest way to get this repo setup is to use the provided conda environment 
 The conda environment named biv312 can be created and activated with
 
 ```
-conda env create -f environment.yml
-conda activate biv312
+cd biv-me
+conda env create -n bivme312
+conda activate bivme312
 ```
 
-Usage:
+Install the bivme package
+```
+pip install -e .
+```
+
+Usage
 -----------------------------------------------
 
 **Step 1**

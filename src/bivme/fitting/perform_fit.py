@@ -1,14 +1,12 @@
-import os,sys
+import os, sys
 import numpy as np
 import time
 import pandas as pd
-import pyvista as pv
 import plotly.graph_objs as go
 from pathlib import Path
 from plotly.offline import plot
-
-# add bivme to path
-sys.path.append(r"C:\Users\jdil469\Code\biv-me")
+import argparse
+import pathlib
 
 from bivme.fitting.BiventricularModel import BiventricularModel
 from bivme.fitting.GPDataSet import GPDataSet
@@ -20,6 +18,8 @@ from bivme.fitting.Diffeomorphic_fitting import (
 )
 
 from bivme.fitting.config_params import *
+from bivme.meshing.mesh_io import write_vtk_surface, export_to_obj
+from loguru import logger
 
 # This list of contours_to _plot was taken from Liandong Lee
 contours_to_plot = [
@@ -50,30 +50,7 @@ contours_to_plot = [
     ContourType.PULMONARY_PHANTOM,
 ]
 
-
-def write_vtk_surface(filename, vertices, faces):
-    """
-    Write a VTK surface mesh.
-
-    Parameters
-    ----------
-    filename : str
-        The name of the output VTK file.
-    vertices : numpy.ndarray
-        An array of shape (N, 3) representing the vertex coordinates.
-    faces : numpy.ndarray
-        An array of shape (M, 3) representing the triangular faces.
-
-    Returns
-    -------
-    None
-    """
-
-    mesh = pv.PolyData(vertices, np.c_[np.ones(len(faces)) * 3, faces].astype(int))
-    mesh.save(filename, binary=False)
-
-
-def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", frames_to_fit=None, **kwargs):
+def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", frames_to_fit=None, output_format=".vtk", **kwargs):
     # performs all the BiVentricular fitting operations
 
     try:
@@ -94,17 +71,16 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
 
         # extract the patient name from the folder name
         case = os.path.basename(os.path.normpath(folder))
-        print("case: ", case)
+        logger.info(f"case: {case}")
 
         # read all the frames from the GPFile
         all_frames = pd.read_csv(filename, sep="\t")
         # select which frames to fit
-        ED_frame = None
         try:
             ED_frame = int(case_frame_dict[str(case)][0])
         except:
             ED_frame = 1
-            print("ED set to frame # 1")
+            logger.info(f"ED set to frame # 1")
 
         if frames_to_fit is None:
             frames_to_fit = np.unique(
@@ -136,7 +112,7 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
 
         # The next lines are used to measure shift using only a key frame
         if measure_shift_EDonly == True:
-            print("shift measured only at ED frame")
+            logger.info("Shift measured only at ED frame")
 
             ED_dataset = GPDataSet(
                 filename,
@@ -163,12 +139,10 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
         TimeSeries_step1 = []
         TimeSeries_step2 = []
 
-        print("FITTING OF ", str(case), "----> started \n")
-
+        logger.info(f"Fitting of {str(case)}")
         for idx, num in enumerate(sorted(frames_to_fit)):
             num = int(num)  # frame number
-            print("frame num", num)
-
+            logger.info(f"Frame num {num}")
             Modelfile = Path(
                 output_folder, f"{case}{gp_suffix}_model_frame_{num:03}.txt"
             )
@@ -247,11 +221,10 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
             # I recommend you to do the same.
 
             try:
-
                 mitral_points = data_set.create_valve_phantom_points(20, ContourType.MITRAL_VALVE)
             except:
                 print('Error in creating mitral phantom points')
-            
+
             try:
                 tri_points = data_set.create_valve_phantom_points(20, ContourType.TRICUSPID_VALVE)
 
@@ -259,11 +232,11 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
                 print('Error in creating tricuspid phantom points')
 
             try:
-                pulmonary_points = data_set.create_valve_phantom_points(20, ContourType.PULMONARY_VALVE) 
-                
+                pulmonary_points = data_set.create_valve_phantom_points(20, ContourType.PULMONARY_VALVE)
+
             except:
-                print('Error in creating pulmonary phantom points')    
-                
+                print('Error in creating pulmonary phantom points')
+
             try:
                 aorta_points = data_set.create_valve_phantom_points(20, ContourType.AORTA_VALVE)
 
@@ -281,10 +254,10 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
 
             data_set.weights[data_set.contour_type == ContourType.APEX_POINT] = 1
             data_set.weights[data_set.contour_type == ContourType.RV_INSERT] = 1
-            
+
             data_set.weights[data_set.contour_type == ContourType.MITRAL_VALVE] = 1
-            data_set.weights[data_set.contour_type == ContourType.AORTA_VALVE]= 1
-            data_set.weights[data_set.contour_type == ContourType.PULMONARY_VALVE] = 1  
+            data_set.weights[data_set.contour_type == ContourType.AORTA_VALVE] = 1
+            data_set.weights[data_set.contour_type == ContourType.PULMONARY_VALVE] = 1
 
             # Perform linear fit (step1)
             MultiThreadSmoothingED(biventricular_model, weight_GP, data_set, Errorfile)
@@ -339,98 +312,111 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
                     )
                 )
 
-            # save surface meshes as vtk
-            output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
-            output_folder_vtk.mkdir(exist_ok=True)
-            mesh_type = ["epicardium", "LV_endocardium", "RV_freewall", "RV_septum"]
-            mesh_data = {"LV_endocardium": 0, "RV_septum": 1, "RV_freewall": 2, "epicardium": 3}
-            for i in range(4):
-                vertices = np.vstack((data[i].x, data[i].y, data[i].z)).transpose()
-                faces = np.vstack((data[i].i, data[i].j, data[i].k)).transpose()
-                meshpath = Path(
-                    output_folder_vtk, f"{case}_{mesh_type[i]}_{num:03}.vtk"
+            output_folder_obj = Path(output_folder, f"obj{gp_suffix}")
+            output_folder_obj.mkdir(exist_ok=True)
+
+            if output_format == ".obj":
+
+                vertices = biventricular_model.et_pos
+                faces = biventricular_model.et_indices
+                output_path = Path(
+                    output_folder_obj, f"{case}_{num:03}.obj"
                 )
-                write_vtk_surface(meshpath, vertices, faces)
+                logger.info(f"Saving model to {str(output_path)}")
+                export_to_obj(output_path, vertices, faces)
 
-                start_fi = biventricular_model.surface_start_end[mesh_data[mesh_type[i]]][0]
-                end_fi = biventricular_model.surface_start_end[mesh_data[mesh_type[i]]][1] + 1
-                faces_et = biventricular_model.et_indices[start_fi:end_fi]
-                
-                unique_inds = np.unique(faces_et.flatten())
-                vertices = biventricular_model.et_pos[unique_inds]
-                
-                # remap faces/indices to 0-indexing
-                mapping = {old_index: new_index for new_index, old_index in enumerate(unique_inds)}
-                faces_mapped = np.vectorize(mapping.get)(faces_et)    
+            if output_format == ".vtk":
+                # save surface meshes as vtk
+                output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
+                output_folder_vtk.mkdir(exist_ok=True)
+                mesh_type = ["epicardium", "LV_endocardium", "RV_freewall", "RV_septum"]
+                mesh_data = {"LV_endocardium": 0, "RV_septum": 1, "RV_freewall": 2, "epicardium": 3}
+                for i in range(4):
+                    vertices = np.vstack((data[i].x, data[i].y, data[i].z)).transpose()
+                    faces = np.vstack((data[i].i, data[i].j, data[i].k)).transpose()
+                    meshpath = Path(
+                        output_folder_vtk, f"{case}_{mesh_type[i]}_{num:03}.vtk"
+                    )
+                    write_vtk_surface(meshpath, vertices, faces)
+
+                    start_fi = biventricular_model.surface_start_end[mesh_data[mesh_type[i]]][0]
+                    end_fi = biventricular_model.surface_start_end[mesh_data[mesh_type[i]]][1] + 1
+                    faces_et = biventricular_model.et_indices[start_fi:end_fi]
+
+                    unique_inds = np.unique(faces_et.flatten())
+                    vertices = biventricular_model.et_pos[unique_inds]
+
+                    # remap faces/indices to 0-indexing
+                    mapping = {old_index: new_index for new_index, old_index in enumerate(unique_inds)}
+                    faces_mapped = np.vectorize(mapping.get)(faces_et)
+
+                    meshpath = Path(
+                        output_folder_vtk, f"{case}_{mesh_type[i]}_{num:03}.vtk"
+                    )
+                    write_vtk_surface(meshpath, vertices, faces_mapped)
+
+                # save closed RV mesh
+                output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
+                output_folder_vtk.mkdir(exist_ok=True)
+
+                mesh_data = {"RV_septum": 1, "RV_freewall": 2, "tricuspid_valve": 6, "pulmonary_valve": 7}
+
+                combined_verts = np.array([]).reshape(0, 3)
+                combined_faces = np.array([], dtype=np.int64).reshape(0, 3)
+                offset = 0
+                for key in mesh_data:
+                    start_fi = biventricular_model.surface_start_end[mesh_data[key]][0]
+                    end_fi = biventricular_model.surface_start_end[mesh_data[key]][1] + 1
+                    faces_et = biventricular_model.et_indices[start_fi:end_fi]
+
+                    unique_inds = np.unique(faces_et.flatten())
+                    vertices = biventricular_model.et_pos[unique_inds]
+
+                    # remap faces/indices to 0-indexing
+                    mapping = {old_index: new_index for new_index, old_index in enumerate(unique_inds)}
+                    faces_mapped = np.vectorize(mapping.get)(faces_et)
+
+                    meshpath = Path(
+                        output_folder_vtk, f"{case}_{key}_{num:03}.vtk"
+                    )
+                    write_vtk_surface(meshpath, vertices, faces_mapped)
+
+                    combined_verts = np.vstack((combined_verts, vertices))
+                    combined_faces = np.vstack((combined_faces, faces_mapped + offset))
+
+                    # print(f'offset now {offset}')
+                    offset += len(vertices)  # TODO: fix logic....
+
+                # remove duplicate points (from chatGPT)
+                # Create a dictionary to map old indices to new indices after removing duplicates
+                index_map = {}
+                new_vertices = []
+                new_faces = []
+
+                # Iterate over vertices to remove duplicates and update index_map
+                for old_index, vertex in enumerate(combined_verts):
+                    vertex_tuple = tuple(vertex)
+                    if vertex_tuple not in index_map:
+                        new_index = len(new_vertices)
+                        new_vertices.append(vertex)
+                        index_map[vertex_tuple] = new_index
+
+                # Update the faces array with the new indices
+                for face in combined_faces:
+                    new_face = [index_map[tuple(combined_verts[old_index])] for old_index in face]
+                    new_faces.append(new_face)
+
+                combined_verts_clean = np.array(new_vertices)
+                combined_faces_clean = np.array(new_faces)
 
                 meshpath = Path(
-                    output_folder_vtk, f"{case}_{mesh_type[i]}_{num:03}.vtk"
-                )
-                write_vtk_surface(meshpath, vertices, faces_mapped)
-                
-            # save closed RV mesh
-            output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
-            output_folder_vtk.mkdir(exist_ok=True)
-            
-            mesh_data = {"RV_septum": 1, "RV_freewall": 2, "tricuspid_valve": 6, "pulmonary_valve": 7}
-            
-            combined_verts = np.array([]).reshape(0,3)
-            combined_faces = np.array([], dtype=np.int64).reshape(0,3)
-            offset = 0
-            for key in mesh_data:
-                
-                start_fi = biventricular_model.surface_start_end[mesh_data[key]][0]
-                end_fi = biventricular_model.surface_start_end[mesh_data[key]][1] + 1
-                faces_et = biventricular_model.et_indices[start_fi:end_fi]
-                
-                unique_inds = np.unique(faces_et.flatten())
-                vertices = biventricular_model.et_pos[unique_inds]
-                
-                # remap faces/indices to 0-indexing
-                mapping = {old_index: new_index for new_index, old_index in enumerate(unique_inds)}
-                faces_mapped = np.vectorize(mapping.get)(faces_et)    
-
-                meshpath = Path(
-                    output_folder_vtk, f"{case}_{key}_{num:03}.vtk"
-                )
-                write_vtk_surface(meshpath, vertices, faces_mapped)              
-                
-                combined_verts = np.vstack((combined_verts, vertices))
-                combined_faces = np.vstack((combined_faces, faces_mapped + offset))
-                
-                # print(f'offset now {offset}')
-                offset += len(vertices) # TODO: fix logic.... 
-            
-            # remove duplicate points (from chatGPT)
-            # Create a dictionary to map old indices to new indices after removing duplicates
-            index_map = {}
-            new_vertices = []
-            new_faces = []
-
-            # Iterate over vertices to remove duplicates and update index_map
-            for old_index, vertex in enumerate(combined_verts):
-                vertex_tuple = tuple(vertex)
-                if vertex_tuple not in index_map:
-                    new_index = len(new_vertices)
-                    new_vertices.append(vertex)
-                    index_map[vertex_tuple] = new_index
-
-            # Update the faces array with the new indices
-            for face in combined_faces:
-                new_face = [index_map[tuple(combined_verts[old_index])] for old_index in face]
-                new_faces.append(new_face)
-
-            combined_verts_clean = np.array(new_vertices)
-            combined_faces_clean = np.array(new_faces)
-            
-            meshpath = Path(
                     output_folder_vtk, f"{case}_RV_closed_{num:03}.vtk"
                 )
-            write_vtk_surface(meshpath, combined_verts_clean, combined_faces_clean) 
-            
-        # if you want to plot time series in html files uncomment the next line(s)
-        # plot_timeseries(TimeSeries_step1, output_folder, 'TimeSeries_step1.html')
-        # plot_timeseries(TimeSeries_step2, output_folder, 'TimeSeries_step2.html')
+                write_vtk_surface(meshpath, combined_verts_clean, combined_faces_clean)
+
+            # if you want to plot time series in html files uncomment the next line(s)
+            # plot_timeseries(TimeSeries_step1, output_folder, 'TimeSeries_step1.html')
+            # plot_timeseries(TimeSeries_step2, output_folder, 'TimeSeries_step2.html')
 
         DoneFile = Path(os.path.join(output_folder, "Done.txt"))
         DoneFile.touch(exist_ok=True)
@@ -440,36 +426,43 @@ def perform_fitting(folder, outdir="./results/", gp_suffix="", si_suffix="", fra
 
 
 if __name__ == "__main__":
-    
-    # directory containing guidepoint files
-    dir_gp = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\stf\bivme\processed"
-    dir_out = r"C:\Users\jdil469\misc-data\suiteheart\fitted"
+    ##TODO create json config for setup
+
+    parser = argparse.ArgumentParser(description='Biv-me')
+    parser.add_argument('-gp', '--dir_gp', default="./../../example/guidepoints", type=str,
+                        help='directory containing guidepoint files')
+    parser.add_argument('-o', '--output_dir', default="./../../output/fitted", type=str,
+                        help='output directory')
+    parser.add_argument('-w', '--overwrite', action="store_true",
+                        help='Overwrite existing output mesh')
+    parser.add_argument('-gp_suf', '--gp_suffix', default="", type=str,
+                        help='guidepoint to use')
+    parser.add_argument('-si_suf', '--si_suffix', default="", type=str,
+                        help='slice info to use')
+    parser.add_argument('-f', '--format', default=".vtk", type=str,
+                        help='Format of the output model (Only .obj and .vtk are supported)')
+    args = parser.parse_args()
 
     # set list of cases to process
-    caselist = os.listdir(dir_gp)
-    # caselist = ["cardiohance_022"]
-    casedirs = [Path(dir_gp, case).as_posix() for case in caselist]
+    caselist = os.listdir(args.dir_gp)
+    casedirs = [Path(args.dir_gp, case).as_posix() for case in caselist]
 
-    # set guidepoint and slice info files to use
-    gp_suffix = "_clean"
-    si_suffix = ""
-
+    logger.info(f"Found {len(casedirs)} cases to fit.")
     # start processing...
     starttime = time.time()
 
-    overwrite = False
+    if not (args.format.endswith('.obj') or args.format.endswith('.vtk')):
+        raise argparse.ArgumentTypeError('argument format must be .obj or .vtk')
 
     for case in casedirs:
-        print(f"Processing case: {os.path.basename(case)}")
-        if not overwrite and os.path.exists(os.path.join(dir_out, os.path.basename(case))):
+        #print(f"Processing case: {os.path.basename(case)}")
+        logger.info(f"Processing {os.path.basename(case)}")
+        if not args.overwrite and os.path.exists(os.path.join(args.output_dir, os.path.basename(case))):
             print("Folder already exists for this case. Proceeding to next case")
             continue
-        perform_fitting(case, outdir=dir_out, gp_suffix=gp_suffix, si_suffix=si_suffix, frames_to_fit=None)
+        perform_fitting(case, outdir=args.output_dir, gp_suffix=args.gp_suffix, si_suffix=args.si_suffix,
+                        frames_to_fit=None, output_format = args.format)
 
-    # [
-    #     perform_fitting(case, outdir=dir_out, gp_suffix=gp_suffix, si_suffix=si_suffix)
-    #     for case in casedirs if os.path.exists(os.path.join(dir_out, case))
-    # ]
-
-    print("TOTAL CASES:", len(casedirs))
-    print("TOTAL TIME: ", time.time() - starttime)
+    logger.info(f"TOTAL CASES {len(casedirs)}")
+    logger.info(f"TOTAL TIME: {time.time() - starttime}")
+    logger.success(f"Done. Results are saved in {args.output_dir}")

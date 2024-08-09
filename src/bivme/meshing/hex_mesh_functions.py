@@ -1,12 +1,8 @@
 import numpy as np
-from mesh_tools import Mesh
+from bivme.meshing import mesh
 from copy import deepcopy
 import warnings
 from itertools import permutations
-
-import regularize_elements
-import hex_interp_subdiv,hermite_element_derivatives
-
 
 def extract_sudivided_hex_mesh(control_mesh, new_nodes_position, xi_coords,
                                node_elem_map):
@@ -349,82 +345,82 @@ def regularize_elements(mesh, iterations,
                                     internalMotion )
     mesh.nodes = new_nodes
 
-def convert_linear_to_cubic_hermite_mesh(mesh):
-    # this function use hex-blender
-    linear_elem = deepcopy(mesh.elements)
-    nodes = deepcopy(mesh.nodes)
-    matlist = deepcopy(mesh.materials)
-    new_elem_list = []
-    for elem in linear_elem:
-        new_elem_list.append([elem[0], elem[1], elem[3], elem[2], elem[4], elem[5], elem[7], elem[6]])
-    new_matlist = matlist
-    for iteration in range(2):
-        subdivided_elem, subdivided_nodes = hex_interp_subdiv(np.array(new_elem_list),
-                                                          nodes, MatList=matlist,
-                                                          priorities=[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]],
-                                                          thinPlateMapping =True)
-        old_matlist = new_matlist
-        new_matlist = []
-        for index, mat in enumerate(old_matlist):
-            new_matlist = new_matlist + [mat]*8
-        new_matlist = new_matlist
-    subdivided_elem, subdivided_nodes = hex_interp_subdiv(subdivided_elem,
-                                                          subdivided_nodes, MatList=matlist,
-                                                          priorities=[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]],
-                                                          thinPlateRegions=[[1,2,3,4]],
-                                                          thinPlateMapping = True)
-    Bx, By, Bz = hermite_element_derivatives(subdivided_elem, subdivided_nodes)
-    Bx = np.swapaxes(Bx, 2, 0)
-    Bx = np.swapaxes(Bx, 2, 1)
-    By = np.swapaxes(By, 2, 0)
-    By = np.swapaxes(By, 2, 1)
-    Bz = np.swapaxes(Bz, 2, 0)
-    Bz = np.swapaxes(Bz, 2, 1)
-    for i in range(len(Bx)):
-        tmp = Bx[i, :, 3].copy()
-        Bx[i, :, 3] = Bx[i, :, 4].copy()
-        Bx[i, :, 4] = tmp.copy()
-        tmp = Bx[i, :, 5].copy()
-        Bx[i, :, 5] = Bx[i, :, 6].copy()
-        Bx[i, :, 6] = tmp.copy()
-        tmp = Bx[i, 2, :].copy()
-        Bx[i, 2, :] = Bx[i, 3, :].copy()
-        Bx[i, 3, :] = tmp.copy()
-        tmp = Bx[i, 6, :].copy()
-        Bx[i, 6, :] = Bx[i, 7, :].copy()
-        Bx[i, 7, :] = tmp.copy()
-    for i in range(len(By)):
-        tmp = By[i, :, 3].copy()
-        By[i, :, 3] = By[i, :, 4].copy()
-        By[i, :, 4] = tmp.copy()
-        tmp = By[i, :, 5].copy()
-        By[i, :, 5] = By[i, :, 6].copy()
-        By[i, :, 6] = tmp.copy()
-        tmp = By[i, 2, :].copy()
-        By[i, 2, :] = By[i, 3, :].copy()
-        By[i, 3, :] = tmp.copy()
-        tmp = By[i, 6, :].copy()
-        By[i, 6, :] = By[i, 7, :].copy()
-        By[i, 7, :] = tmp.copy()
-    for i in range(len(Bz)):
-        tmp = Bz[i, :, 3].copy()
-        Bz[i, :, 3] = Bz[i, :, 4].copy()
-        Bz[i, :, 4] = tmp.copy()
-        tmp = Bz[i, :, 5].copy()
-        Bz[i, :, 5] = Bz[i, :, 6].copy()
-        Bz[i, :, 6] = tmp.copy()
-        tmp = Bz[i, 2, :].copy()
-        Bz[i, 2, :] = Bz[i, 3, :].copy()
-        Bz[i, 3, :] = tmp.copy()
-        tmp = Bz[i, 6, :].copy()
-        Bz[i, 6, :] = Bz[i, 7, :].copy()
-        Bz[i, 7, :] = tmp.copy()
-    new_elem_list = []
-    for elem in subdivided_elem:
-        new_elem_list.append([elem[0], elem[1], elem[3], elem[2], elem[4], elem[5], elem[7], elem[6]])
-    sub_div_mesh = Mesh('sub_dic_mesh')
-    # new_elem = np.vstack((biv_model.elements,subdivided_elem),axis= 0)
-    sub_div_mesh.set_elements(new_elem_list)
-    sub_div_mesh.set_nodes(subdivided_nodes)
-    sub_div_mesh.set_materials(range(len(new_elem_list)),new_matlist)
-    return sub_div_mesh, Bx, By, Bz
+##def convert_linear_to_cubic_hermite_mesh(mesh):
+##    # this function use hex-blender
+##    linear_elem = deepcopy(mesh.elements)
+##    nodes = deepcopy(mesh.nodes)
+##    matlist = deepcopy(mesh.materials)
+##    new_elem_list = []
+##    for elem in linear_elem:
+##        new_elem_list.append([elem[0], elem[1], elem[3], elem[2], elem[4], elem[5], elem[7], elem[6]])
+##    new_matlist = matlist
+##    for iteration in range(2):
+##        subdivided_elem, subdivided_nodes = hex_interp_subdiv(np.array(new_elem_list),
+##                                                          nodes, MatList=matlist,
+##                                                          priorities=[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]],
+##                                                          thinPlateMapping =True)
+##        old_matlist = new_matlist
+##        new_matlist = []
+##        for index, mat in enumerate(old_matlist):
+##            new_matlist = new_matlist + [mat]*8
+##        new_matlist = new_matlist
+##    subdivided_elem, subdivided_nodes = hex_interp_subdiv(subdivided_elem,
+##                                                          subdivided_nodes, MatList=matlist,
+##                                                          priorities=[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]],
+##                                                          thinPlateRegions=[[1,2,3,4]],
+##                                                          thinPlateMapping = True)
+##    Bx, By, Bz = hermite_element_derivatives(subdivided_elem, subdivided_nodes)
+##    Bx = np.swapaxes(Bx, 2, 0)
+##    Bx = np.swapaxes(Bx, 2, 1)
+##    By = np.swapaxes(By, 2, 0)
+##    By = np.swapaxes(By, 2, 1)
+##    Bz = np.swapaxes(Bz, 2, 0)
+##    Bz = np.swapaxes(Bz, 2, 1)
+##    for i in range(len(Bx)):
+##        tmp = Bx[i, :, 3].copy()
+##        Bx[i, :, 3] = Bx[i, :, 4].copy()
+##        Bx[i, :, 4] = tmp.copy()
+##        tmp = Bx[i, :, 5].copy()
+##        Bx[i, :, 5] = Bx[i, :, 6].copy()
+##        Bx[i, :, 6] = tmp.copy()
+##        tmp = Bx[i, 2, :].copy()
+##        Bx[i, 2, :] = Bx[i, 3, :].copy()
+##        Bx[i, 3, :] = tmp.copy()
+##        tmp = Bx[i, 6, :].copy()
+##        Bx[i, 6, :] = Bx[i, 7, :].copy()
+##        Bx[i, 7, :] = tmp.copy()
+##    for i in range(len(By)):
+##        tmp = By[i, :, 3].copy()
+##        By[i, :, 3] = By[i, :, 4].copy()
+##        By[i, :, 4] = tmp.copy()
+##        tmp = By[i, :, 5].copy()
+##        By[i, :, 5] = By[i, :, 6].copy()
+##        By[i, :, 6] = tmp.copy()
+##        tmp = By[i, 2, :].copy()
+##        By[i, 2, :] = By[i, 3, :].copy()
+##        By[i, 3, :] = tmp.copy()
+##        tmp = By[i, 6, :].copy()
+##        By[i, 6, :] = By[i, 7, :].copy()
+##        By[i, 7, :] = tmp.copy()
+##    for i in range(len(Bz)):
+##        tmp = Bz[i, :, 3].copy()
+##        Bz[i, :, 3] = Bz[i, :, 4].copy()
+##        Bz[i, :, 4] = tmp.copy()
+##        tmp = Bz[i, :, 5].copy()
+##        Bz[i, :, 5] = Bz[i, :, 6].copy()
+##        Bz[i, :, 6] = tmp.copy()
+##        tmp = Bz[i, 2, :].copy()
+##        Bz[i, 2, :] = Bz[i, 3, :].copy()
+##        Bz[i, 3, :] = tmp.copy()
+##        tmp = Bz[i, 6, :].copy()
+##        Bz[i, 6, :] = Bz[i, 7, :].copy()
+##        Bz[i, 7, :] = tmp.copy()
+##    new_elem_list = []
+##    for elem in subdivided_elem:
+##        new_elem_list.append([elem[0], elem[1], elem[3], elem[2], elem[4], elem[5], elem[7], elem[6]])
+##    sub_div_mesh = Mesh('sub_dic_mesh')
+##    # new_elem = np.vstack((biv_model.elements,subdivided_elem),axis= 0)
+##    sub_div_mesh.set_elements(new_elem_list)
+##    sub_div_mesh.set_nodes(subdivided_nodes)
+##    sub_div_mesh.set_materials(range(len(new_elem_list)),new_matlist)
+##    return sub_div_mesh, Bx, By, Bz
