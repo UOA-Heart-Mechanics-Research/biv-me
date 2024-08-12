@@ -1,6 +1,6 @@
 from stl import mesh as stl_mesh
 import numpy as np
-
+import pyvista as pv
 import os
 def export_to_stl(file_name,vertices, faces):
     # Create the mesh
@@ -11,7 +11,7 @@ def export_to_stl(file_name,vertices, faces):
         for j in range(3):
             model_mesh.vectors[i][j] = vertices[int(f[j]), :]
 
-    # Write the mesh to file "cube.stl"
+    # Write the mesh to file
     model_mesh.save(file_name)
 
 def export_points_to_cont6(filename,points,materials = None, scale = 1):
@@ -52,3 +52,37 @@ def export_model_to_cont6(self,filename, nodes, elements,
     self.export_elem_to_cont6(filename_elem, elements, elem_materials, scale)
     print('Continuity mesh exported')
 
+def write_vtk_surface(filename: str, vertices: np.ndarray, faces: np.ndarray) -> None:
+    """
+    Write a VTK surface mesh.
+
+    Parameters
+    ----------
+    filename : The name of the output VTK file.
+    vertices : An array of shape (N, 3) representing the vertex coordinates.
+    faces : An array of shape (M, 3) representing the triangular faces.
+
+    Returns
+    -------
+    None
+    """
+
+    if np.__version__ >= '1.20.0': # for compatibility with later versions of numpy
+        np.bool = np.bool_
+
+    mesh = pv.PolyData(vertices, np.c_[np.ones(len(faces)) * 3, faces].astype(int))
+    mesh.save(filename, binary=False)
+
+def export_to_obj(file_name: str, vertices: np.ndarray, faces: np.ndarray) -> None:
+    if '.obj' not in os.path.basename(file_name):
+        ValueError(' filenma should include .obj extension')
+
+    with open(file_name, 'w') as f:
+        f.write("# OBJ file\n")
+        for v in vertices:
+            f.write("v %.4f %.4f %.4f\n" % (v[0], v[1], v[2]))
+        for p in faces:
+            f.write("f")
+            for i in p:
+                f.write(" %d" % (i + 1))
+            f.write("\n")

@@ -1,5 +1,6 @@
 
 Biventricular model fitting framework
+
 -----------------------------------------------
 This is an import of the KCL BiV modelling code (originally called BiV_Modelling).
 
@@ -17,7 +18,7 @@ the topology of the mesh.
 Documentation: https://github.kcl.ac.uk/pages/YoungLab/BiV_Modelling/
 
 
-Contents: 
+Contents 
 -----------------------------------------------
 - BiVFitting: contains the code that performs patient-specific biventricular mesh customization. 
 - model: contains .txt files required by the fitting modules
@@ -27,18 +28,43 @@ Contents:
 - perform_fit: script that contains the routine to perform the biventricular fitting
 - run_parallel: allows fitting using parallel CPUs. Each patient is assigned to one CPU.
 
-Installation ![Python versions](https://img.shields.io/badge/python-3.12-blue)
+Installation ![Python versions](https://img.shields.io/badge/python-3.11-blue)
 -----------------------------------------------
-The easiest way to get this repo setup is to use the provided conda environment (python 3.12).
-The conda environment named biv312 can be created and activated with
+The easiest way to get this repo setup is to use the provided conda environment (python 3.11).
+The conda environment named biv311 can be created and activated with
 
 ```
-conda env create -f environment.yml
-conda activate biv312
+cd biv-me
+conda create -n bivme311 python=3.11
+conda activate bivme311
 ```
 
-Usage:
+Install the bivme package
+```
+pip install -e .
+```
+
+Usage
 -----------------------------------------------
+
+### Calculate volumes from Biv-me models
+The script for the volume calculation can be found in bivme/analysis
+
+```
+usage: compute_volume.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_FILE] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-p PRECISION]
+
+  -h, --help            show this help message and exit
+  -mdir MODEL_DIR, --model_dir MODEL_DIR
+                        path to biv models
+  -o OUTPUT_FILE, --output_file OUTPUT_FILE
+                        output path
+  -b BIV_MODEL_FOLDER, --biv_model_folder BIV_MODEL_FOLDER
+                        folder containing subdivision matrices (default: ./biv-me/model)
+  -pat PATTERNS, --patterns PATTERNS
+                        folder patterns to include (default '*')
+  -p PRECISION, --precision PRECISION
+                        Output precision (default: 2)
+```
 
 **Step 1**
 

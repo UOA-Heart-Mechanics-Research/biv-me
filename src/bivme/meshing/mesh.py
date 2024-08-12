@@ -3,7 +3,7 @@ import numpy as np
 import copy
 import _pickle as pickle
 from copy import deepcopy
-import geometric_tools as mt
+from .geometric_tools import normalize_v3
 from scipy.spatial import cKDTree
 
 
@@ -593,7 +593,7 @@ class Mesh:
         # n is now an array of normals per triangle.
         # The length of each normal is dependent the vertices,
         # we need to normalize these.
-        n = mt.normalize_v3(n)
+        n = normalize_v3(n)
         # now we have a normalized array of normals, one per triangle
         # But instead of one per triangle (i.e., flat shading),
         # we add to each vertex in that triangle,  the triangles' normal.
@@ -603,7 +603,7 @@ class Mesh:
         norm[faces[:, 0]] += n
         norm[faces[:, 1]] += n
         norm[faces[:, 2]] += n
-        norm = mt.normalize_v3(norm)
+        norm = normalize_v3(norm)
         return norm
 
     def get_curvature(self):
