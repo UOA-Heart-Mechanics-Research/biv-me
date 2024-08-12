@@ -34,7 +34,7 @@ The conda environment named biv311 can be created and activated with
 
 ```
 cd biv-me
-conda env create -n bivme311 -python=3.11
+conda create -n bivme311 python=3.11
 conda activate bivme311
 ```
 

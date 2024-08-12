@@ -3,7 +3,7 @@ pyvista==0.44.1
 plotly==5.22.0
 scipy==1.13.1
 moviepy==1.0.3
-cvxopt==1.3.0
+cvxopt==1.3.2
 nltk==3.8.1
 numpy==1.26.4
 numpy-stl==3.1.1
