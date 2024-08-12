@@ -1,5 +1,5 @@
 
-Biventricular model fitting framework ![Tests](https://github.com/mCodingLLC/SlapThatLikeButton-TestingStarterProject/actions/workflows/tests.yml/badge.svg)
+Biventricular model fitting framework ![Tests](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/.github/workflows/tests.yml/badge.svg)
 -----------------------------------------------
 This is an import of the KCL BiV modelling code (originally called BiV_Modelling).
 
