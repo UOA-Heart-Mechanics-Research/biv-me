@@ -17,17 +17,18 @@ from pathlib import Path
 import numpy as np
 import pathlib
 
-sys.path.append(str(pathlib.Path(__file__).parent.parent.parent.resolve()))
+from bivme import MODEL_RESOURCE_DIR
 from bivme.meshing.mesh import Mesh
+from bivme.meshing.mesh_io import export_to_obj
+
 from loguru import logger
 from rich.progress import Progress
 import fnmatch
-from bivme import MODEL_RESOURCE_DIR
 
 # for printing while progress bar is progressing
 console = None
 
-from bivme.meshing.mesh_io import export_to_obj
+
 def find_volume(case_name: str, model_file: os.PathLike, output_file: os.PathLike, biv_model_folder: os.PathLike, precision : int) -> None:
     '''
         # Authors: ldt, cm
