@@ -17,6 +17,7 @@ on:
 
 jobs:
   test:
+    name: Biv Tests
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
