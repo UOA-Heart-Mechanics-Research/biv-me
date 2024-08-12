@@ -50,7 +50,7 @@ def find_volume(case_name: str, model_file: os.PathLike, output_file: os.PathLik
 
     # assign values to dict
     results_dict = {'case': case_name} | {
-        k: '' for k in ['lv_endo', 'rv_endo', 'lv_epi', 'rv_epi', 'lv_mass', 'rv_mass']
+        k: '' for k in ['lv_vol', 'rv_vol', 'lv_epivol', 'rv_epivol', 'lv_mass', 'rv_mass']
     }
 
     subdivision_matrix_file = biv_model_folder / "subdivision_matrix.txt"
@@ -156,7 +156,6 @@ def find_volume(case_name: str, model_file: os.PathLike, output_file: os.PathLik
         writer.writerow([case_name, frame_name, results_dict['lv_vol'], results_dict['lv_mass'],
                          results_dict['rv_vol'], results_dict['rv_mass'],
                          results_dict['lv_epivol'], results_dict['rv_epivol']])
-
 
 if __name__ == "__main__":
     biv_model_folder = MODEL_RESOURCE_DIR

@@ -18,7 +18,7 @@ def test_compute_volume():
 
     find_volume('template_mesh', model_file, output_file, MODEL_RESOURCE_DIR, 6)
 
-    df = pd.read_csv('test_lvrv_volumes.csv')
+    df = pd.read_csv(output_file)
     assert df['lv_vol'][0] == approx(0.074302)  # ground truth values
     assert df['rv_vol'][0] == approx(0.08629507)
     assert df['lv_epivol'][0] == approx(0.162056)
