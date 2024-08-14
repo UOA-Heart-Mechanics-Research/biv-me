@@ -189,7 +189,7 @@ def fit_least_squares_model(biv_model: BiventricularModel, weight_gp: float, dat
     return solf, err
 
 
-def MultiThreadSmoothingED(biv_model, weight_gp, data_set, output_file):
+def solve_least_squares_problem(biv_model, weight_gp, data_set, output_file):
     """This function performs a series of LLS fits. At each iteration the
     least squares optimisation is performed and the determinant of the
     Jacobian matrix is calculated.

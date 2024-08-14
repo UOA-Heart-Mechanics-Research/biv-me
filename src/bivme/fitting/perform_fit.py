@@ -12,7 +12,7 @@ from bivme.fitting.BiventricularModel import BiventricularModel
 from bivme.fitting.GPDataSet import GPDataSet
 from bivme.fitting.surface_enum import ContourType
 from bivme.fitting.diffeomorphic_fitting_utils import (
-    MultiThreadSmoothingED,
+    solve_least_squares_problem,
     solve_convex_problem,
     plot_timeseries,
 )
@@ -268,7 +268,7 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                 data_set.weights[data_set.contour_type == ContourType.PULMONARY_VALVE] = 1
 
                 # Perform linear fit (step1)
-                MultiThreadSmoothingED(biventricular_model, weight_GP, data_set, error_file)
+                solve_least_squares_problem(biventricular_model, weight_GP, data_set, error_file)
 
                 # Plot results
                 # model = biventricular_model.plot_surface(
@@ -440,7 +440,7 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
 
 
 if __name__ == "__main__":
-    ##TODO create json config for setup, and setup logger
+    ##TODO create json config for setup and save this json config so we know the parameters used for each fit
     parser = argparse.ArgumentParser(description='Biv-me')
     parser.add_argument('-gp', '--dir_gp', default="./../../../example/guidepoints", type=str,
                         help='directory containing guidepoint files')

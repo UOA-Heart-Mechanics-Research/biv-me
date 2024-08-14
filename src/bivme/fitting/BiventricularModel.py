@@ -665,7 +665,6 @@ class BiventricularModel:
         )
 
         # Translate the model back to origin of the DataSet coordinate system
-
         translation = self.get_translation(dataset)
         self.update_control_mesh(self.control_mesh + translation)
 
@@ -673,18 +672,16 @@ class BiventricularModel:
 
         return scale_factor
 
-    def get_scaling(self, dataset):
+    def get_scaling(self, dataset: GPDataSet) -> float:
         """Calculates a scaling factor for the model
         to match the guide points defined in datset
 
         Parameters
         -----------
-
         `data_set` GPDataSet object
 
         Returns
         --------
-
         `scaleFactor` float
         """
         model_shape_index = [
@@ -706,9 +703,9 @@ class BiventricularModel:
         norm_model = np.sqrt(ss_model)
         reference_norm = np.sqrt(ss_reference)
 
-        scaleFactor = reference_norm / norm_model
+        scale_factor = reference_norm / norm_model
 
-        return scaleFactor
+        return scale_factor
 
     def get_translation(self, dataset: GPDataSet) -> np.ndarray:
         """Calculates a translation for (x, y, z)

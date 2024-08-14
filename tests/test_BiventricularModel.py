@@ -1,11 +1,18 @@
 from bivme.fitting import BiventricularModel as bm
+from bivme.fitting import GPDataSet as gp
 from bivme import MODEL_RESOURCE_DIR, TEST_RESOURCE_DIR
 from bivme.fitting.surface_enum import Surface
 import pytest
 import numpy as np
 
 test_model = bm.BiventricularModel(MODEL_RESOURCE_DIR, build_mode=True)
-
+#gp_dataset = gp.GPDataSet(
+#                str(filename),
+#                str(filename_info),
+#                case,
+#                sampling=sampling,
+#                time_frame_number=0,
+#            )
 @pytest.mark.parametrize("test_build_input,expected_build",[
             (True, True),
             (False, False)
@@ -69,7 +76,6 @@ def test_get_control_mesh_nodes():
             (Surface.TRICUSPID_VALVE, test_model.surface_start_end[6, :]),
             (Surface.PULMONARY_VALVE, test_model.surface_start_end[7, :])
         ])
-
 def test_get_surface_start_end_index(test_surface, expected_surface_indices):
     assert np.array_equal(test_model.get_surface_start_end_index(test_surface), expected_surface_indices)
 
@@ -84,7 +90,6 @@ def test_get_surface_start_end_index(test_surface, expected_surface_indices):
             (Surface.PULMONARY_VALVE, test_model.et_vertex_start_end[7, :]),
             (Surface.RV_INSERT, test_model.et_vertex_start_end[8, :]),
             (Surface.APEX, [test_model.APEX_INDEX, test_model.APEX_INDEX])
-
         ])
 def test_get_surface_vertex_start_end_index(test_surface, expected_vertex_indices):
     assert np.array_equal(test_model.get_surface_vertex_start_end_index(test_surface), expected_vertex_indices)
@@ -112,6 +117,8 @@ def test_update_control_mesh():
 #def test_get_translation():
 
 #def test_get_rotation():
+
+#def test_get_scaling():
 
 # def test_update_pose_and_scale():
 # def evaluate_field(self, field, vertex_map, position, elements=None)
