@@ -6,21 +6,22 @@ import plotly.graph_objs as go
 import os
 import gzip
 import shutil
+from bivme.fitting import BiventricularModel
+from bivme.fitting import GPDataSet
 
-
-def SolveProblemCVXOPT(
-    biv_model, data_set, weight_GP, low_smoothing_weight, transmural_weight, txtfile
-):
+def solve_convex_problem(
+    biv_model: BiventricularModel, data_set: GPDataSet, weight_gp: float, low_smoothing_weight: float, transmural_weight: float, output_file: os.PathLike
+) -> None:
     """This function performs the proper diffeomorphic fit.
     Parameters
     ----------
-
-    `case`  case id
-
-    `weight_GP` data_points weight
-
+    'biv_model': BiventricularModel instance
+    'data_set': GPDataSet instance
+    `case`: case id
+    `weight_gp` data_points weight
     'low_smoothing_weight'  smoothing weight (for regularization term)
-
+    'transmural_weight':  smoothing weight along the transmural direction (for regularization term)
+    'output_file':  output file (where the errors are saved)
     Returns
     --------
         None
@@ -31,22 +32,15 @@ def SolveProblemCVXOPT(
         w_out,
         distance_prior,
         projected_points_basis_coeff,
-    ] = biv_model.compute_data_xi(weight_GP, data_set)
-    # # exlude the outliers defined as (u-mean(u)) > 6*std(u)
-    # projected_points_basis_coeff = projected_points_basis_coeff[abs(
-    #     distance_prior - np.mean(distance_prior)) < 6 * np.std(distance_prior), :]
-    # data_points_index = data_points_index[
-    #     abs(distance_prior - np.mean(distance_prior)) < 6 * np.std(distance_prior)]
-    # w_out = w_out[
-    #     abs(distance_prior - np.mean(distance_prior)) < 6 * np.std(distance_prior)]
-    #
+    ] = biv_model.compute_data_xi(weight_gp, data_set)
+
     data_points = data_set.points_coordinates[data_points_index]
     prior_position = np.dot(projected_points_basis_coeff, biv_model.control_mesh)
     w = w_out * np.identity(len(prior_position))
     WPG = np.dot(w, projected_points_basis_coeff)
     GTPTWTWPG = np.dot(WPG.T, WPG)
     A = GTPTWTWPG + low_smoothing_weight * (
-        biv_model.GTSTSG_x + biv_model.GTSTSG_y + transmural_weight * biv_model.GTSTSG_z
+        biv_model.gtstsg_x + biv_model.gtstsg_y + transmural_weight * biv_model.gtstsg_z
     )
     Wd = np.dot(w, data_points - prior_position)
 
@@ -58,14 +52,14 @@ def SolveProblemCVXOPT(
     iteration = 0
     Q = 2 * A  # .T*A  # 2*A
     quadratic_form = matrix(0.5 * (Q + Q.T), tc="d")  # to make it symmetrical.
-    prev_displacement = np.zeros((biv_model.numNodes, 3))
+    prev_displacement = np.zeros((biv_model.NUM_NODES, 3))
     step_err = np.linalg.norm(data_points - prior_position, axis=1)
     step_err = np.sqrt(np.sum(step_err) / len(prior_position))
     print("Explicitly constrained fit")
 
     while abs(step_err - previous_step_err) > tol and iteration < 10:
         print("     Iteration #" + str(iteration + 1) + " ECF error " + str(step_err))
-        with open(txtfile, "a") as f:  # LDT
+        with open(output_file, "a") as f:  # LDT
             f.write(
                 "     Iteration #"
                 + str(iteration + 1)
@@ -93,7 +87,7 @@ def SolveProblemCVXOPT(
         linConstraints = matrix(generate_contraint_matrix(biv_model), tc="d")
         linConstraintNeg = -linConstraints
         G = matrix(np.vstack((linConstraints, linConstraintNeg)))
-        size = 2 * (3 * len(biv_model.mBder_dx))
+        size = 2 * (3 * len(biv_model.mbder_dx))
         bound = 1 / 3
         h = matrix([bound] * size)
 
@@ -152,7 +146,7 @@ def SolveProblemCVXOPT(
             step_err = np.linalg.norm(data_points - prior_position, axis=1)
             step_err = np.sqrt(np.sum(step_err) / len(prior_position))
             iteration = iteration + 1
-    with open(txtfile, "a") as f:  # LDT
+    with open(output_file, "a") as f:  # LDT
         f.write("End of the implicitly constrained fit \n")
         f.write("--- %s seconds ---\n" % (time.time() - start_time))
 
@@ -160,30 +154,30 @@ def SolveProblemCVXOPT(
     print("--- %s seconds ---" % (time.time() - start_time))
 
 
-def lls_fit_model(biv_model, weight_GP, data_set, smoothing_Factor):
+def fit_least_squares_model(biv_model: BiventricularModel, weight_gp: float, data_set: GPDataSet, smoothing_factor: float) -> [np.ndarray, float]:
     [
         index,
         weights,
         distance_prior,
         projected_points_basis_coeff,
-    ] = biv_model.compute_data_xi(weight_GP, data_set)
+    ] = biv_model.compute_data_xi(weight_gp, data_set)
 
     prior_position = np.linalg.multi_dot(
         [projected_points_basis_coeff, biv_model.control_mesh]
     )
     w = weights * np.identity(len(prior_position))
 
-    WPG = np.linalg.multi_dot([w, projected_points_basis_coeff])
-    GTPTWTWPG = np.linalg.multi_dot([WPG.T, WPG])
+    w_pg = np.linalg.multi_dot([w, projected_points_basis_coeff])
+    GTPTWTWPG = np.linalg.multi_dot([w_pg.T, w_pg])
     # np.linalg.multi_dot faster than np.dot
 
-    A = GTPTWTWPG + smoothing_Factor * (
-        biv_model.GTSTSG_x + biv_model.GTSTSG_y + 0.001 * biv_model.GTSTSG_z
+    A = GTPTWTWPG + smoothing_factor * (
+        biv_model.gtstsg_x + biv_model.gtstsg_y + 0.001 * biv_model.gtstsg_z
     )
 
     data_points_position = data_set.points_coordinates[index]
-    Wd = np.linalg.multi_dot([w, data_points_position - prior_position])
-    rhs = np.linalg.multi_dot([WPG.T, Wd])
+    wd = np.linalg.multi_dot([w, data_points_position - prior_position])
+    rhs = np.linalg.multi_dot([w_pg.T, wd])
 
     solf = np.linalg.solve(
         A.T.dot(A), A.T.dot(rhs)
@@ -193,7 +187,7 @@ def lls_fit_model(biv_model, weight_GP, data_set, smoothing_Factor):
     return solf, err
 
 
-def MultiThreadSmoothingED(biv_model, weight_GP, data_set, txtfile):
+def MultiThreadSmoothingED(biv_model, weight_gp, data_set, output_file):
     """This function performs a series of LLS fits. At each iteration the
     least squares optimisation is performed and the determinant of the
     Jacobian matrix is calculated.
@@ -203,22 +197,22 @@ def MultiThreadSmoothingED(biv_model, weight_GP, data_set, txtfile):
     As long as the deformation is diffeomorphic, smoothing weight is decreased.
         Input:
             case: case name
-            weight_GP: data_points' weight
+            weight_gp: data_points' weight
         Output:
             None. 'biv_model' is updated in the function itself
     """
     start_time = time.time()
-    high_weight = weight_GP * 1e10  # First regularization weight
+    high_weight = weight_gp * 1e10  # First regularization weight
     isdiffeo = 1
     iteration = 1
     factor = 5
     min_jacobian = 0.1
 
-    while (isdiffeo == 1) & (high_weight > weight_GP * 1e2) & (iteration < 50):
+    while (isdiffeo == 1) & (high_weight > weight_gp * 1e2) & (iteration < 50):
         # print('high_weight', high_weight) ####to LOG
-        displacement, err = lls_fit_model(biv_model, weight_GP, data_set, high_weight)
+        displacement, err = fit_least_squares_model(biv_model, weight_gp, data_set, high_weight)
         try:
-            with open(txtfile, "a") as f:  # LDT
+            with open(output_file, "a") as f:  # LDT
                 f.write(
                     "     Iteration #"
                     + str(iteration)
@@ -249,7 +243,7 @@ def MultiThreadSmoothingED(biv_model, weight_GP, data_set, txtfile):
                 isdiffeo = 1
         iteration = iteration + 1
     try:
-        with open(txtfile, "a") as f:  # LDT
+        with open(text_file, "a") as f:  # LDT
             f.write("End of the implicitly constrained fit \n")
             f.write("--- %s seconds ---\n" % (time.time() - start_time))
 
@@ -277,35 +271,35 @@ def generate_contraint_matrix(mesh):
     """
 
     constraints = []
-    for i in range(len(mesh.mBder_dx)):  # rows and colums will always be the same so
+    for i in range(len(mesh.mbder_dx)):  # rows and colums will always be the same so
         # we just need to precompute this and then calculate the values...
 
         dXdxi = np.zeros((3, 3), dtype="float")
 
-        dXdxi[:, 0] = np.dot(mesh.mBder_dx[i, :], mesh.control_mesh)
-        dXdxi[:, 1] = np.dot(mesh.mBder_dy[i, :], mesh.control_mesh)
-        dXdxi[:, 2] = np.dot(mesh.mBder_dz[i, :], mesh.control_mesh)
+        dXdxi[:, 0] = np.dot(mesh.mbder_dx[i, :], mesh.control_mesh)
+        dXdxi[:, 1] = np.dot(mesh.mbder_dy[i, :], mesh.control_mesh)
+        dXdxi[:, 2] = np.dot(mesh.mbder_dz[i, :], mesh.control_mesh)
 
         g = np.linalg.inv(dXdxi)
 
         Gx = (
-            np.dot(mesh.mBder_dx[i, :], g[0, 0])
-            + np.dot(mesh.mBder_dy[i, :], g[1, 0])
-            + np.dot(mesh.mBder_dz[i, :], g[2, 0])
+            np.dot(mesh.mbder_dx[i, :], g[0, 0])
+            + np.dot(mesh.mbder_dy[i, :], g[1, 0])
+            + np.dot(mesh.mbder_dz[i, :], g[2, 0])
         )
         constraints.append(Gx)
 
         Gy = (
-            np.dot(mesh.mBder_dx[i, :], g[0, 1])
-            + np.dot(mesh.mBder_dy[i, :], g[1, 1])
-            + np.dot(mesh.mBder_dz[i, :], g[2, 1])
+            np.dot(mesh.mbder_dx[i, :], g[0, 1])
+            + np.dot(mesh.mbder_dy[i, :], g[1, 1])
+            + np.dot(mesh.mbder_dz[i, :], g[2, 1])
         )
         constraints.append(Gy)
 
         Gz = (
-            np.dot(mesh.mBder_dx[i, :], g[0, 2])
-            + np.dot(mesh.mBder_dy[i, :], g[1, 2])
-            + np.dot(mesh.mBder_dz[i, :], g[2, 2])
+            np.dot(mesh.mbder_dx[i, :], g[0, 2])
+            + np.dot(mesh.mbder_dy[i, :], g[1, 2])
+            + np.dot(mesh.mbder_dz[i, :], g[2, 2])
         )
         constraints.append(Gz)
 
@@ -374,13 +368,13 @@ def calc_smoothing_matrix_DAffine(model, e_weights, e_groups=None):
     dXdxi31 = np.zeros((3, 3))
     dXdxi32 = np.zeros((3, 3))
 
-    mBder = np.zeros((ngt, model.numNodes, 10))
-    mBder11 = np.zeros((ngt, model.numNodes, 10))
-    mBder12 = np.zeros((ngt, model.numNodes, 10))
-    mBder21 = np.zeros((ngt, model.numNodes, 10))
-    mBder22 = np.zeros((ngt, model.numNodes, 10))
-    mBder31 = np.zeros((ngt, model.numNodes, 10))
-    mBder32 = np.zeros((ngt, model.numNodes, 10))
+    mbder = np.zeros((ngt, model.numNodes, 10))
+    mbder11 = np.zeros((ngt, model.numNodes, 10))
+    mbder12 = np.zeros((ngt, model.numNodes, 10))
+    mbder21 = np.zeros((ngt, model.numNodes, 10))
+    mbder22 = np.zeros((ngt, model.numNodes, 10))
+    mbder31 = np.zeros((ngt, model.numNodes, 10))
+    mbder32 = np.zeros((ngt, model.numNodes, 10))
     for et_index, et in enumerate(e_groups):
         weights = e_weights[et_index]
         for ne in et:
@@ -392,10 +386,10 @@ def calc_smoothing_matrix_DAffine(model, e_weights, e_groups=None):
             # gauss points ' basis functions
 
             for j in range(ngt):
-                _, mBder[j, :, :], _ = model.evaluate_basis_matrix(
+                _, mbder[j, :, :], _ = model.evaluate_basis_matrix(
                     xig[j, 0], xig[j, 1], xig[j, 2], ne, 0, 0, 0
                 )
-                _, mBder11[j, :, :], _ = model.evaluate_basis_matrix(
+                _, mbder11[j, :, :], _ = model.evaluate_basis_matrix(
                     xig[j, 0],
                     xig[j, 1],
                     xig[j, 2],
@@ -404,7 +398,7 @@ def calc_smoothing_matrix_DAffine(model, e_weights, e_groups=None):
                     dxi1[j, 1],
                     dxi1[j, 2],
                 )
-                _, mBder12[j, :, :], _ = model.evaluate_basis_matrix(
+                _, mbder12[j, :, :], _ = model.evaluate_basis_matrix(
                     xig[j, 0],
                     xig[j, 1],
                     xig[j, 2],
@@ -413,7 +407,7 @@ def calc_smoothing_matrix_DAffine(model, e_weights, e_groups=None):
                     -dxi1[j, 1],
                     -dxi1[j, 2],
                 )
-                _, mBder21[j, :, :], _ = model.evaluate_basis_matrix(
+                _, mbder21[j, :, :], _ = model.evaluate_basis_matrix(
                     xig[j, 0],
                     xig[j, 1],
                     xig[j, 2],
@@ -422,7 +416,7 @@ def calc_smoothing_matrix_DAffine(model, e_weights, e_groups=None):
                     dxi2[j, 1],
                     dxi2[j, 2],
                 )
-                _, mBder22[j, :, :], _ = model.evaluate_basis_matrix(
+                _, mbder22[j, :, :], _ = model.evaluate_basis_matrix(
                     xig[j, 0],
                     xig[j, 1],
                     xig[j, 2],
@@ -431,7 +425,7 @@ def calc_smoothing_matrix_DAffine(model, e_weights, e_groups=None):
                     -dxi2[j, 1],
                     -dxi2[0, 2],
                 )
-                _, mBder31[j, :, :], _ = model.evaluate_basis_matrix(
+                _, mbder31[j, :, :], _ = model.evaluate_basis_matrix(
                     xig[j, 0],
                     xig[j, 1],
                     xig[j, 2],
@@ -440,7 +434,7 @@ def calc_smoothing_matrix_DAffine(model, e_weights, e_groups=None):
                     dxi3[j, 1],
                     dxi3[j, 2],
                 )
-                _, mBder32[j, :, :], _ = model.evaluate_basis_matrix(
+                _, mbder32[j, :, :], _ = model.evaluate_basis_matrix(
                     xig[j, 0],
                     xig[j, 1],
                     xig[j, 2],
@@ -454,13 +448,13 @@ def calc_smoothing_matrix_DAffine(model, e_weights, e_groups=None):
             for ng in range(ngt):
                 # calculate dX / dxi at Gauss pt and surrounding.
                 for nk, deriv in enumerate(nDeriv):
-                    dXdxi[:, nk] = np.dot(mBder[ng, :, deriv], model.control_mesh)
-                    dXdxi11[:, nk] = np.dot(mBder11[ng, :, deriv], model.control_mesh)
-                    dXdxi12[:, nk] = np.dot(mBder12[ng, :, deriv], model.control_mesh)
-                    dXdxi21[:, nk] = np.dot(mBder21[ng, :, deriv], model.control_mesh)
-                    dXdxi22[:, nk] = np.dot(mBder22[ng, :, deriv], model.control_mesh)
-                    dXdxi31[:, nk] = np.dot(mBder31[ng, :, deriv], model.control_mesh)
-                    dXdxi32[:, nk] = np.dot(mBder32[ng, :, deriv], model.control_mesh)
+                    dXdxi[:, nk] = np.dot(mbder[ng, :, deriv], model.control_mesh)
+                    dXdxi11[:, nk] = np.dot(mbder11[ng, :, deriv], model.control_mesh)
+                    dXdxi12[:, nk] = np.dot(mbder12[ng, :, deriv], model.control_mesh)
+                    dXdxi21[:, nk] = np.dot(mbder21[ng, :, deriv], model.control_mesh)
+                    dXdxi22[:, nk] = np.dot(mbder22[ng, :, deriv], model.control_mesh)
+                    dXdxi31[:, nk] = np.dot(mbder31[ng, :, deriv], model.control_mesh)
+                    dXdxi32[:, nk] = np.dot(mbder32[ng, :, deriv], model.control_mesh)
 
                 g = np.linalg.inv(dXdxi)
                 g11 = np.linalg.inv(dXdxi11)
@@ -481,12 +475,12 @@ def calc_smoothing_matrix_DAffine(model, e_weights, e_groups=None):
                     for nj in range(nft):
                         try:
                             Sk[nr, :, nk] = wg[ng] * (
-                                g[0, nj] * mBder[ng, :, pindex[nk, 0]]
-                                + g[1, nj] * mBder[ng, :, pindex[nk, 1]]
-                                + g[2, nj] * mBder[ng, :, pindex[nk, 2]]
-                                + h[0, nj, nk] * mBder[ng, :, 0]
-                                + h[1, nj, nk] * mBder[ng, :, 1]
-                                + h[2, nj, nk] * mBder[ng, :, 5]
+                                g[0, nj] * mbder[ng, :, pindex[nk, 0]]
+                                + g[1, nj] * mbder[ng, :, pindex[nk, 1]]
+                                + g[2, nj] * mbder[ng, :, pindex[nk, 2]]
+                                + h[0, nj, nk] * mbder[ng, :, 0]
+                                + h[1, nj, nk] * mbder[ng, :, 1]
+                                + h[2, nj, nk] * mbder[ng, :, 5]
                             )
                         except:
                             print("stop")
@@ -504,9 +498,9 @@ def calc_smoothing_matrix_DAffine(model, e_weights, e_groups=None):
             # stiffness matrix
             STSfull = STSfull + STS
 
-    GTSTSG = STSfull  # I've already included G
+    gtstsg = STSfull  # I've already included G
 
-    return GTSTSG, Gx, Gy, Gz
+    return gtstsg, Gx, Gy, Gz
 
 
 def plot_timeseries(dataset, folder, filename):

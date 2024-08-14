@@ -12,21 +12,18 @@ from .surface_enum import SURFACE_CONTOUR_MAP
 from .fitting_tools import *
 from .build_model_tools import *
 
-# from line_profiler import LineProfiler # commenting this line as this package needs to be installed from external website not conda (it's for code optimisation)
 from collections import OrderedDict
 from nltk import flatten
 
 ##Author : Charlène Mauger, University of Auckland, c.mauger@auckland.ac.nz
-
-
 class BiventricularModel:
     """This class creates a surface from the control mesh, based on
     Catmull-Clark subdivision surface method. Surfaces have the following properties:
 
     Attributes:
-       numNodes = 388                       Number of control nodes.
-       numElements = 187                    Number of elements.
-       numSurfaceNodes = 5810               Number of nodes after subdivision
+       num_nodes = 388                       Number of control nodes.
+       NUM_ELEMENTS = 187                    Number of elements.
+       num_surface_nodes = 5810               Number of nodes after subdivision
                                             (surface points).
        control_mesh                         Array of x,y,z coordinates of
                                             control mesh (388x3).
@@ -45,14 +42,14 @@ class BiventricularModel:
        matrix                               Subdivision matrix (388x5810).
 
 
-       GTSTSG_x, GTSTSG_y, GTSTSG_z         Regularization/Smoothing matrices
+       gtstsg_x, gtstsg_y, gtstsg_z         Regularization/Smoothing matrices
                                             (388x388) along
                                             Xi1 (circumferential),
                                             Xi2 (longitudinal) and
                                             Xi3 (transmural) directions
 
 
-       apex_index                           Vertex index of the apex
+       APEX_INDEX                           Vertex index of the apex
 
        et_vertex_start_end                  Surface index limits for vertices
                                             et_pos. Surfaces are sorted in
@@ -71,12 +68,12 @@ class BiventricularModel:
                                             epicardium, mitral valve, aorta,
                                             tricuspid, pulmonary valve, RV insert.
 
-       mBder_dx, mBder_dy, mBder_dz         Matrices (5049x338) containing
+       mbder_dx, mbder_dy, mbder_dz         Matrices (5049x338) containing
                                             weights used to calculate gradients
                                             of the displacement field at Gauss
                                             point locations.
 
-       Jac11, Jac12, Jac13                  Matrices (11968x388) containing
+       Jac11, jac_12, jac_13                  Matrices (11968x388) containing
                                             weights used to calculate Jacobians
                                             at Gauss point location (11968x338).
                                             Each matrix element is a linear
@@ -99,16 +96,20 @@ class BiventricularModel:
 
     """
 
-    numNodes = 388
+    NUM_NODES = 388
     """Class constant, Number of control nodes (388)."""
-    numElements = 187
-    """Class constant, number of elements (187).
- """
-    numSurfaceNodes = 5810
-    """class constant, number of nodes after subdivision
-                                            (5810)."""
-    apex_index = 50  # endo #5485 #epi
+    NUM_ELEMENTS = 187
+    """Class constant, number of elements (187)."""
+    NUM_SURFACE_NODES = 5810
+    """class constant, number of nodes after subdivision (5810)."""
+    APEX_INDEX = 50  # endo #5485 #epi
     """class constant, vertex index defined as the apex point."""
+    NUM_GAUSSIAN_POINTS = 5049
+    """Number of gaussian points"""
+    NUM_NODES_THRU_WALL = 160
+    """Number of points defining the thru wall"""
+    NUM_SUBDIVIDED_FACES = 11760
+    """Number of faces after subdivision"""
 
     et_vertex_start_end = np.array(
         [
@@ -146,7 +147,6 @@ class BiventricularModel:
         lv_endo_end_idx= et_vertex_start_end[0][1]
         lv_aorta_end_idx= et_vertex_start_end[5][1]-1
         lv_aorta_centroid_idx= et_vertex_start_end[5][1]
-        
         lv_endo_start_idx,lv_endo_end_idx = 
         mesh.get_surface_vertex_start_end_index(surface_name)
        
@@ -191,7 +191,7 @@ class BiventricularModel:
         mesh.get_surface_start_end_index(surface_name)
     """
 
-    def __init__(self, control_mesh_dir, label="default", build_mode=False):
+    def __init__(self, control_mesh_dir: os.PathLike, label: str = "default", build_mode: bool = False):
         """Return a Surface object whose control mesh should be
         fitted to the dataset *DataSet*.
 
@@ -205,29 +205,29 @@ class BiventricularModel:
         False by default, true to evaluate surface points at xi local 
         coordinates
         """
-        if not os.path.exists(control_mesh_dir):
-            ValueError("Invalid directory name")
+
+        assert control_mesh_dir.exists(), \
+            f"Cannot find {control_mesh_dir}!"
 
         self.label = label
-        model_file = os.path.join(control_mesh_dir, "model.txt")
-        if not os.path.exists(model_file):
-            ValueError("Missing model.txt file")
+        model_file = control_mesh_dir / "model.txt"
+        assert model_file.exists(), \
+            f"Missing {model_file}!"
+
         self.control_mesh = (
-            pd.read_table(model_file, delim_whitespace=True, header=None, engine="c")
+            pd.read_table(model_file, sep=r'\s+', header=None, engine="c")
         ).values
 
         """ `numNodes`X3 array[float] of x,y,z coordinates of control mesh.
         """
 
-        subdivision_matrix_file = os.path.join(
-            control_mesh_dir, "subdivision_matrix.txt"
-        )
-        if not os.path.exists(subdivision_matrix_file):
-            ValueError("Missing subdivision_matrix.txt")
+        subdivision_matrix_file = control_mesh_dir / "subdivision_matrix.txt"
+        assert subdivision_matrix_file.exists(), \
+            f"Missing {subdivision_matrix_file}!"
 
         self.matrix = (
             pd.read_table(
-                subdivision_matrix_file, delim_whitespace=True, header=None, engine="c"
+                subdivision_matrix_file, sep=r'\s+', header=None, engine="c"
             )
         ).values.astype(float)
         """Subdivision matrix (`numNodes`x`numSurfaceNodes`).
@@ -238,153 +238,142 @@ class BiventricularModel:
                                             surface nodes.
         """
 
-        et_index_file = os.path.join(control_mesh_dir, "ETIndicesSorted.txt")
-        if not os.path.exists(et_index_file):
-            ValueError("Missing ETIndicesSorted.txt file")
+        et_index_file = control_mesh_dir / "ETIndicesSorted.txt"
+        assert et_index_file.exists(), \
+            f"Missing {et_index_file}!"
+
         self.et_indices = (
-            pd.read_table(et_index_file, delim_whitespace=True, header=None, engine="c")
-        ).values.astype(int) - 1
+                              pd.read_table(et_index_file, sep=r'\s+', header=None, engine="c")
+                          ).values.astype(int) - 1
         """ 11760x3 array[int] of elements connectivity (n1,n2,n3) for each face."""
 
-        # et_index_thruWall_file = os.path.join(control_mesh_dir, 'ETIndicesThruWall.txt') #RB addition for MyoMass calc
-        et_index_thruWall_file = os.path.join(
-            control_mesh_dir, "epi_to_septum_ETindices.txt"
-        )
-        if not os.path.exists(et_index_thruWall_file):
-            ValueError(
-                "Missing ETIndicesThruWall.txt file for myocardial mass calculation"
-            )
-        self.et_indices_thruWall = (
-            pd.read_table(et_index_thruWall_file, delim_whitespace=True, header=None)
-        ).values.astype(int) - 1
+        et_index_thru_wall_file = control_mesh_dir / "epi_to_septum_ETindices.txt"
+        assert et_index_thru_wall_file.exists(), \
+            f"Missing {et_index_file} for myocardial mass calculation"
 
-        et_index_EpiLVRV_file = os.path.join(
-            control_mesh_dir, "ETIndicesEpiRVLV.txt"
-        )  # RB addition for MyoMass calc
-        if not os.path.exists(et_index_EpiLVRV_file):
-            ValueError(
-                "Missing ETIndicesEpiRVLV.txt file for myocardial mass calculation"
-            )
-        self.et_indices_EpiLVRV = (
-            pd.read_table(
-                et_index_EpiLVRV_file, delim_whitespace=True, header=None, engine="c"
-            )
-        ).values.astype(int) - 1
+        self.et_indices_thru_wall = (
+                                       pd.read_table(et_index_thru_wall_file, sep=r'\s+', header=None)
+                                   ).values.astype(int) - 1
 
-        GTSTSG_x_file = os.path.join(control_mesh_dir, "GTSTG_x.txt")
-        if not os.path.exists(GTSTSG_x_file):
-            ValueError(" Missing GTSTG_x.txt file")
-        self.GTSTSG_x = (
-            pd.read_table(GTSTSG_x_file, delim_whitespace=True, header=None, engine="c")
+        et_index_epi_lvrv_file = control_mesh_dir / "ETIndicesEpiRVLV.txt"  # RB addition for MyoMass calc
+        assert et_index_epi_lvrv_file.exists(), \
+            f"Missing {et_index_epi_lvrv_file} for myocardial mass calculation"
+
+        self.et_indices_epi_lvrv = (
+                                      pd.read_table(
+                                          et_index_epi_lvrv_file, sep=r'\s+', header=None, engine="c"
+                                      )
+                                  ).values.astype(int) - 1
+
+        gtstsg_x_file = control_mesh_dir / "GTSTG_x.txt"
+        assert gtstsg_x_file.exists(), \
+            f"Missing {gtstsg_x_file}"
+        self.gtstsg_x = (
+            pd.read_table(gtstsg_x_file, sep=r'\s+', header=None, engine="c")
         ).values.astype(float)
         """`numNodes`x`numNodes` Regularization/Smoothing matrix along Xi1 (
         circumferential direction)        
         """
 
-        GTSTSG_y_file = os.path.join(control_mesh_dir, "GTSTG_y.txt")
-        if not os.path.exists(GTSTSG_y_file):
-            ValueError(" Missing GTSTG_y.txt file")
-        self.GTSTSG_y = (
-            pd.read_table(GTSTSG_y_file, delim_whitespace=True, header=None, engine="c")
+        gtstsg_y_file = control_mesh_dir / "GTSTG_y.txt"
+        assert gtstsg_y_file.exists(), \
+            f"Missing {gtstsg_y_file}"
+        self.gtstsg_y = (
+            pd.read_table(gtstsg_y_file, sep=r'\s+', header=None, engine="c")
         ).values.astype(float)
         """`numNodes`x`numNodes` Regularization/Smoothing matrix along
                                             Xi2 (longitudinal) direction"""
 
-        GTSTSG_z_file = os.path.join(control_mesh_dir, "GTSTG_z.txt")
-        if not os.path.exists(GTSTSG_z_file):
-            ValueError(" Missing GTSTG_z.txt file")
-        self.GTSTSG_z = (
-            pd.read_table(GTSTSG_z_file, delim_whitespace=True, header=None, engine="c")
+        gtstsg_z_file = control_mesh_dir / "GTSTG_z.txt"
+        assert gtstsg_z_file.exists(), \
+            f"Missing {gtstsg_z_file}"
+        self.gtstsg_z = (
+            pd.read_table(gtstsg_z_file, sep=r'\s+', header=None, engine="c")
         ).values.astype(float)
         """`numNodes`x`numNodes` Regularization/Smoothing matrix along
                                                     Xi3 (transmural) direction"""
 
-        etVertexElementNum_file = os.path.join(
-            control_mesh_dir, "etVertexElementNum.txt"
-        )
-        if not os.path.exists(etVertexElementNum_file):
-            ValueError("Missing etVertexElementNum.txt file")
+        et_vertex_element_num_file = control_mesh_dir / "etVertexElementNum.txt"
+        assert et_vertex_element_num_file.exists(), \
+            f"Missing {et_vertex_element_num_file}"
         self.et_vertex_element_num = (
-            pd.read_table(
-                etVertexElementNum_file, delim_whitespace=True, header=None, engine="c"
-            )
-        ).values[:, 0].astype(int) - 1
-
+                                         pd.read_table(
+                                             et_vertex_element_num_file, sep=r'\s+', header=None, engine="c"
+                                         )
+                                     ).values[:, 0].astype(int) - 1
         """`numSurfaceNodes`x1 array[int] Element num for each surface nodes.
         Used for surface evaluation 
         """
 
-        mBder_x_file = os.path.join(control_mesh_dir, "mBder_x.txt")
-        if not os.path.exists(mBder_x_file):
-            ValueError("Missing mBder_x.file")
-        self.mBder_dx = (
-            pd.read_table(mBder_x_file, delim_whitespace=True, header=None, engine="c")
-        ).values.astype(float)
-        """`numSurfaceNodes`x`numNodes` Matrix containing  weights used to 
-        calculate gradients of the displacement field at Gauss point locations.
-        """
-        mBder_y_file = os.path.join(control_mesh_dir, "mBder_y.txt")
-        if not os.path.exists(mBder_y_file):
-            ValueError("Missing mBder_y.file")
-        self.mBder_dy = (
-            pd.read_table(mBder_y_file, delim_whitespace=True, header=None, engine="c")
+        mbder_x_file = control_mesh_dir / "mBder_x.txt"
+        assert mbder_x_file.exists(), \
+            f"Missing {mbder_x_file}"
+        self.mbder_dx = (
+            pd.read_table(mbder_x_file, sep=r'\s+', header=None, engine="c")
         ).values.astype(float)
         """`numSurfaceNodes`x`numNodes` Matrix containing  weights used to 
         calculate gradients of the displacement field at Gauss point locations.
         """
 
-        mBder_z_file = os.path.join(control_mesh_dir, "mBder_z.txt")
-        if not os.path.exists(mBder_z_file):
-            ValueError("Missing mBder_z.file")
-        self.mBder_dz = (
-            pd.read_table(mBder_z_file, delim_whitespace=True, header=None, engine="c")
+        mbder_y_file = control_mesh_dir / "mBder_y.txt"
+        assert mbder_y_file.exists(), \
+            f"Missing {mbder_y_file}"
+        self.mbder_dy = (
+            pd.read_table(mbder_y_file, sep=r'\s+', header=None, engine="c")
         ).values.astype(float)
         """`numSurfaceNodes`x`numNodes` Matrix containing  weights used to 
         calculate gradients of the displacement field at Gauss point locations.
         """
 
-        jac11_file = os.path.join(control_mesh_dir, "J11.txt")
-        if not os.path.exists(jac11_file):
-            ValueError("Missing J11.txt file")
+        mbder_z_file = control_mesh_dir / "mBder_z.txt"
+        assert mbder_z_file.exists(), \
+            f"Missing {mbder_z_file}"
+        self.mbder_dz = (
+            pd.read_table(mbder_z_file, sep=r'\s+', header=None, engine="c")
+        ).values.astype(float)
+        """`numSurfaceNodes`x`numNodes` Matrix containing  weights used to 
+        calculate gradients of the displacement field at Gauss point locations.
+        """
 
-        self.Jac11 = (
-            pd.read_table(jac11_file, delim_whitespace=True, header=None, engine="c")
+        jac_11_file = control_mesh_dir / "J11.txt"
+        assert jac_11_file.exists(), \
+            f"Missing {jac11_file}"
+        self.jac_11 = (
+            pd.read_table(jac_11_file, sep=r'\s+', header=None, engine="c")
         ).values.astype(float)
         """11968 x `numNodes` matrix containing weights used to calculate 
         Jacobians  along Xi1 at Gauss point location.
         Each matrix element is a linear combination of the 388 control points.
-    
         """
 
-        jac12_file = os.path.join(control_mesh_dir, "J12.txt")
-        if not os.path.exists(jac12_file):
-            ValueError("Missing J12.txt file")
-
-        self.Jac12 = (
-            pd.read_table(jac12_file, delim_whitespace=True, header=None, engine="c")
+        jac_12_file = control_mesh_dir / "J12.txt"
+        assert jac_12_file.exists(), \
+            f"Missing {jac_12_file}"
+        self.jac_12 = (
+            pd.read_table(jac_12_file, sep=r'\s+', header=None, engine="c")
         ).values.astype(float)
         """11968 x `numNodes` matrix containing weights used to calculate 
         Jacobians  along Xi2 at Gauss point location.
         Each matrix element is a linear combination of the 388 control points.
         """
-        jac13_file = os.path.join(control_mesh_dir, "J13.txt")
-        if not os.path.exists(jac13_file):
-            ValueError("Missing J13.txt file")
 
-        self.Jac13 = (
-            pd.read_table(jac13_file, delim_whitespace=True, header=None, engine="c")
+        jac_13_file = control_mesh_dir / "J13.txt"
+        assert jac_13_file.exists(), \
+            f"Missing {jac_13_file}"
+        self.jac_13 = (
+            pd.read_table(jac_13_file, sep=r'\s+', header=None, engine="c")
         ).values.astype(float)
         """11968 x `numNodes` matrix containing weights used to calculate 
         Jacobians along Xi3 direction at Gauss point location.
         Each matrix element is a linear combination of the 388 control points.
-
         """
-        basic_matrix_file = os.path.join(control_mesh_dir, "basis_matrix.txt")
-        if not os.path.exists(basic_matrix_file):
-            ValueError("Missing basis_matrix.txt file")
+
+        basic_matrix_file = control_mesh_dir / "basis_matrix.txt"
+        assert basic_matrix_file.exists(), \
+            f"Missing {basic_matrix_file}"
         self.basis_matrix = (
             pd.read_table(
-                basic_matrix_file, delim_whitespace=True, header=None, engine="c"
+                basic_matrix_file, sep=r'\s+', header=None, engine="c"
             )
         ).values.astype(
             float
@@ -396,54 +385,52 @@ class BiventricularModel:
         if not self.build_mode:
             return
 
-        et_vertex_xi_file = os.path.join(control_mesh_dir, "etVertexXi.txt")
-        if not os.path.exists(et_vertex_xi_file):
-            ValueError("Missing etVertexXi.txt file")
+        et_vertex_xi_file = control_mesh_dir / "etVertexXi.txt"
+        assert et_vertex_xi_file.exists(), \
+            f"Missing {et_vertex_xi_file}"
         self.et_vertex_xi = (
             pd.read_table(
-                et_vertex_xi_file, delim_whitespace=True, header=None, engine="c"
+                et_vertex_xi_file, sep=r'\s+', header=None, engine="c"
             )
         ).values
         """ `numSurfaceNodes`x3 array[float] of local xi position (xi1,xi2,
-        xi3)
-                                        for each vertex.
+        xi3) for each vertex.
         """
 
-        b_spline_file = os.path.join(control_mesh_dir, "control_points_patches.txt")
-        if not os.path.exists(b_spline_file):
-            ValueError("Missing control_points_patches.txt file")
+        b_spline_file = control_mesh_dir / "control_points_patches.txt"
+        assert b_spline_file.exists(), \
+            f"Missing {b_spline_file}"
         self.b_spline = (
-            pd.read_table(b_spline_file, delim_whitespace=True, header=None, engine="c")
-        ).values.astype(int) - 1
+                            pd.read_table(b_spline_file, sep=r'\s+', header=None, engine="c")
+                        ).values.astype(int) - 1
         """ numSurfaceNodesX32 array[int] of 32 control points which need to be 
          weighted (for each vertex)
         """
-        boundary_file = os.path.join(control_mesh_dir, "boundary.txt")
-        if not os.path.exists(boundary_file):
-            ValueError("Missing boundary.txt file")
+
+        boundary_file = control_mesh_dir / "boundary.txt"
+        assert boundary_file.exists(), \
+            f"Missing {boundary_file}"
         self.boundary = (
-            pd.read_table(boundary_file, delim_whitespace=True, header=None, engine="c")
+            pd.read_table(boundary_file, sep=r'\s+', header=None, engine="c")
         ).values.astype(int)
         """ boundary"""
 
-        control_ef_file = os.path.join(
-            control_mesh_dir, "control_mesh_connectivity.txt"
-        )
-        if not os.path.exists(control_ef_file):
-            ValueError("Missing control_mesh_connectivity.txt file")
+        control_ef_file = control_mesh_dir / "control_mesh_connectivity.txt"
+        assert control_ef_file.exists(), \
+            f"Missing {control_ef_file}"
         self.control_et_indices = (
-            pd.read_table(
-                control_ef_file, delim_whitespace=True, header=None, engine="c"
-            )
-        ).values.astype(int) - 1
+                                      pd.read_table(
+                                          control_ef_file, sep=r'\s+', header=None, engine="c"
+                                      )
+                                  ).values.astype(int) - 1
         """ (K,8) matrix of control mesh connectivity"""
 
-        phantom_points_file = os.path.join(control_mesh_dir, "phantom_points.txt")
-        if not os.path.exists(phantom_points_file):
-            ValueError("Missing phantom_points.txt file")
+        phantom_points_file = control_mesh_dir / "phantom_points.txt"
+        assert phantom_points_file.exists(), \
+            f"Missing {phantom_points_file}"
         self.phantom_points = (
             pd.read_table(
-                phantom_points_file, delim_whitespace=True, header=None, engine="c"
+                phantom_points_file, sep=r'\s+', header=None, engine="c"
             )
         ).values.astype(float)
         """ Some surface nodes are not needed for the 
@@ -454,59 +441,57 @@ class BiventricularModel:
         corresponding information as the subdivision level , local
         patch coordinates etc. are stored in phantom points array
         """
+
         self.phantom_points[:, :17] = self.phantom_points[:, :17].astype(int) - 1
-        patch_coordinates_file = os.path.join(control_mesh_dir, "patch_coordinates.txt")
-        if not os.path.exists(patch_coordinates_file):
-            ValueError("Missing patch_coordinates.txt file")
+        patch_coordinates_file = control_mesh_dir / "patch_coordinates.txt"
+        assert patch_coordinates_file.exists(), \
+            f"Missing {patch_coordinates_file}"
         self.patch_coordinates = (
             pd.read_table(
-                patch_coordinates_file, delim_whitespace=True, header=None, engine="c"
+                patch_coordinates_file, sep=r'\s+', header=None, engine="c"
             )
         ).values
         """local patch coordinates. 
-         
+
         According to CC subdivision surface, to evaluate a point on a surface 
         the original control mesh needs to be subdivided in 'child' patches.  
-        
+
         The coordinates of the child patches are then used to map the local 
         coordinates with respect to control mesh in to the local 
         coordinates with respect to child patch.
-        
+
         The patch coordinates and subdivision level of each surface node are 
         pre-computed and here imported as patch_coordinates and fraction.
-        
+
         For details see
-        
         Atlas-based Analysis of Biventricular Heart 
         Shape and Motion in Congenital Heart Disease. C. Mauger (p34-37)
         """
-        fraction_file = os.path.join(control_mesh_dir, "fraction.txt")
-        if not os.path.exists(fraction_file):
-            ValueError("Missing fraction.txt file")
+        fraction_file = control_mesh_dir / "fraction.txt"
+        assert fraction_file.exists(), \
+            f"Missing {fraction_file}"
         self.fraction = (
-            pd.read_table(fraction_file, delim_whitespace=True, header=None, engine="c")
+            pd.read_table(fraction_file, sep=r'\s+', header=None, engine="c")
         ).values
         """`numSurfaceNodes`x1 vector[int] subdivision level of the 
          patch (level 0 = 1,level 1 = 0.5,level 2 = 0.25). See 
          `patch_coordinates for details`
         """
 
-        local_matrix_file = os.path.join(control_mesh_dir, "local_matrix.txt")
-
-        if not os.path.exists(local_matrix_file):
-            ValueError("Missing local_matrix.txt file")
+        local_matrix_file = control_mesh_dir / "local_matrix.txt"
+        assert local_matrix_file.exists(), \
+            f"Missing {local_matrix_file}"
         self.local_matrix = (
             pd.read_table(
-                local_matrix_file, delim_whitespace=True, header=None, engine="c"
+                local_matrix_file, sep=r'\s+', header=None, engine="c"
             )
         ).values
-
     def get_nodes(self):
         """
 
         Returns
         --------
-        `numSurfaceNodes`x3 array of vertices coordinates
+        `NUM_SURFACE_NODES`x3 array of vertices coordinates
         """
         return self.et_pos
 
@@ -515,7 +500,7 @@ class BiventricularModel:
 
         Returns
         -------
-        `numNodes`x3 array of coordinates of control points
+        `NUM_NODES`x3 array of coordinates of control points
 
         """
         return self.control_mesh
@@ -562,7 +547,7 @@ class BiventricularModel:
         if surface_name == Surface.RV_INSERT:
             return self.et_vertex_start_end[8, :]
         if surface_name == Surface.APEX:
-            return [self.apex_index] * 2
+            return [self.APEX_INDEX] * 2
 
     def get_surface_start_end_index(self, surface_name):
         """Return first and last element index for a given surface, tu use
@@ -631,23 +616,23 @@ class BiventricularModel:
         """
 
         boolean = 1
-        for i in range(len(self.Jac11)):
+        for i in range(len(self.jac_11)):
             jacobi = np.array(
                 [
                     [
-                        np.inner(self.Jac11[i, :], new_control_mesh[:, 0]),
-                        np.inner(self.Jac12[i, :], new_control_mesh[:, 0]),
-                        np.inner(self.Jac13[i, :], new_control_mesh[:, 0]),
+                        np.inner(self.jac_11[i, :], new_control_mesh[:, 0]),
+                        np.inner(self.jac_12[i, :], new_control_mesh[:, 0]),
+                        np.inner(self.jac_13[i, :], new_control_mesh[:, 0]),
                     ],
                     [
-                        np.inner(self.Jac11[i, :], new_control_mesh[:, 1]),
-                        np.inner(self.Jac12[i, :], new_control_mesh[:, 1]),
-                        np.inner(self.Jac13[i, :], new_control_mesh[:, 1]),
+                        np.inner(self.jac_11[i, :], new_control_mesh[:, 1]),
+                        np.inner(self.jac_12[i, :], new_control_mesh[:, 1]),
+                        np.inner(self.jac_13[i, :], new_control_mesh[:, 1]),
                     ],
                     [
-                        np.inner(self.Jac11[i, :], new_control_mesh[:, 2]),
-                        np.inner(self.Jac12[i, :], new_control_mesh[:, 2]),
-                        np.inner(self.Jac13[i, :], new_control_mesh[:, 2]),
+                        np.inner(self.jac_11[i, :], new_control_mesh[:, 2]),
+                        np.inner(self.jac_12[i, :], new_control_mesh[:, 2]),
+                        np.inner(self.jac_13[i, :], new_control_mesh[:, 2]),
                     ],
                 ]
             )
@@ -734,7 +719,7 @@ class BiventricularModel:
         `scaleFactor` float
         """
         model_shape_index = [
-            self.apex_index,
+            self.APEX_INDEX,
             self.get_surface_vertex_start_end_index(Surface.MITRAL_VALVE)[1],
             self.get_surface_vertex_start_end_index(Surface.TRICUSPID_VALVE)[1],
         ]
@@ -813,7 +798,7 @@ class BiventricularModel:
         xaxis = data_set.apex - base
         xaxis = xaxis / np.linalg.norm(xaxis)
 
-        apex_position_model = self.et_pos[self.apex_index, :]
+        apex_position_model = self.et_pos[self.APEX_INDEX, :]
         base_model = self.et_pos[
             self.get_surface_vertex_start_end_index(Surface.MITRAL_VALVE)[1], :
         ]
@@ -1872,7 +1857,7 @@ class BiventricularModel:
 
         `distance_d_prior` (`N`,1) matrix[float] distances to the closest points
 
-        `psi_matrix` basis function matrix (`N`,`numNodes`)
+        `psi_matrix` basis function matrix (`N`,`NUM_NODES`)
 
         """
 
@@ -2057,7 +2042,7 @@ class BiventricularModel:
         Returns
         --------
 
-        `new_nodes_position` (numNodes,3) array[float] new position of the nodes
+        `new_nodes_position` (NUM_NODES,3) array[float] new position of the nodes
 
         `new_elements` (nbElem, 8) array mesh connectivity
 
@@ -2138,7 +2123,7 @@ class BiventricularModel:
         num_points = len(elements) * len(xi_position)
         # interpolate field on surface nodes
 
-        der_coeff = np.zeros((num_points, self.numNodes, 10))
+        der_coeff = np.zeros((num_points, self.NUM_NODES, 10))
 
         der_e, der_xi = list(), list()
 
@@ -2230,8 +2215,8 @@ class BiventricularModel:
 
         matrix_coefficient_Bspline_points = np.zeros(params_per_element)
         matrix_coefficient_Bspline_der = np.zeros((params_per_element, 10))
-        full_matrix_coefficient_points = np.zeros((self.numNodes))
-        full_matrix_coefficient_der = np.zeros((self.numNodes, 10))
+        full_matrix_coefficient_points = np.zeros((self.NUM_NODES))
+        full_matrix_coefficient_der = np.zeros((self.NUM_NODES, 10))
 
         # The b-spline weight of a point is computed giving local coordinates
         # with respect to the 'child patches' elements. The input local
@@ -2465,15 +2450,15 @@ class BiventricularModel:
 
         dxi = 0.01
 
-        basis_matrix = np.zeros((len(element_number) * len(position), self.numNodes))
+        basis_matrix = np.zeros((len(element_number) * len(position), self.NUM_NODES))
         basis_matrix_dx1 = np.zeros(
-            (len(element_number) * len(position), self.numNodes)
+            (len(element_number) * len(position), self.NUM_NODES)
         )
         basis_matrix_dx2 = np.zeros(
-            (len(element_number) * len(position), self.numNodes)
+            (len(element_number) * len(position), self.NUM_NODES)
         )
         basis_matrix_dx3 = np.zeros(
-            (len(element_number) * len(position), self.numNodes)
+            (len(element_number) * len(position), self.NUM_NODES)
         )
         for et_indx, control_et in enumerate(element_number):
             for j, xi in enumerate(position):
@@ -2519,15 +2504,15 @@ class BiventricularModel:
         Parameters
         -----------
 
-        `field` (numNodes, k) array[float] field to be interpolated
+        `field` (NUM_NODES, k) array[float] field to be interpolated
 
-        `vertex_map` (numNodes,1) array[ints] nodes id where the field is
+        `vertex_map` (NUM_NODES,1) array[ints] nodes id where the field is
         defined
 
         Returns
         --------
 
-        `interpolated_field` (numSurfaceNodes, k) array[float] interpolated
+        `interpolated_field` (NUM_SURFACE_NODES, k) array[float] interpolated
         field at each surface node
 
         """
@@ -2538,7 +2523,7 @@ class BiventricularModel:
             )
             return
 
-        basis_matrix = np.zeros((len(vertex_map), self.numNodes))
+        basis_matrix = np.zeros((len(vertex_map), self.NUM_NODES))
 
         # first estimate the control points from the known fiels
         for v_index, v in enumerate(vertex_map):
@@ -2552,7 +2537,7 @@ class BiventricularModel:
         control_points = np.linalg.solve(basis_matrix, field)
 
         # interpolate field on surface nodes
-        basis_matrix = np.zeros((self.numSurfaceNodes, self.numNodes))
+        basis_matrix = np.zeros((self.NUM_SURFACE_NODES, self.NUM_NODES))
         for et_index in range(np.max(self.et_vertex_element_num) + 1):
             xig_index = np.where(self.et_vertex_element_num == et_index)[0]
             xig = self.et_vertex_xi[xig_index]
@@ -2579,9 +2564,9 @@ class BiventricularModel:
         Parameters
         -----------
 
-        `field` (`numNodes`,k) matrix[float] field to be interpolated
+        `field` (`NUM_NODES`,k) matrix[float] field to be interpolated
 
-        `vertex_map` ('numNodes`) vector[ints] nodes id where the field is
+        `vertex_map` ('NUM_NODES`) vector[ints] nodes id where the field is
         defined
 
         `position` (m,3) array[float] xi position where the field need to
@@ -2610,7 +2595,7 @@ class BiventricularModel:
         if elements is None:
             elements = list(range(np.max(self.et_vertex_element_num) + 1))
 
-        basis_matrix = np.zeros((len(vertex_map), self.numNodes))
+        basis_matrix = np.zeros((len(vertex_map), self.NUM_NODES))
 
         # first estimate the control points from the known fiels
         for v_index, v in enumerate(vertex_map):
@@ -2625,7 +2610,7 @@ class BiventricularModel:
 
         # interpolate field on surface nodes
 
-        basis_matrix = np.zeros((len(elements) * len(position), self.numNodes))
+        basis_matrix = np.zeros((len(elements) * len(position), self.NUM_NODES))
         for i, et_index in enumerate(elements):
             for j, xi in enumerate(position):
                 index = i * len(position) + j
@@ -2802,16 +2787,16 @@ class BiventricularModel:
         LVMyoVol = 0
         RVMyoVol = 0
         # LV Epicardium
-        for se in range(2416, len(self.et_indices_EpiLVRV)):
+        for se in range(2416, len(self.et_indices_epi_lvrv)):
             # same style as volume calcs, get volume of LV epicardium defined by EpiLVRV
-            indices = self.et_indices_EpiLVRV[se]
+            indices = self.et_indices_epi_lvrv[se]
             Pts = self.et_pos[indices]
             LVMyoVol += self.Get_tetrahedron_vol_CM(Pts[0], Pts[1], Pts[2], D)
         Lv_MyoVol_sum = LVMyoVol / 1000
 
         # RV Epicardium
         for se in range(0, 2416):
-            indices = self.et_indices_EpiLVRV[se]
+            indices = self.et_indices_epi_lvrv[se]
             Pts = self.et_pos[indices]
             RVMyoVol += self.Get_tetrahedron_vol_CM(Pts[0], Pts[1], Pts[2], D)
         RvMyoVol_sum = RVMyoVol / 1000
@@ -2819,8 +2804,8 @@ class BiventricularModel:
         # ThruWall surface
         VolThru = 0  # thruwall surface divides LV and RV through septum
         # (which doesn't cover epicardium to close surfaces separately)
-        for se in range(0, len(self.et_indices_thruWall)):
-            indices = self.et_indices_thruWall[se]
+        for se in range(0, len(self.et_indices_thru_wall)):
+            indices = self.et_indices_thru_wall[se]
             Pts = self.et_pos[indices]
             VolThru += self.Get_tetrahedron_vol_CM(Pts[0], Pts[1], Pts[2], D)
         Lv_MyoVol_sum -= VolThru / 1000  # ThruWall normals inverted for LV, normal
