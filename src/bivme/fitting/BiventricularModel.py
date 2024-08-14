@@ -110,7 +110,8 @@ class BiventricularModel:
     """Number of points defining the thru wall"""
     NUM_SUBDIVIDED_FACES = 11760
     """Number of faces after subdivision"""
-
+    NUM_LOCAL_POINTS = 12509
+    """Number of local points - used for patch estimation"""
     et_vertex_start_end = np.array(
         [
             [0, 1499],
@@ -486,26 +487,24 @@ class BiventricularModel:
                 local_matrix_file, sep=r'\s+', header=None, engine="c"
             )
         ).values
-    def get_nodes(self):
-        """
 
+    def get_nodes(self) -> np.ndarray:
+        """
         Returns
         --------
         `NUM_SURFACE_NODES`x3 array of vertices coordinates
         """
         return self.et_pos
 
-    def get_control_mesh_nodes(self):
+    def get_control_mesh_nodes(self) -> np.ndarray:
         """
-
         Returns
         -------
         `NUM_NODES`x3 array of coordinates of control points
-
         """
         return self.control_mesh
 
-    def get_surface_vertex_start_end_index(self, surface_name):
+    def get_surface_vertex_start_end_index(self, surface_name: Surface) -> np.ndarray:
         """Return first and last vertex index for a given surface to use
         with `et_pos` array
 
@@ -549,19 +548,17 @@ class BiventricularModel:
         if surface_name == Surface.APEX:
             return [self.APEX_INDEX] * 2
 
-    def get_surface_start_end_index(self, surface_name):
+    def get_surface_start_end_index(self, surface_name: Surface) -> np.ndarray:
         """Return first and last element index for a given surface, tu use
         with `et_indices` array
 
 
         Parameters
         ----------
-
         `surface_name` surface name as defined by `Surface` enum
 
         Returns
         -------
-
         2x1 array containing first and last vertices index belonging to
            `surface_name`
         """
@@ -590,7 +587,7 @@ class BiventricularModel:
         if surface_name == Surface.PULMONARY_VALVE:
             return self.surface_start_end[7, :]
 
-    def is_diffeomorphic(self, new_control_mesh, min_jacobian):
+    def is_diffeomorphic(self, updated_control_mesh: np.ndarray, min_jacobian: float) -> bool:
         """This function checks the Jacobian value at Gauss point location
         (I am using 3x3x3 per element).
 
@@ -605,69 +602,41 @@ class BiventricularModel:
 
         Parameters
         -----------
-
         `new_control_mesh` control mesh we want to check
 
         Returns
         -------
-
-        'min_jacobian' float Jacobian threshold
-
+            boolean value
         """
 
-        boolean = 1
         for i in range(len(self.jac_11)):
             jacobi = np.array(
                 [
                     [
-                        np.inner(self.jac_11[i, :], new_control_mesh[:, 0]),
-                        np.inner(self.jac_12[i, :], new_control_mesh[:, 0]),
-                        np.inner(self.jac_13[i, :], new_control_mesh[:, 0]),
+                        np.inner(self.jac_11[i, :], updated_control_mesh[:, 0]),
+                        np.inner(self.jac_12[i, :], updated_control_mesh[:, 0]),
+                        np.inner(self.jac_13[i, :], updated_control_mesh[:, 0]),
                     ],
                     [
-                        np.inner(self.jac_11[i, :], new_control_mesh[:, 1]),
-                        np.inner(self.jac_12[i, :], new_control_mesh[:, 1]),
-                        np.inner(self.jac_13[i, :], new_control_mesh[:, 1]),
+                        np.inner(self.jac_11[i, :], updated_control_mesh[:, 1]),
+                        np.inner(self.jac_12[i, :], updated_control_mesh[:, 1]),
+                        np.inner(self.jac_13[i, :], updated_control_mesh[:, 1]),
                     ],
                     [
-                        np.inner(self.jac_11[i, :], new_control_mesh[:, 2]),
-                        np.inner(self.jac_12[i, :], new_control_mesh[:, 2]),
-                        np.inner(self.jac_13[i, :], new_control_mesh[:, 2]),
+                        np.inner(self.jac_11[i, :], updated_control_mesh[:, 2]),
+                        np.inner(self.jac_12[i, :], updated_control_mesh[:, 2]),
+                        np.inner(self.jac_13[i, :], updated_control_mesh[:, 2]),
                     ],
                 ]
             )
 
             determinant = np.linalg.det(jacobi)
             if determinant < min_jacobian:
-                boolean = 0
-                return boolean
+                return False
 
-        return boolean
+        return True
 
-    def CreateNextModel(self, DataSetES, ESTranslation):
-        """Copy of the current model onto the next time model.
-
-        Parameters
-        ----------
-
-        `DataSetES` dataset for the new time frame
-
-        `ESTranslation` 2D translations needed
-
-        Returns
-        --------
-
-        `ESSurface` Copy of the current model (`biv_model`),
-                associated with the new DataSet.
-        """
-
-        ESSurface = copy.deepcopy(self)
-        ESSurface.data_set = copy.deepcopy(DataSetES)
-        ESSurface.SliceShiftES(ESTranslation, self.image_position_patient)
-
-        return ESSurface
-
-    def update_pose_and_scale(self, dataset):
+    def update_pose_and_scale(self, dataset: GPDataSet) -> float:
         """A method that scale and translate the model to rigidly align
         with the guide points.
 
@@ -685,26 +654,26 @@ class BiventricularModel:
         `scaleFactor` scale factor between template and data points.
         """
 
-        scale_factor = self._get_scaling(dataset)
+        scale_factor = self.get_scaling(dataset)
         self.update_control_mesh(self.control_mesh * scale_factor)
 
         # The rotation is defined about the origin so we need to translate the model to the origin
         self.update_control_mesh(self.control_mesh - self.et_pos.mean(axis=0))
-        rotation = self._get_rotation(dataset)
+        rotation = self.get_rotation(dataset)
         self.update_control_mesh(
             np.array([np.dot(rotation, node) for node in self.control_mesh])
         )
 
         # Translate the model back to origin of the DataSet coordinate system
 
-        translation = self._get_translation(dataset)
+        translation = self.get_translation(dataset)
         self.update_control_mesh(self.control_mesh + translation)
 
         # et_pos update
 
         return scale_factor
 
-    def _get_scaling(self, dataset):
+    def get_scaling(self, dataset):
         """Calculates a scaling factor for the model
         to match the guide points defined in datset
 
@@ -741,10 +710,9 @@ class BiventricularModel:
 
         return scaleFactor
 
-    def _get_translation(self, dataset):
+    def get_translation(self, dataset: GPDataSet) -> np.ndarray:
         """Calculates a translation for (x, y, z)
         axis that aligns the model RV center with dataset RV center
-
         Parameters
         -----------
         `data_set` GPDataSet object
@@ -752,7 +720,6 @@ class BiventricularModel:
         Returns
         --------
           `translation` 3X1 array[float] with x, y and z translation
-
         """
         t_points_index_1 = (
             (dataset.contour_type == ContourType.SAX_RV_FREEWALL)
@@ -775,7 +742,7 @@ class BiventricularModel:
         ) * 0.5
         return translation
 
-    def _get_rotation(self, data_set):
+    def get_rotation(self, data_set: GPDataSet) -> np.ndarray:
         """Computes the rotation between model and data set,
         the rotation is given
         by considering the x-axis direction defined by the mitral valve centroid
@@ -795,21 +762,21 @@ class BiventricularModel:
         base = data_set.mitral_centroid
 
         # computes data_set coordinates system
-        xaxis = data_set.apex - base
-        xaxis = xaxis / np.linalg.norm(xaxis)
+        x_axis = data_set.apex - base
+        x_axis = x_axis / np.linalg.norm(x_axis)
 
         apex_position_model = self.et_pos[self.APEX_INDEX, :]
         base_model = self.et_pos[
             self.get_surface_vertex_start_end_index(Surface.MITRAL_VALVE)[1], :
         ]
 
-        xaxis_model = apex_position_model - base_model
-        xaxis_model = xaxis_model / np.linalg.norm(xaxis_model)  # normalize
+        x_axis_model = apex_position_model - base_model
+        x_axis_model = x_axis_model / np.linalg.norm(x_axis_model)  # normalize
 
         # compute origin defined at 1/3 of the height of the model on the Ox
         # axis
-        tempOrigin = 0.5 * (data_set.apex + base)
-        tempOrigin_model = 0.5 * (apex_position_model + base_model)
+        temp_original = 0.5 * (data_set.apex + base)
+        temp_original_model = 0.5 * (apex_position_model + base_model)
 
         maxd = np.linalg.norm(0.5 * (data_set.apex - base))
         mind = -np.linalg.norm(0.5 * (data_set.apex - base))
@@ -861,7 +828,7 @@ class BiventricularModel:
             ValueError("Missing contours in update_pose_and_scale")
             return
 
-        tempd = [np.dot(xaxis, p) for p in (point_proj - tempOrigin)]
+        tempd = [np.dot(x_axis, p) for p in (point_proj - temp_original)]
         maxd = max(np.max(tempd), maxd)
         mind = min(np.min(tempd), mind)
 
@@ -873,17 +840,17 @@ class BiventricularModel:
             :,
         ]
         tempd_model = [
-            np.dot(xaxis_model, point_model)
-            for point_model in (model_epi - tempOrigin_model)
+            np.dot(x_axis_model, point_model)
+            for point_model in (model_epi - temp_original_model)
         ]
         maxd_model = max(np.max(tempd_model), maxd_model)
         mind_model = min(np.min(tempd_model), mind_model)
 
-        centroid = tempOrigin + mind * xaxis + ((maxd - mind) / 3.0) * xaxis
+        centroid = temp_original + mind * x_axis + ((maxd - mind) / 3.0) * x_axis
         centroid_model = (
-            tempOrigin_model
-            + mind_model * xaxis_model
-            + ((maxd_model - mind_model) / 3.0) * xaxis_model
+            temp_original_model
+            + mind_model * x_axis_model
+            + ((maxd_model - mind_model) / 3.0) * x_axis_model
         )
 
         # Compute Oy axis
@@ -903,14 +870,14 @@ class BiventricularModel:
         rv_centroid = rv_endo_points.mean(axis=0)
         rv_centroid_model = rv_points_model.mean(axis=0)
 
-        scale = np.dot(xaxis, rv_centroid) - np.dot(xaxis, centroid) / np.dot(
-            xaxis, xaxis
+        scale = np.dot(x_axis, rv_centroid) - np.dot(x_axis, centroid) / np.dot(
+            x_axis, x_axis
         )
-        scale_model = np.dot(xaxis_model, rv_centroid_model) - np.dot(
-            xaxis_model, centroid_model
-        ) / np.dot(xaxis_model, xaxis_model)
-        rvproj = centroid + scale * xaxis
-        rvproj_model = centroid_model + scale_model * xaxis_model
+        scale_model = np.dot(x_axis_model, rv_centroid_model) - np.dot(
+            x_axis_model, centroid_model
+        ) / np.dot(x_axis_model, x_axis_model)
+        rvproj = centroid + scale * x_axis
+        rvproj_model = centroid_model + scale_model * x_axis_model
 
         yaxis = rv_centroid - rvproj
         yaxis_model = rv_centroid_model - rvproj_model
@@ -918,8 +885,8 @@ class BiventricularModel:
         yaxis = yaxis / np.linalg.norm(yaxis)
         yaxis_model = yaxis_model / np.linalg.norm(yaxis_model)
 
-        zaxis = np.cross(xaxis, yaxis)
-        zaxis_model = np.cross(xaxis_model, yaxis_model)
+        zaxis = np.cross(x_axis, yaxis)
+        zaxis_model = np.cross(x_axis_model, yaxis_model)
 
         zaxis = zaxis / np.linalg.norm(zaxis)
         zaxis_model = zaxis_model / np.linalg.norm(zaxis_model)
@@ -937,7 +904,7 @@ class BiventricularModel:
 
         # Step 1
         B = (
-            np.outer(xaxis, xaxis_model)
+            np.outer(x_axis, x_axis_model)
             + np.outer(yaxis, yaxis_model)
             + np.outer(zaxis, zaxis_model)
         )
@@ -948,9 +915,9 @@ class BiventricularModel:
         M = np.array(
             [[1, 0, 0], [0, 1, 0], [0, 0, np.linalg.det(U) * np.linalg.det(Vt)]]
         )
-        Rotation = np.dot(U, np.dot(M, Vt))
+        rotation = np.dot(U, np.dot(M, Vt))
 
-        return Rotation
+        return rotation
 
     def plot_surface(
         self, face_color_LV, face_color_RV, face_color_epi, surface="all", opacity=0.8
@@ -1260,365 +1227,6 @@ class BiventricularModel:
             )
 
             return triangles_LV, triangles_FW, lines
-
-        if surface == "epi":
-            surface_index = self.get_surface_start_end_index(Surface.EPICARDIAL)
-            points3D = np.vstack(
-                (self.et_pos[:, 0], self.et_pos[:, 1], self.et_pos[:, 2])
-            ).T
-            simplices = np.vstack(
-                (
-                    self.et_indices[surface_index[0] : surface_index[1] + 1, 0],
-                    self.et_indices[surface_index[0] : surface_index[1] + 1, 1],
-                    self.et_indices[surface_index[0] : surface_index[1] + 1, 2],
-                )
-            ).T
-
-            tri_vertices = list(map(lambda index: points3D[index], simplices))
-
-            triangles_epi = go.Mesh3d(
-                x=x,
-                y=y,
-                z=z,
-                color=face_color_epi,
-                i=I_epi,
-                j=J_epi,
-                k=K_epi,
-                opacity=0.8,
-                name="epicardial",
-                showlegend=True,
-            )
-
-            # define the lists Xe, Ye, Ze, of x, y, resp z coordinates of edge end points for each triangle
-            lists_coord = [
-                [[T[k % 3][c] for k in range(4)] for T in tri_vertices]
-                for c in range(3)
-            ]
-            Xe, Ye, Ze = [
-                functools.reduce(lambda x, y: x + y, lists_coord[k]) for k in range(3)
-            ]
-
-            # define the lines to be plotted
-            lines = go.Scatter3d(
-                x=Xe,
-                y=Ye,
-                z=Ze,
-                mode="lines",
-                line=go.scatter3d.Line(color="rgb(0,0,0)", width=1.5),
-                name="wireframe",
-                showlegend=True,
-            )
-
-            return [triangles_epi, lines]
-
-    def PlotSurface(
-        self,
-        face_color_LV,
-        face_color_RV,
-        face_color_epi,
-        my_name,
-        surface="all",
-        opacity=0.8,
-    ):
-        """Plot 3D model.
-        Input:
-           face_color_LV, face_color_RV, face_color_epi: LV_ENDOCARDIAL, RV and epi colors
-           my_name: surface name
-           surface (optional): all = entire surface,
-           endo = endocardium, epi = epicardium  (default = "all")
-        Output:
-           triangles_epi, triangles_LV, triangles_RV: triangles that
-           need to be plotted for the epicardium, LV_ENDOCARDIAL and Rv respectively
-           lines: lines that need to be plotted
-        """
-
-        x = np.array(self.et_pos[:, 0]).T
-        y = np.array(self.et_pos[:, 1]).T
-        z = np.array(self.et_pos[:, 2]).T
-
-        # LV_ENDOCARDIAL endo
-        surface_index = self.get_surface_start_end_index(Surface.LV_ENDOCARDIAL)
-        I_LV = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 0])
-        J_LV = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 1])
-        K_LV = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 2])
-        simplices_lv = np.vstack(
-            (
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 0],
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 1],
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 2],
-            )
-        ).T
-
-        # RV free wall
-        surface_index = self.get_surface_start_end_index(Surface.RV_FREEWALL)
-        I_FW = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 0])
-        J_FW = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 1])
-        K_FW = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 2])
-        simplices_fw = np.vstack(
-            (
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 0],
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 1],
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 2],
-            )
-        ).T
-
-        # RV septum
-        surface_index = self.get_surface_start_end_index(Surface.RV_SEPTUM)
-        I_S = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 0])
-        J_S = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 1])
-        K_S = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 2])
-        simplices_s = np.vstack(
-            (
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 0],
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 1],
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 2],
-            )
-        ).T
-
-        # Epicardium
-        surface_index = self.get_surface_start_end_index(Surface.EPICARDIAL)
-        I_epi = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 0])
-        J_epi = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 1])
-        K_epi = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 2])
-        simplices_epi = np.vstack(
-            (
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 0],
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 1],
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 2],
-            )
-        ).T
-
-        if surface == "all":
-            points3D = np.vstack(
-                (self.et_pos[:, 0], self.et_pos[:, 1], self.et_pos[:, 2])
-            ).T
-
-            tri_vertices_epi = list(map(lambda index: points3D[index], simplices_epi))
-            tri_vertices_fw = list(map(lambda index: points3D[index], simplices_fw))
-            tri_vertices_s = list(map(lambda index: points3D[index], simplices_s))
-            tri_vertices_lv = list(map(lambda index: points3D[index], simplices_lv))
-
-            triangles_LV = go.Mesh3d(
-                x=x,
-                y=y,
-                z=z,
-                color=face_color_LV,
-                i=I_LV,
-                j=J_LV,
-                k=K_LV,
-                opacity=1,
-                name="LV edocardial",
-                showlegend=True,
-            )
-
-            triangles_FW = go.Mesh3d(
-                x=x,
-                y=y,
-                z=z,
-                color=face_color_RV,
-                name="RV free wall",
-                showlegend=True,
-                i=I_FW,
-                j=J_FW,
-                k=K_FW,
-                opacity=1,
-            )
-
-            triangles_S = go.Mesh3d(
-                x=x,
-                y=y,
-                z=z,
-                color=face_color_RV,
-                name="RV septum",
-                showlegend=True,
-                i=I_S,
-                j=J_S,
-                k=K_S,
-                opacity=1,
-            )
-
-            triangles_epi = go.Mesh3d(
-                x=x,
-                y=y,
-                z=z,
-                color=face_color_epi,
-                i=I_epi,
-                j=J_epi,
-                k=K_epi,
-                opacity=0.4,
-                name="epicardial",
-                showlegend=True,
-            )
-
-            lists_coord = [
-                [[T[k % 3][c] for k in range(4)] + [None] for T in tri_vertices_epi]
-                for c in range(3)
-            ]
-            Xe, Ye, Ze = [
-                functools.reduce(lambda x, y: x + y, lists_coord[k]) for k in range(3)
-            ]
-
-            # define the lines to be plotted
-            lines_epi = go.Scatter3d(
-                x=Xe,
-                y=Ye,
-                z=Ze,
-                mode="lines",
-                line=go.scatter3d.Line(color="rgb(0,0,0)", width=1.5),
-                showlegend=True,
-                name="wireframe epicardial",
-            )
-
-            lists_coord = [
-                [[T[k % 3][c] for k in range(4)] + [None] for T in tri_vertices_fw]
-                for c in range(3)
-            ]
-            Xe, Ye, Ze = [
-                functools.reduce(lambda x, y: x + y, lists_coord[k]) for k in range(3)
-            ]
-
-            # define the lines to be plotted
-            lines_fw = go.Scatter3d(
-                x=Xe,
-                y=Ye,
-                z=Ze,
-                mode="lines",
-                line=go.scatter3d.Line(color="rgb(0,0,0)", width=1.5),
-                showlegend=True,
-                name="wireframe rv free wall",
-            )
-
-            lists_coord = [
-                [[T[k % 3][c] for k in range(4)] + [None] for T in tri_vertices_s]
-                for c in range(3)
-            ]
-            Xe, Ye, Ze = [
-                functools.reduce(lambda x, y: x + y, lists_coord[k]) for k in range(3)
-            ]
-
-            # define the lines to be plotted
-            lines_s = go.Scatter3d(
-                x=Xe,
-                y=Ye,
-                z=Ze,
-                mode="lines",
-                line=go.scatter3d.Line(color="rgb(0,0,0)", width=1.5),
-                showlegend=True,
-                name="wireframe rv septum",
-            )
-
-            lists_coord = [
-                [[T[k % 3][c] for k in range(4)] + [None] for T in tri_vertices_lv]
-                for c in range(3)
-            ]
-            Xe, Ye, Ze = [
-                functools.reduce(lambda x, y: x + y, lists_coord[k]) for k in range(3)
-            ]
-
-            # define the lines to be plotted
-            lines_lv = go.Scatter3d(
-                x=Xe,
-                y=Ye,
-                z=Ze,
-                mode="lines",
-                line=go.scatter3d.Line(color="rgb(0,0,0)", width=1.5),
-                showlegend=True,
-                name="wireframe lv edocardial",
-            )
-
-            return [
-                triangles_epi,
-                triangles_LV,
-                triangles_FW,
-                triangles_S,
-                lines_epi,
-                lines_lv,
-                lines_fw,
-                lines_s,
-            ]
-
-        if surface == "endo":
-            points3D = np.vstack(
-                (self.et_pos[:, 0], self.et_pos[:, 1], self.et_pos[:, 2])
-            ).T
-            simplices = np.vstack(
-                (
-                    self.et_indices[
-                        self.surface_start_end[0, 0] : self.surface_start_end[2, 1] + 1,
-                        0,
-                    ],
-                    self.et_indices[
-                        self.surface_start_end[0, 0] : self.surface_start_end[2, 1] + 1,
-                        1,
-                    ],
-                    self.et_indices[
-                        self.surface_start_end[0, 0] : self.surface_start_end[2, 1] + 1,
-                        2,
-                    ],
-                )
-            ).T
-
-            tri_vertices = list(map(lambda index: points3D[index], simplices))
-
-            triangles_LV = go.Mesh3d(
-                x=x,
-                y=y,
-                z=z,
-                color=face_color_LV,
-                i=I_LV,
-                j=J_LV,
-                k=K_LV,
-                opacity=opacity,
-                name="LV edocardial",
-                showlegend=True,
-            )
-
-            triangles_FW = go.Mesh3d(
-                x=x,
-                y=y,
-                z=z,
-                color=face_color_RV,
-                name="RV freewall",
-                showlegend=True,
-                i=I_FW,
-                j=J_FW,
-                k=K_FW,
-                opacity=opacity,
-            )
-
-            triangles_S = go.Mesh3d(
-                x=x,
-                y=y,
-                z=z,
-                color=face_color_RV,
-                name="RV septum",
-                showlegend=True,
-                i=I_S,
-                j=J_S,
-                k=K_S,
-                opacity=opacity,
-            )
-            # define the lists Xe, Ye, Ze, of x, y, resp z coordinates of edge end points for each triangle
-            lists_coord = [
-                [[T[k % 3][c] for k in range(4)] for T in tri_vertices]
-                for c in range(3)
-            ]
-            Xe, Ye, Ze = [
-                functools.reduce(lambda x, y: x + y, lists_coord[k]) for k in range(3)
-            ]
-
-            # define the lines to be plotted
-            lines = go.Scatter3d(
-                x=Xe,
-                y=Ye,
-                z=Ze,
-                mode="lines",
-                line=go.scatter3d.Line(color="rgb(0,0,0)", width=1.5),
-                showlegend=True,
-                name="wireframe",
-            )
-
-            return [triangles_LV, triangles_FW, lines]
 
         if surface == "epi":
             surface_index = self.get_surface_start_end_index(Surface.EPICARDIAL)
@@ -2623,246 +2231,12 @@ class BiventricularModel:
 
         return points, interpolated_field
 
-    @staticmethod
-    def get_tetrahedron_vol_CM(a, b, c, d):
-        """Calculates volume of tetrahedron abcd, where abc is the three
-        surface point vertices and d is the fixed centroid for the shape
-        Utilised in Mass/volume calculations where it is returned in ml3 once divided by 1000
-
-        Parameters
-        ----------
-        `b`,  `c`, `a`, `d` (3,1) array tetrahedron vertices
-
-        Returns
-        --------
-        float tetrahedron volume
-        """
-
-        bxdx = b[0] - d[0]
-        bydy = b[1] - d[1]
-        bzdz = b[2] - d[2]
-        cxdx = c[0] - d[0]
-        cydy = c[1] - d[1]
-        czdz = c[2] - d[2]
-
-        vol = (
-            ((a[2] - d[2]) * ((bxdx * cydy) - (bydy * cxdx)))
-            + ((a[1] - d[1]) * ((bzdz * cxdx) - (bxdx * czdz)))
-            + ((a[0] - d[0]) * ((bydy * czdz) - (bzdz * cydy)))
-        )
-        vol = vol / 6
-        return vol
-
-    def get_ventricular_vol(self):
-        """Calculates the ventricular volumes of the left and right
-        ventricles in ml3 .
-
-
-        Parameters
-        -----------
-
-
-        Returns
-        --------
-
-        `LVvol` float ventricular volumes of the left ventricle in ml3
-
-        `RVvol` float ventricular volumes of the right ventricles in ml3
-
-        """
-        #
-        # utput
-        x = np.array(self.et_pos[:, 0]).T
-        y = np.array(self.et_pos[:, 1]).T
-        z = np.array(self.et_pos[:, 2]).T
-        LvSurfaces = [
-            Surface.LV_ENDOCARDIAL,
-            Surface.MITRAL_VALVE,
-            Surface.AORTA_VALVE,
-        ]  # surfaces that comprise LV closed surface
-        RvSurfaces = [
-            Surface.RV_FREEWALL,
-            Surface.TRICUSPID_VALVE,
-            Surface.PULMONARY_VALVE,
-        ]  # surfaces that comprise RV closed surface
-
-        D = self.Get_centroid(
-            isZero=False,
-            I_EPI=np.asarray(
-                self.et_indices[
-                    self.get_surface_vertex_start_end_index(Surface.LV_ENDOCARDIAL)[
-                        0
-                    ] : self.get_surface_vertex_start_end_index(Surface.LV_ENDOCARDIAL)[
-                        1
-                    ],
-                    0,
-                ]
-            ),
-            J_EPI=np.asarray(
-                self.et_indices[
-                    self.get_surface_vertex_start_end_index(Surface.LV_ENDOCARDIAL)[
-                        0
-                    ] : self.get_surface_vertex_start_end_index(Surface.LV_ENDOCARDIAL)[
-                        1
-                    ],
-                    1,
-                ]
-            ),
-            K_EPI=np.asarray(
-                self.et_indices[
-                    self.get_surface_vertex_start_end_index(Surface.LV_ENDOCARDIAL)[
-                        0
-                    ] : self.get_surface_vertex_start_end_index(Surface.LV_ENDOCARDIAL)[
-                        1
-                    ],
-                    2,
-                ]
-            ),
-            x=x,
-            y=y,
-            z=z,
-        )
-        LVvol = 0
-        for i in LvSurfaces:
-            seStart = self.get_surface_start_end_index(surface_name=i)[0]
-            # index where surface i start
-            seEnd = self.get_surface_start_end_index(surface_name=i)[1]
-            # index where surface i ends
-            for se in range(seStart, seEnd + 1):
-                # range of surface triangles that comprise surface i
-                indices = self.et_indices[se]
-                # each se in range start-end corresponds to a set of 3 indices in et_pos
-                Pts = self.et_pos[indices]
-                # each of these 3 indices corresponds to a point, defined by x,y,z co-ords. Pts is 3x3 matrix of those points, and forms surface triangle.
-                LVvol += self.Get_tetrahedron_vol_CM(
-                    Pts[0], Pts[1], Pts[2], D
-                )  # these three triangle points and centroid D form tetrahedron, volume of which is calculated
-        LVvol /= 1000  # by iterating through all surface
-        # triangles that comprise LV and adding the volumes,
-        # you calculate the volume of the closed ventricle
-        RVvol = 0
-        for i in RvSurfaces:  # same concept as for LV, different surfaces
-            seStart = self.get_surface_start_end_index(surface_name=i)[0]
-            seEnd = self.get_surface_start_end_index(surface_name=i)[1]
-            for se in range(seStart, seEnd + 1):
-                indices = self.et_indices[se]
-                Pts = self.et_pos[indices]
-
-                RVvol += self.Get_tetrahedron_vol_CM(Pts[0], Pts[1], Pts[2], D)
-        RVvol /= 1000
-
-        RVsVol = 0  # RV septum has inverted normal; volume of RVS must be
-        # subtracted from RV_vol,
-        #  rather than added like other surfaces
-        seStart = self.get_surface_start_end_index(surface_name=Surface.RV_SEPTUM)[0]
-        seEnd = self.get_surface_start_end_index(surface_name=Surface.RV_SEPTUM)[1]
-        for se in range(seStart, seEnd + 1):
-            indices = self.et_indices[se]
-            Pts = self.et_pos[indices]
-            RVsVol += self.Get_tetrahedron_vol_CM(Pts[0], Pts[1], Pts[2], D)
-        RVsVol /= 1000
-
-        return (LVvol, RVvol - RVsVol)  # RVS subtracted from RV to give proper RV_vol,
-        # LV has no inverted normals. Both return in ml3
-
-    def get_myocardial_mass(self, LVvol, RVvol):
-        """Calculates volume of closed epicardial surface, subtracts
-        ventricular volumes and multiplies myocardium density to return in
-        grams
-
-        Parameters:
-        ------------
-
-        `RVvol` float RV ventricular volume
-
-        `LVvol` float LV ventricular volume
-
-        Returns:
-        --------
-
-        float myocardial mass
-        """
-
-        D = [0, 0, 0]  # arbitrary centroid point
-        LVMyoVol = 0
-        RVMyoVol = 0
-        # LV Epicardium
-        for se in range(2416, len(self.et_indices_epi_lvrv)):
-            # same style as volume calcs, get volume of LV epicardium defined by EpiLVRV
-            indices = self.et_indices_epi_lvrv[se]
-            Pts = self.et_pos[indices]
-            LVMyoVol += self.Get_tetrahedron_vol_CM(Pts[0], Pts[1], Pts[2], D)
-        Lv_MyoVol_sum = LVMyoVol / 1000
-
-        # RV Epicardium
-        for se in range(0, 2416):
-            indices = self.et_indices_epi_lvrv[se]
-            Pts = self.et_pos[indices]
-            RVMyoVol += self.Get_tetrahedron_vol_CM(Pts[0], Pts[1], Pts[2], D)
-        RvMyoVol_sum = RVMyoVol / 1000
-
-        # ThruWall surface
-        VolThru = 0  # thruwall surface divides LV and RV through septum
-        # (which doesn't cover epicardium to close surfaces separately)
-        for se in range(0, len(self.et_indices_thru_wall)):
-            indices = self.et_indices_thru_wall[se]
-            Pts = self.et_pos[indices]
-            VolThru += self.Get_tetrahedron_vol_CM(Pts[0], Pts[1], Pts[2], D)
-        Lv_MyoVol_sum -= VolThru / 1000  # ThruWall normals inverted for LV, normal
-        # for RV. Therefore subtract vol from LV, add to RV
-        RvMyoVol_sum += VolThru / 1000
-
-        # Mitral/aortic valves
-        vol = 0  # valve points for LV
-        for i in [Surface.MITRAL_VALVE, Surface.AORTA_VALVE]:
-            seStart = self.get_surface_start_end_index(surface_name=i)[0]
-            seEnd = self.get_surface_start_end_index(surface_name=i)[1]
-            for se in range(seStart, seEnd + 1):
-                indices = self.et_indices[se]
-                Pts = self.et_pos[indices]
-                vol += self.Get_tetrahedron_vol_CM(Pts[0], Pts[1], Pts[2], D)
-        Lv_MyoVol_sum += vol / 1000
-
-        # Pulmonary/tricuspid valves
-        vol = 0  # valve points for RV
-        for i in [Surface.PULMONARY_VALVE, Surface.TRICUSPID_VALVE]:
-            seStart = self.get_surface_start_end_index(surface_name=i)[0]
-            seEnd = self.get_surface_start_end_index(surface_name=i)[1]
-            for se in range(seStart, seEnd + 1):
-                indices = self.et_indices[se]
-                Pts = self.et_pos[indices]
-                vol += self.Get_tetrahedron_vol_CM(Pts[0], Pts[1], Pts[2], D)
-        RvMyoVol_sum += vol / 1000
-
-        # Septum
-        vol = 0
-        seStart = self.get_surface_start_end_index(Surface.RV_SEPTUM)[0]
-        seEnd = self.get_surface_start_end_index(Surface.RV_SEPTUM)[1]
-        for se in range(seStart, seEnd + 1):
-            indices = self.et_indices[se]
-            Pts = self.et_pos[indices]
-            vol += self.Get_tetrahedron_vol_CM(Pts[0], Pts[1], Pts[2], D)
-        Lv_MyoVol_sum += vol / 1000  # Septum normals face LV, inverted for RV,
-        # therefore vol added to LV and subtracted from RV
-        RvMyoVol_sum -= vol / 1000
-
-        # Mass calculations
-        LVmass = (Lv_MyoVol_sum - LVvol) * 1.05
-        # 1.05 is density of myocardial mass
-        RVmass = (RvMyoVol_sum - RVvol) * 1.05
-        # calculation is volume of each
-        # ventricle epicardium-ventricular volume, * myocardium density
-        return (LVmass, RVmass)  # returns tuple of LV_myo_mass,
-        # RV_myo_mass, both in grams
-
-    def update_control_mesh(self, new_control_mesh):
+    def update_control_mesh(self, new_control_mesh: np.ndarray) -> None:
         """Update control mesh
-
         Parameters
         ----------
-
         new_control_mesh: (388,3) array of new control node positions
-
         """
         self.control_mesh = new_control_mesh
         self.et_pos = np.linalg.multi_dot([self.matrix, self.control_mesh])
+

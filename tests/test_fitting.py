@@ -5,6 +5,7 @@ import shutil
 
 def test_performed_fit():
 
+    #assert False
     patient_name = 'patient_1_gpdata'
     gp_file = TEST_RESOURCE_DIR / patient_name
     test_files = ['patient_1_gpdata_model_frame_000.txt', 'patient_1_gpdata_model_frame_001.txt']

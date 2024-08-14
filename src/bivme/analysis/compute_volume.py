@@ -29,7 +29,7 @@ import fnmatch
 console = None
 
 
-def find_volume(case_name: str, model_file: os.PathLike, output_file: os.PathLike, biv_model_folder: os.PathLike, precision : int) -> None:
+def find_volume(case_name: str, model_file: os.PathLike, output_file: os.PathLike, biv_model_folder: os.PathLike, precision: int) -> None:
     '''
         # Authors: ldt, cm
         # Date: 09/22, revised 08/24 by cm
@@ -39,12 +39,13 @@ def find_volume(case_name: str, model_file: os.PathLike, output_file: os.PathLik
         Inputs: case_name = model case name
                 model_file = fitted model (.txt), containing only data relative to one frame
                 output_file = path to the output csv file
-
-        Output: dictionary and csv file containing masses and volumes
+                biv_model_folder = path to the model folder - default: MODEL_RESOURCE_DIR
+                precision - output precision for the volumes
+        Output: None
     '''
 
     # get the frame number
-    frame_name = re.search(r'Frame_(\d+)\.txt', str(model_file),re.IGNORECASE)[1]
+    frame_name = re.search(r'Frame_(\d+)\.txt', str(model_file), re.IGNORECASE)[1]
 
     # read GP file
     control_points = np.loadtxt(model_file, delimiter=',', skiprows=1, usecols=[0, 1, 2]).astype(float)
@@ -195,7 +196,7 @@ if __name__ == "__main__":
     for i, folder in enumerate(folders):
         ## TODO: recursive param with walk() filtering
         rule = re.compile(fnmatch.translate("*model_frame*.txt"), re.IGNORECASE)
-        models =  [args.model_dir / folder / Path(name) for name in os.listdir(args.model_dir / folder) if rule.match(name)]
+        models = [args.model_dir / folder / Path(name) for name in os.listdir(args.model_dir / folder) if rule.match(name)]
 
         logger.info(f"Processing {str(args.model_dir / folder)} ({i+1}/{len(folders)})")
         with Progress(transient=True) as progress:

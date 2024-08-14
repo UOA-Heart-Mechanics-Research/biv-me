@@ -123,11 +123,12 @@ def solve_convex_problem(
         displacement[:, 0] = np.asarray(sx)
         displacement[:, 1] = np.asarray(sy)
         displacement[:, 2] = np.asarray(sz)"""
+
         # check if diffeomorphic
         Isdiffeo = biv_model.is_diffeomorphic(
             np.add(biv_model.control_mesh, displacement), 0.1
         )
-        if Isdiffeo == 0:
+        if Isdiffeo == False:
             # Due to numerical approximations, epicardium and endocardium
             # can 'touch' (but not cross),
             # leading to a negative jacobian. If it happens, we stop.
@@ -146,6 +147,7 @@ def solve_convex_problem(
             step_err = np.linalg.norm(data_points - prior_position, axis=1)
             step_err = np.sqrt(np.sum(step_err) / len(prior_position))
             iteration = iteration + 1
+
     with open(output_file, "a") as f:  # LDT
         f.write("End of the implicitly constrained fit \n")
         f.write("--- %s seconds ---\n" % (time.time() - start_time))
