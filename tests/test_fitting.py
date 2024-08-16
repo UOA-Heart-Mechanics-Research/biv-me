@@ -15,12 +15,10 @@ def test_performed_fit():
     perform_fitting(gp_file, output_dir)
 
     for test_file in test_files:
-        print(test_file)
         if platform.system() == 'Linux' or 'Darwin':
             gt = np.loadtxt(TEST_RESOURCE_DIR / patient_name / 'linux' / test_file, delimiter=',', skiprows=1, usecols=[0, 1, 2]).astype(float)
         if platform.system() == 'Windows':
             gt = np.loadtxt(TEST_RESOURCE_DIR / patient_name / 'windows' /test_file, delimiter=',', skiprows=1, usecols=[0, 1, 2]).astype(float)
-
 
         # check .txt file was created
         test_model = TEST_RESOURCE_DIR / 'output' / patient_name / test_file
@@ -28,6 +26,8 @@ def test_performed_fit():
             f"No model created!"
 
         test = np.loadtxt(test_model, delimiter=',', skiprows=1, usecols=[0, 1, 2]).astype(float)
+
+        ##TODO test volume as well
         assert np.array_equal(gt, test)
 
     shutil.rmtree(output_dir)

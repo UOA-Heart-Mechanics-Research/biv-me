@@ -1,32 +1,29 @@
-from bivme.fitting import BiventricularModel as bm
-from bivme.fitting import GPDataSet as gp
+#from bivme.fitting import BiventricularModel as bm
+
+from bivme.fitting.BiventricularModel import BiventricularModel
+from bivme.fitting.GPDataSet import GPDataSet
 from bivme import MODEL_RESOURCE_DIR, TEST_RESOURCE_DIR
 from bivme.fitting.surface_enum import Surface
 import pytest
 import numpy as np
+from bivme.fitting.surface_enum import Surface
 
-test_model = bm.BiventricularModel(MODEL_RESOURCE_DIR, build_mode=True)
-#gp_dataset = gp.GPDataSet(
-#                str(filename),
-#                str(filename_info),
-#                case,
-#                sampling=sampling,
-#                time_frame_number=0,
-#            )
+test_model = BiventricularModel(MODEL_RESOURCE_DIR, build_mode=True)
+
 @pytest.mark.parametrize("test_build_input,expected_build",[
             (True, True),
             (False, False)
         ])
 
 def test_init_build_mode(test_build_input, expected_build):
-    model = bm.BiventricularModel(MODEL_RESOURCE_DIR, build_mode=test_build_input)
+    model = BiventricularModel(MODEL_RESOURCE_DIR, build_mode=test_build_input)
     assert model.build_mode is expected_build
 
     assert model.label == "default"
     assert model.NUM_NODES == 388
     assert model.NUM_ELEMENTS == 187
     assert model.NUM_SURFACE_NODES == 5810
-    assert model.APEX_INDEX == 50
+    assert model.APEX_INDEX == 3261#50
     assert model.NUM_GAUSSIAN_POINTS == 5049
     assert model.NUM_SUBDIVIDED_FACES == 11760
     assert model.NUM_NODES_THRU_WALL == 160
@@ -114,11 +111,50 @@ def test_update_control_mesh():
     test_model.update_control_mesh(updated_control_mesh)
     assert np.array_equal(test_model.control_mesh, updated_control_mesh)
 
+def test_get_scaling():
+
+    scaling_factors = [0.5, 3, 10, 0.00001]
+    gp_dataset = GPDataSet()
+
+    for factor in scaling_factors:
+        # create fake GPDataSet - only valves and apex are needed for scaling
+        gp_dataset.apex = factor * test_model.et_pos[test_model.APEX_INDEX,]
+        gp_dataset.mitral_centroid = factor * test_model.et_pos[
+            test_model.get_surface_vertex_start_end_index(Surface.MITRAL_VALVE)[1],]
+        gp_dataset.tricuspid_centroid = factor * test_model.et_pos[
+            test_model.get_surface_vertex_start_end_index(Surface.TRICUSPID_VALVE)[1],]
+
+        scale = test_model.get_scaling(gp_dataset)
+        assert scale == factor
+
+def test_get_translation():
+
+    translation_vector = np.array([[0, 0, 0], [10, 0, 0], [0, 10, 0],[0, 0, 10], [10, 10, 10]])
+    gp_dataset = GPDataSet()
+
+    for translation in translation_vector:
+        # create fake GPDataSet - only valves and apex are needed for scaling
+        gp_dataset.apex = test_model.et_pos[test_model.APEX_INDEX,] + translation
+        gp_dataset.mitral_centroid = test_model.et_pos[
+            test_model.get_surface_vertex_start_end_index(Surface.MITRAL_VALVE)[1],] + translation
+        gp_dataset.tricuspid_centroid = test_model.et_pos[
+            test_model.get_surface_vertex_start_end_index(Surface.TRICUSPID_VALVE)[1],] + translation
+
+        model_translation = test_model.get_translation(gp_dataset)
+        assert np.array_equal(model_translation,translation)
+
+    #test_model = bm.BiventricularModel(MODEL_RESOURCE_DIR)
+
+    #transformation_matrix = np.array([[],[],[],[]])
+
 #def test_get_translation():
 
 #def test_get_rotation():
 
-#def test_get_scaling():
+#    transformation_matrix_x = np.array([[],[],[],[]])
+#    transformation_matrix_y = np.array([[],[],[],[]])
+#    transformation_matrix_z = np.array([[],[],[],[]])
+#    transformation_matrix_xyz = np.array([[],[],[],[]])
 
 # def test_update_pose_and_scale():
 # def evaluate_field(self, field, vertex_map, position, elements=None)

@@ -270,13 +270,6 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                 # Perform linear fit (step1)
                 solve_least_squares_problem(biventricular_model, weight_GP, data_set, error_file)
 
-                # Plot results
-                # model = biventricular_model.plot_surface(
-                #     "rgb(0,127,0)", "rgb(0,127,127)", "rgb(127,0,0)", "all"
-                # )
-                # data = model + contourPlots
-                # TimeSeries_step1.append([data, num])
-
                 # Perform diffeomorphic fit (step2)
                 solve_convex_problem(
                     biventricular_model,
@@ -320,10 +313,9 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                         )
                     )
 
-                output_folder_obj = Path(output_folder, f"obj{gp_suffix}")
-                output_folder_obj.mkdir(exist_ok=True)
-
                 if output_format == ".obj":
+                    output_folder_obj = Path(output_folder, f"obj{gp_suffix}")
+                    output_folder_obj.mkdir(exist_ok=True)
                     vertices = biventricular_model.et_pos
                     faces = biventricular_model.et_indices
                     output_path = Path(

@@ -1,4 +1,4 @@
-'''
+"""
 15/09/2022 - Laura Dal Toso
 Based on A.M's scripts.
 Script for the measurement of LV and LV mass and volume from biventricular models.
@@ -7,7 +7,7 @@ Script for the measurement of LV and LV mass and volume from biventricular model
 * Fixed volume calculation
 * Moved hardcoded variables to CLI arguments
 * added logging and progress bar
-'''
+"""
 
 import argparse
 import os, sys
@@ -30,7 +30,7 @@ console = None
 
 
 def find_volume(case_name: str, model_file: os.PathLike, output_file: os.PathLike, biv_model_folder: os.PathLike, precision: int) -> None:
-    '''
+    """
         # Authors: ldt, cm
         # Date: 09/22, revised 08/24 by cm
 
@@ -42,7 +42,7 @@ def find_volume(case_name: str, model_file: os.PathLike, output_file: os.PathLik
                 biv_model_folder = path to the model folder - default: MODEL_RESOURCE_DIR
                 precision - output precision for the volumes
         Output: None
-    '''
+    """
 
     # get the frame number
     frame_name = re.search(r'Frame_(\d+)\.txt', str(model_file), re.IGNORECASE)[1]
@@ -152,23 +152,23 @@ def find_volume(case_name: str, model_file: os.PathLike, output_file: os.PathLik
         results_dict['rv_mass'] = round(rv_mass, precision)
 
     # append to the output_file
-    with open(output_file, 'a', newline='') as f:
+    with open(output_file, 'a', newline='') as file:
         # print out measurements in spreadsheet
-        writer = csv.writer(f)
-        writer.writerow([case_name, frame_name, results_dict['lv_vol'], results_dict['lv_mass'],
+        volume_writer = csv.writer(file)
+        volume_writer.writerow([case_name, frame_name, results_dict['lv_vol'], results_dict['lv_mass'],
                          results_dict['rv_vol'], results_dict['rv_mass'],
                          results_dict['lv_epivol'], results_dict['rv_epivol']])
 
 if __name__ == "__main__":
-    biv_model_folder = MODEL_RESOURCE_DIR
+    biv_resource_folder = MODEL_RESOURCE_DIR
 
     # parse command-line argument
     parser = argparse.ArgumentParser(description="LV & RV mass and volume calculation")
     parser.add_argument('-mdir', '--model_dir', type=Path, help='path to biv models')
     parser.add_argument('-o', '--output_path', type=Path, help='output path', default="./")
-    parser.add_argument("-b", '--biv_model_folder', default=biv_model_folder,
+    parser.add_argument("-b", '--biv_model_folder', default=biv_resource_folder,
                         help="folder containing subdivision matrices"
-                                 f" (default: {biv_model_folder})")
+                                 f" (default: {biv_resource_folder})")
     parser.add_argument("-pat", '--patterns', default="*",
                         help="folder patterns to include (default '*')")
     parser.add_argument("-p", '--precision',  type=int, default=2,
@@ -186,8 +186,8 @@ if __name__ == "__main__":
     folders = [p.name for p in Path(args.model_dir).glob(args.patterns)]
     logger.info(f"Found {len(folders)} model folders.")
 
-    output_file = args.output_path / 'lvrv_volumes.csv'
-    with open(output_file, 'w', newline='') as f:
+    output_volume_file = args.output_path / 'lvrv_volumes.csv'
+    with open(output_volume_file, 'w', newline='') as f:
         # create output file and write header
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
@@ -203,8 +203,8 @@ if __name__ == "__main__":
             task = progress.add_task("Computing volume", total=len(models))
             console = progress
 
-            for model_file in models:
-                find_volume(folder, model_file, output_file, biv_model_folder, args.precision)
+            for biv_model_file in models:
+                find_volume(folder, biv_model_file, output_volume_file, biv_resource_folder, args.precision)
                 progress.advance(task)
 
-    logger.success(f"Done. Results are saved in {output_file}")
+    logger.success(f"Done. Results are saved in {output_volume_file}")
