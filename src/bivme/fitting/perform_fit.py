@@ -69,12 +69,20 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
             case_frame_dict = kwargs.get("id_Frame", None)
 
         filename = Path(folder) / f"GPFile{gp_suffix}.txt"
-        assert filename.exists(), \
-            f"Cannot find {filename} file!"
+        if not filename.exists():
+            if logger is not None:
+                logger.error(f"Cannot find {filename} file! Skipping this model")
+            else:
+                print(f"Cannot find {filename} file! Skipping this model")
+            return
 
         filename_info = Path(folder) / f"SliceInfoFile{si_suffix}.txt"
-        assert filename_info.exists(), \
-            f"Cannot find {filename_info} file!"
+        if not filename_info.exists():
+            if logger is not None:
+                logger.error(f"Cannot find {filename_info} file! Skipping this model")
+            else:
+                print(f"Cannot find {filename_info} file! Skipping this model")
+            return
 
         # extract the patient name from the folder name
         case = os.path.basename(os.path.normpath(folder))
@@ -201,6 +209,8 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                     pass
 
                 biventricular_model.update_pose_and_scale(data_set)
+
+
 
                 # # perform a stiff fit
                 # displacement, err = biventricular_model.lls_fit_model(weight_GP,data_set,1e10)

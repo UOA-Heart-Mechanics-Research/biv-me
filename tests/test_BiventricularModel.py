@@ -1,12 +1,11 @@
-#from bivme.fitting import BiventricularModel as bm
-
 from bivme.fitting.BiventricularModel import BiventricularModel
 from bivme.fitting.GPDataSet import GPDataSet
 from bivme import MODEL_RESOURCE_DIR, TEST_RESOURCE_DIR
 from bivme.fitting.surface_enum import Surface
 import pytest
 import numpy as np
-from bivme.fitting.surface_enum import Surface
+from bivme.fitting.surface_enum import Surface, ContourType
+from scipy.spatial.transform import Rotation as rot
 
 test_model = BiventricularModel(MODEL_RESOURCE_DIR, build_mode=True)
 
@@ -23,7 +22,7 @@ def test_init_build_mode(test_build_input, expected_build):
     assert model.NUM_NODES == 388
     assert model.NUM_ELEMENTS == 187
     assert model.NUM_SURFACE_NODES == 5810
-    assert model.APEX_INDEX == 3261#50
+    assert model.APEX_INDEX == 5485#50
     assert model.NUM_GAUSSIAN_POINTS == 5049
     assert model.NUM_SUBDIVIDED_FACES == 11760
     assert model.NUM_NODES_THRU_WALL == 160
@@ -107,32 +106,36 @@ def test_update_control_mesh():
     updated_control_mesh[[1, 50, 5, 8],:] += updated_control_mesh[[1,50,5,8],:]
     test_model.update_control_mesh(updated_control_mesh)
     assert np.array_equal(test_model.control_mesh, updated_control_mesh)
+
     updated_control_mesh[[1, 50, 5, 8],:] /= 2
     test_model.update_control_mesh(updated_control_mesh)
     assert np.array_equal(test_model.control_mesh, updated_control_mesh)
 
-def test_get_scaling():
+@pytest.mark.parametrize("scaling_factor, expected_scaling",[
+            (0.5, 0.5),
+            (3, 3),
+            (10, 10),
+            (0.00001, 0.00001)
+        ])
+def test_get_scaling(scaling_factor, expected_scaling):
 
-    scaling_factors = [0.5, 3, 10, 0.00001]
     gp_dataset = GPDataSet()
 
-    for factor in scaling_factors:
-        # create fake GPDataSet - only valves and apex are needed for scaling
-        gp_dataset.apex = factor * test_model.et_pos[test_model.APEX_INDEX,]
-        gp_dataset.mitral_centroid = factor * test_model.et_pos[
-            test_model.get_surface_vertex_start_end_index(Surface.MITRAL_VALVE)[1],]
-        gp_dataset.tricuspid_centroid = factor * test_model.et_pos[
-            test_model.get_surface_vertex_start_end_index(Surface.TRICUSPID_VALVE)[1],]
+    # create fake GPDataSet - only valves and apex are needed for scaling
+    gp_dataset.apex = scaling_factor * test_model.et_pos[test_model.APEX_INDEX,]
+    gp_dataset.mitral_centroid = scaling_factor * test_model.et_pos[
+        test_model.get_surface_vertex_start_end_index(Surface.MITRAL_VALVE)[1],]
+    gp_dataset.tricuspid_centroid = scaling_factor * test_model.et_pos[
+        test_model.get_surface_vertex_start_end_index(Surface.TRICUSPID_VALVE)[1],]
 
-        scale = test_model.get_scaling(gp_dataset)
-        assert scale == factor
+    assert test_model.get_scaling(gp_dataset) == expected_scaling
 
 def test_get_translation():
 
-    translation_vector = np.array([[0, 0, 0], [10, 0, 0], [0, 10, 0],[0, 0, 10], [10, 10, 10]])
     gp_dataset = GPDataSet()
 
-    for translation in translation_vector:
+    translations = np.array([[0, 0, 0], [10, 0, 0], [0, 10, 0], [0, 0, 10], [10, 10, 10]])
+    for translation in translations:
         # create fake GPDataSet - only valves and apex are needed for scaling
         gp_dataset.apex = test_model.et_pos[test_model.APEX_INDEX,] + translation
         gp_dataset.mitral_centroid = test_model.et_pos[
@@ -141,20 +144,46 @@ def test_get_translation():
             test_model.get_surface_vertex_start_end_index(Surface.TRICUSPID_VALVE)[1],] + translation
 
         model_translation = test_model.get_translation(gp_dataset)
-        assert np.array_equal(model_translation,translation)
 
-    #test_model = bm.BiventricularModel(MODEL_RESOURCE_DIR)
+        np.array_equal(model_translation,translation)
 
-    #transformation_matrix = np.array([[],[],[],[]])
+def test_get_rotation():
+    gp_dataset = GPDataSet()
 
-#def test_get_translation():
+    test_model.update_control_mesh(test_model.control_mesh - test_model.et_pos.mean(axis=0))
+    rotations = np.array([rot.from_euler('x', 45, degrees=True).as_matrix(),
+                          rot.from_euler('y', 45, degrees=True).as_matrix(),
+                          rot.from_euler('z', 45, degrees=True).as_matrix()])
 
-#def test_get_rotation():
+    for rotation in rotations:
+        gp_dataset.apex = np.dot(test_model.et_pos[test_model.APEX_INDEX,], rotation)
+        gp_dataset.mitral_centroid = np.dot(test_model.et_pos[
+            test_model.get_surface_vertex_start_end_index(Surface.MITRAL_VALVE)[1],], rotation)
 
-#    transformation_matrix_x = np.array([[],[],[],[]])
-#    transformation_matrix_y = np.array([[],[],[],[]])
-#    transformation_matrix_z = np.array([[],[],[],[]])
-#    transformation_matrix_xyz = np.array([[],[],[],[]])
+        rv_fw_start_end = test_model.get_surface_vertex_start_end_index(Surface.RV_FREEWALL)
+        rv_septum_start_end = test_model.get_surface_vertex_start_end_index(Surface.RV_SEPTUM)
+        lv_endo_start_end = test_model.get_surface_vertex_start_end_index(Surface.LV_ENDOCARDIAL)
+
+        rv_fw = range(rv_fw_start_end[0], rv_fw_start_end[1])
+        rv_fw_points = np.dot(test_model.et_pos[rv_fw,:], rotation)
+        rv_septum = range(rv_septum_start_end[0], rv_septum_start_end[1])
+        rv_septum_points = np.dot(test_model.et_pos[rv_septum, :], rotation)
+
+        lv_endo = range(lv_endo_start_end[0], lv_endo_start_end[1])
+        lv_endo_points = np.dot(test_model.et_pos[lv_endo, :], rotation)
+
+        gp_dataset.contour_type = [ContourType.SAX_RV_FREEWALL for _ in rv_fw]
+        [gp_dataset.contour_type.append(ContourType.SAX_RV_SEPTUM) for _ in rv_septum]
+        [gp_dataset.contour_type.append(ContourType.LAX_LV_ENDOCARDIAL) for _ in lv_endo]
+        gp_dataset.contour_type = np.asarray(gp_dataset.contour_type)
+
+        gp_dataset.points_coordinates = np.vstack((rv_fw_points, rv_septum_points, lv_endo_points))
+
+        model_rotation = test_model.get_rotation(gp_dataset)
+
+        rotated_vertices = np.array([np.dot(model_rotation, node) for node in test_model.et_pos])
+        assert np.isclose(rotated_vertices[np.concatenate((rv_fw, rv_septum, lv_endo), axis=None),:], gp_dataset.points_coordinates, atol=1e-2).all()
+
 
 # def test_update_pose_and_scale():
 # def evaluate_field(self, field, vertex_map, position, elements=None)

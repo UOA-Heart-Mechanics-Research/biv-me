@@ -102,7 +102,7 @@ class BiventricularModel:
     """Class constant, number of elements (187)."""
     NUM_SURFACE_NODES = 5810
     """class constant, number of nodes after subdivision (5810)."""
-    APEX_INDEX = 3261 #  # endo #5485 #epi
+    APEX_INDEX = 5485 #  # 50 endo #5485 #epi
     """class constant, vertex index defined as the apex point."""
     NUM_GAUSSIAN_POINTS = 5049
     """Number of gaussian points"""
@@ -636,7 +636,7 @@ class BiventricularModel:
 
         return True
 
-    def update_pose_and_scale(self, dataset: GPDataSet) -> float:
+    def update_pose_and_scale(self, dataset: GPDataSet) -> None:
         """A method that scale and translate the model to rigidly align
         with the guide points.
 
@@ -648,7 +648,7 @@ class BiventricularModel:
         Returns
         --------
 
-        `scaleFactor` scale factor between template and data points.
+        `scale_factor` scale factor between template and data points.
         """
 
         scale_factor = self.get_scaling(dataset)
@@ -664,15 +664,7 @@ class BiventricularModel:
         # Translate the model back to origin of the DataSet coordinate system
         translation = self.get_translation(dataset)
 
-
-        #translation = self.get_translation(dataset)
-        #print("SCALE_FACTOR", translation)
-
-
-
         self.update_control_mesh(self.control_mesh + translation)
-
-        return scale_factor
 
     def get_scaling(self, dataset: GPDataSet) -> float:
         """Calculates a scaling factor for the model
@@ -745,15 +737,15 @@ class BiventricularModel:
         """
 
         base = data_set.mitral_centroid
+        base_model = self.et_pos[
+                     self.get_surface_vertex_start_end_index(Surface.MITRAL_VALVE)[1], :
+                     ]
 
         # computes data_set coordinates system
         x_axis = data_set.apex - base
         x_axis = x_axis / np.linalg.norm(x_axis)
 
         apex_position_model = self.et_pos[self.APEX_INDEX, :]
-        base_model = self.et_pos[
-            self.get_surface_vertex_start_end_index(Surface.MITRAL_VALVE)[1], :
-        ]
 
         x_axis_model = apex_position_model - base_model
         x_axis_model = x_axis_model / np.linalg.norm(x_axis_model)  # normalize
@@ -770,63 +762,36 @@ class BiventricularModel:
         min_d_model = -np.linalg.norm(0.5 * (apex_position_model - base_model))
 
         point_proj = data_set.points_coordinates[
-            (data_set.contour_type == ContourType.LAX_LV_ENDOCARDIAL), :
+            (data_set.contour_type == ContourType.SAX_LV_ENDOCARDIAL), :
         ]
-        # point_proj = np.vstack((point_proj,data_set.points_coordinates[
-        #                       (data_set.contour_type == ContourType.LAX_RV_FREEWALL), :]))
-        # point_proj = np.vstack((point_proj,data_set.points_coordinates[
-        #                       (data_set.contour_type == ContourType.SAX_RV_SEPTUM), :]))
-        # point_proj = np.vstack((point_proj,data_set.points_coordinates[
-        #                       (data_set.contour_type == ContourType.LAX_RV_SEPTUM), :]))
 
-        # point_proj = np.vstack((point_proj,
-        #                        data_set.points_coordinates[
-        #                        ( data_set.contour_type == ContourType.SAX_RV_FREEWALL), :]))
         point_proj = np.vstack(
             (
                 point_proj,
                 data_set.points_coordinates[
                     (data_set.contour_type == ContourType.LAX_LV_ENDOCARDIAL), :
-                ],
+                ]
             )
         )
 
-        if len(point_proj) == 0:
-            point_proj = np.vstack(
-                (
-                    point_proj,
-                    data_set.points_coordinates[
-                        (data_set.contour_type == ContourType.SAX_RV_SEPTUM), :
-                    ],
-                )
-            )
-            point_proj = np.vstack(
-                (
-                    point_proj,
-                    data_set.points_coordinates[
-                        (data_set.contour_type == ContourType.SAX_RV_FREEWALL), :
-                    ],
-                )
-            )
-
-        if len(point_proj) == 0:
-            ValueError("Missing contours in update_pose_and_scale")
-            return
+        assert len(point_proj) > 0, \
+            f"No LV contours found"
 
         temp_d = [np.dot(x_axis, p) for p in (point_proj - temp_original)]
         max_d = max(np.max(temp_d), max_d)
         min_d = min(np.min(temp_d), min_d)
 
-        model_epi = self.et_pos[
+        point_proj_model = self.et_pos[
             self.get_surface_vertex_start_end_index(Surface.LV_ENDOCARDIAL)[
                 0
             ] : self.get_surface_vertex_start_end_index(Surface.LV_ENDOCARDIAL)[1]
             + 1,
             :,
         ]
+        #model_epi = self.et_pos
         temp_d_model = [
             np.dot(x_axis_model, point_model)
-            for point_model in (model_epi - temp_original_model)
+            for point_model in (point_proj_model - temp_original_model)
         ]
         max_d_model = max(np.max(temp_d_model), max_d_model)
         min_d_model = min(np.min(temp_d_model), min_d_model)
@@ -841,10 +806,13 @@ class BiventricularModel:
         # Compute Oy axis
         valid_index = (data_set.contour_type == ContourType.SAX_RV_FREEWALL) + (
             data_set.contour_type == ContourType.SAX_RV_SEPTUM
+        ) + (data_set.contour_type == ContourType.LAX_RV_FREEWALL) + (
+            data_set.contour_type == ContourType.LAX_RV_SEPTUM
         )
+
         rv_endo_points = data_set.points_coordinates[valid_index, :]
 
-        rv_points_model = self.et_pos[
+        rv_endo_points_model = self.et_pos[
             self.get_surface_vertex_start_end_index(Surface.RV_SEPTUM)[
                 0
             ] : self.get_surface_vertex_start_end_index(Surface.RV_FREEWALL)[1]
@@ -853,7 +821,7 @@ class BiventricularModel:
         ]
 
         rv_centroid = rv_endo_points.mean(axis=0)
-        rv_centroid_model = rv_points_model.mean(axis=0)
+        rv_centroid_model = rv_endo_points_model.mean(axis=0)
 
         scale = np.dot(x_axis, rv_centroid) - np.dot(x_axis, centroid) / np.dot(
             x_axis, x_axis
@@ -864,17 +832,19 @@ class BiventricularModel:
         rv_proj = centroid + scale * x_axis
         rv_proj_model = centroid_model + scale_model * x_axis_model
 
+
         y_axis = rv_centroid - rv_proj
         y_axis_model = rv_centroid_model - rv_proj_model
 
-        y_axis = y_axis / np.linalg.norm(y_axis)
-        y_axis_model = y_axis_model / np.linalg.norm(y_axis_model)
+        y_axis /= np.linalg.norm(y_axis)
+        y_axis_model /= np.linalg.norm(y_axis_model)
 
         z_axis = np.cross(x_axis, y_axis)
         z_axis_model = np.cross(x_axis_model, y_axis_model)
 
-        z_axis = z_axis / np.linalg.norm(z_axis)
-        z_axis_model = z_axis_model / np.linalg.norm(z_axis_model)
+        # normalization
+        z_axis /= np.linalg.norm(z_axis)
+        z_axis_model /= np.linalg.norm(z_axis_model)
 
         # Find translation and rotation between the two coordinates systems
         # The easiest way to solve it (in my opinion) is by using a
@@ -885,22 +855,21 @@ class BiventricularModel:
         #        B=USVT
         #    3. The rotation matrix is:
         #        R=UMVT, where M=diag([11det(U)det(V)])
-        #
 
         # Step 1
-        B = (
+        b = (
             np.outer(x_axis, x_axis_model)
             + np.outer(y_axis, y_axis_model)
             + np.outer(z_axis, z_axis_model)
         )
 
         # Step 2
-        [U, _, Vt] = np.linalg.svd(B)
+        [u, _, v_t] = np.linalg.svd(b)
 
-        M = np.array(
-            [[1, 0, 0], [0, 1, 0], [0, 0, np.linalg.det(U) * np.linalg.det(Vt)]]
+        m = np.array(
+            [[1, 0, 0], [0, 1, 0], [0, 0, np.linalg.det(u) * np.linalg.det(v_t)]]
         )
-        rotation = np.dot(U, np.dot(M, Vt))
+        rotation = np.dot(u, np.dot(m, v_t))
 
         return rotation
 
