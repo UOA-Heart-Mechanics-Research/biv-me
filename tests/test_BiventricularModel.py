@@ -153,7 +153,8 @@ def test_get_rotation():
     test_model.update_control_mesh(test_model.control_mesh - test_model.et_pos.mean(axis=0))
     rotations = np.array([rot.from_euler('x', 45, degrees=True).as_matrix(),
                           rot.from_euler('y', 45, degrees=True).as_matrix(),
-                          rot.from_euler('z', 45, degrees=True).as_matrix()])
+                          rot.from_euler('z', 45, degrees=True).as_matrix(),
+                          rot.from_euler('zyx', [90, 45, 30], degrees=True).as_matrix()])
 
     for rotation in rotations:
         gp_dataset.apex = np.dot(test_model.et_pos[test_model.APEX_INDEX,], rotation)
@@ -180,7 +181,6 @@ def test_get_rotation():
         gp_dataset.points_coordinates = np.vstack((rv_fw_points, rv_septum_points, lv_endo_points))
 
         model_rotation = test_model.get_rotation(gp_dataset)
-
         rotated_vertices = np.array([np.dot(model_rotation, node) for node in test_model.et_pos])
         assert np.isclose(rotated_vertices[np.concatenate((rv_fw, rv_septum, lv_endo), axis=None),:], gp_dataset.points_coordinates, atol=1e-2).all()
 
