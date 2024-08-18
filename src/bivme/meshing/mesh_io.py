@@ -73,7 +73,7 @@ def write_vtk_surface(filename: str, vertices: np.ndarray, faces: np.ndarray) ->
     mesh = pv.PolyData(vertices, np.c_[np.ones(len(faces)) * 3, faces].astype(int))
     mesh.save(filename, binary=False)
 
-def export_to_obj(file_name: str, vertices: np.ndarray, faces: np.ndarray) -> None:
+def export_to_obj(file_name: os.PathLike, vertices: np.ndarray, faces: np.ndarray) -> None:
     if '.obj' not in os.path.basename(file_name):
         ValueError(' filenma should include .obj extension')
 

@@ -51,10 +51,9 @@ contours_to_plot = [
     ContourType.PULMONARY_PHANTOM,
 ]
 
-def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="", si_suffix: str ="", frames_to_fit: list=None, output_format: str =".vtk", logger: logger=None, **kwargs) -> None:
+def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="", si_suffix: str ="", frames_to_fit: list[int]=[], output_format: str =".vtk", **kwargs) -> None:
     # performs all the BiVentricular fitting operations
 
-    console = None
     try:
         if "iter_num" in kwargs:
             iter_num = kwargs.get("iter_num", None)
@@ -70,24 +69,17 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
 
         filename = Path(folder) / f"GPFile{gp_suffix}.txt"
         if not filename.exists():
-            if logger is not None:
-                logger.error(f"Cannot find {filename} file! Skipping this model")
-            else:
-                print(f"Cannot find {filename} file! Skipping this model")
-            return
+            logger.error(f"Cannot find {filename} file! Skipping this model")
 
         filename_info = Path(folder) / f"SliceInfoFile{si_suffix}.txt"
         if not filename_info.exists():
-            if logger is not None:
-                logger.error(f"Cannot find {filename_info} file! Skipping this model")
-            else:
-                print(f"Cannot find {filename_info} file! Skipping this model")
+            logger.error(f"Cannot find {filename_info} file! Skipping this model")
             return
 
         # extract the patient name from the folder name
         case = os.path.basename(os.path.normpath(folder))
-        if logger is not None:
-            logger.info(f"case: {case}")
+
+        logger.info(f"case: {case}")
 
         # read all the frames from the GPFile
         all_frames = pd.read_csv(str(filename), sep="\t")
@@ -96,10 +88,9 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
             ed_frame = int(case_frame_dict[str(case)][0])
         except:
             ed_frame = 1
-            if logger is not None:
-                logger.info(f"ED set to frame # 1")
+            logger.info(f"ED set to frame # 1")
 
-        if frames_to_fit is None:
+        if len(frames_to_fit) == 0:
             frames_to_fit = np.unique(
                 [i[6] for i in all_frames.values]
             )  # if you want to fit all _frames
@@ -121,8 +112,7 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
 
         # The next lines are used to measure shift using only a key frame
         if measure_shift_EDonly == True:
-            if logger is not None:
-                logger.info("Shift measured only at ED frame")
+            logger.info("Shift measured only at ED frame")
 
             ed_dataset = GPDataSet(
                 str(filename),
@@ -146,10 +136,7 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                 file.close()
 
         # initialise time series lists
-        TimeSeries_step1 = []
-        TimeSeries_step2 = []
-        if logger is not None:
-            logger.info(f"Fitting of {str(case)}")
+        logger.info(f"Fitting of {str(case)}")
 
         with Progress(transient=True) as progress:
             task = progress.add_task(f"Processing {len(frames_to_fit)} frames", total=len(frames_to_fit))
@@ -218,10 +205,10 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                 #                                                   biventricular_model.control_mesh])
                 # displacements = data_set.SAXSliceShiffting(biventricular_model)
 
-                # contourPlots = data_set.PlotDataSet(contours_to_plot)
+                # contour_plots = data_set.PlotDataSet(contours_to_plot)
 
-                # plot(go.Figure(contourPlots))
-                # data = contourPlots
+                # plot(go.Figure(contour_plots))
+                # data = contour_plots
 
                 # plot(go.Figure(data),filename=os.path.join(folder, 'pose_fitted_model_Frame'+str(int(num))+'.html'), auto_open=False)
 
@@ -260,7 +247,7 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                     print('Error in creating aorta phantom points')
                     pass
 
-                contourPlots = data_set.PlotDataSet(contours_to_plot)
+                contour_plots = data_set.PlotDataSet(contours_to_plot)
 
                 # Example on how to set different weights for different points group (R.B.)
                 data_set.weights[data_set.contour_type == ContourType.MITRAL_PHANTOM] = 2
@@ -292,7 +279,8 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                 model = biventricular_model.plot_surface(
                     "rgb(0,127,0)", "rgb(0,127,127)", "rgb(127,0,0)", "all"
                 )
-                data = model + contourPlots
+
+                data = contour_plots + model
 
                 output_folder_html = Path(output_folder, f"html{gp_suffix}")
                 output_folder_html.mkdir(exist_ok=True)
@@ -305,17 +293,17 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                 )
 
                 # save results in .txt format, one file for each frame
-                ModelData = {
+                model_data = {
                     "x": biventricular_model.control_mesh[:, 0],
                     "y": biventricular_model.control_mesh[:, 1],
                     "z": biventricular_model.control_mesh[:, 2],
                     "Frame": [num] * len(biventricular_model.control_mesh[:, 2]),
                 }
 
-                Model_Dataframe = pd.DataFrame(data=ModelData)
+                model_data_frame = pd.DataFrame(data=model_data)
                 with open(Modelfile, "w") as file:
                     file.write(
-                        Model_Dataframe.to_csv(
+                        model_data_frame.to_csv(
                             header=True, index=False, sep=",", lineterminator="\n"
                         )
                     )
@@ -328,11 +316,9 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                     output_path = Path(
                         output_folder_obj, f"{case}_{num:03}.obj"
                     )
-                    if logger is not None:
-                        logger.info(f"Saving model to {str(output_path)}")
+                    logger.info(f"Saving model to {str(output_path)}")
                     export_to_obj(output_path, vertices, faces)
-                    if logger is not None:
-                        logger.success(f"Model successfully saved to {output_path}")
+                    logger.success(f"Model successfully saved to {output_path}")
 
                 if output_format == ".vtk":
                     # save surface meshes as vtk
@@ -346,7 +332,7 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                         meshpath = Path(
                             output_folder_vtk, f"{case}_{mesh_type[i]}_{num:03}.vtk"
                         )
-                        write_vtk_surface(meshpath, vertices, faces)
+                        write_vtk_surface(str(meshpath), vertices, faces)
 
                         start_fi = biventricular_model.surface_start_end[mesh_data[mesh_type[i]]][0]
                         end_fi = biventricular_model.surface_start_end[mesh_data[mesh_type[i]]][1] + 1
@@ -362,7 +348,7 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                         meshpath = Path(
                             output_folder_vtk, f"{case}_{mesh_type[i]}_{num:03}.vtk"
                         )
-                        write_vtk_surface(meshpath, vertices, faces_mapped)
+                        write_vtk_surface(str(meshpath), vertices, faces_mapped)
 
                     # save closed RV mesh
                     output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
@@ -388,7 +374,7 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                         meshpath = Path(
                             output_folder_vtk, f"{case}_{key}_{num:03}.vtk"
                         )
-                        write_vtk_surface(meshpath, vertices, faces_mapped)
+                        write_vtk_surface(str(meshpath), vertices, faces_mapped)
 
                         combined_verts = np.vstack((combined_verts, vertices))
                         combined_faces = np.vstack((combined_faces, faces_mapped + offset))
@@ -421,9 +407,8 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                     meshpath = Path(
                         output_folder_vtk, f"{case}_RV_closed_{num:03}.vtk"
                     )
-                    write_vtk_surface(meshpath, combined_verts_clean, combined_faces_clean)
-                    if logger is not None:
-                        logger.success(f"Model successfully saved to {meshpath}")
+                    write_vtk_surface(str(meshpath), combined_verts_clean, combined_faces_clean)
+                    logger.success(f"Model successfully saved to {meshpath}")
 
                 progress.advance(task)
                 # if you want to plot time series in html files uncomment the next line(s)
@@ -435,7 +420,7 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
         #logger.success(f"Models successfully saved in {args.output_dir}")
 
     except KeyboardInterrupt:
-        raise KeyboardInterruptError()
+        return
 
 
 if __name__ == "__main__":
@@ -474,7 +459,7 @@ if __name__ == "__main__":
             continue
 
         perform_fitting(case, out_dir=args.output_dir, gp_suffix=args.gp_suffix, si_suffix=args.si_suffix,
-                        frames_to_fit=None, output_format = args.format, logger=logger)
+                        frames_to_fit=[], output_format = args.format)
 
     logger.info(f"Total cases processed: {len(case_dirs)}")
     logger.info(f"Total time: {time.time() - start_time}")

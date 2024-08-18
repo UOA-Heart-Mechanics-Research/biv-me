@@ -8,6 +8,7 @@ import gzip
 import shutil
 from bivme.fitting import BiventricularModel
 from bivme.fitting import GPDataSet
+import numpy as np
 
 def solve_convex_problem(
     biv_model: BiventricularModel, data_set: GPDataSet, weight_gp: float, low_smoothing_weight: float, transmural_weight: float, output_file: os.PathLike
