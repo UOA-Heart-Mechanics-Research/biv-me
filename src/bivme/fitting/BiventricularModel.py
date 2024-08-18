@@ -14,7 +14,7 @@ from .build_model_tools import *
 
 from collections import OrderedDict
 from nltk import flatten
-
+from loguru import logger
 ##Author : Charlène Mauger, University of Auckland, c.mauger@auckland.ac.nz
 class BiventricularModel:
     """This class creates a surface from the control mesh, based on
@@ -548,11 +548,15 @@ class BiventricularModel:
         if surface_name == Surface.APEX:
             return [self.APEX_INDEX] * 2
 
+    def get_surface_faces(self, surface: Surface) -> np.ndarray:
+        """Get the faces definition for a surface triangulation"""
+
+        surface_index = self.get_surface_start_end_index(surface)
+        return self.et_indices[surface_index[0] : surface_index[1] + 1, :]
+
     def get_surface_start_end_index(self, surface_name: Surface) -> np.ndarray:
         """Return first and last element index for a given surface, tu use
         with `et_indices` array
-
-
         Parameters
         ----------
         `surface_name` surface name as defined by `Surface` enum
@@ -668,7 +672,7 @@ class BiventricularModel:
 
     def get_scaling(self, dataset: GPDataSet) -> float:
         """Calculates a scaling factor for the model
-        to match the guide points defined in datset
+        to match the guide points defined in dataset
 
         Parameters
         -----------
@@ -775,7 +779,7 @@ class BiventricularModel:
         )
 
         assert len(point_proj) > 0, \
-            f"No LV contours found"
+            f"No LV contours found in get_rotation"
 
         temp_d = [np.dot(x_axis, p) for p in (point_proj - temp_original)]
         max_d = max(np.max(temp_d), max_d)
@@ -873,384 +877,153 @@ class BiventricularModel:
 
         return rotation
 
+    def update_control_mesh(self, new_control_mesh: np.ndarray) -> None:
+        """Update control mesh
+        Parameters
+        ----------
+        new_control_mesh: (388,3) array of new control node positions
+        """
+        self.control_mesh = new_control_mesh
+        self.et_pos = np.linalg.multi_dot([self.matrix, self.control_mesh])
+
     def plot_surface(
-        self, face_color_LV, face_color_RV, face_color_epi, surface="all", opacity=0.8
-    ):
+        self, face_color_lv: str="rgb(0,127,0)", face_color_rv : str="rgb(0,127,127)", face_color_epi : str="rgb(127,0,0)", surface: str="all"
+    ) -> list:
         """Plot 3D model.
 
         Parameters
         -----------
 
-        `face_color_LV` LV_ENDOCARDIAL surface color
-
-        `face_color_RV` RV surface color
-
+        `face_color_lv` LV_ENDOCARDIAL surface color
+        `face_color_rv` RV surface color
         `face_color_epi` Epicardial color
-
         `surface` surface to plot, default all = entire surface,
                     endo = endocardium, epi = epicardium
-
-        `opacity` float surface opacity
-
         Returns
         --------
-
         `triangles_epi` Nx3 array[int] triangles defining the epicardium surface
-
-        `triangles_LV` Nx3 array[int] triangles defining the LV endocardium
+        `triangles_lv` Nx3 array[int] triangles defining the LV endocardium
         surface
-
         `triangles_RV` Nx3 array[int]  triangles defining the RV surface
-
         `lines` lines that need to be plotted
         """
+
+        if surface not in ["all", "endo", "epi"] :
+            logger.warning(f"Invalid surface argument in BiventricularModel::plot_surface. Got {surface}. Possible values (all, endo, epi). The model will not show on the htlm file")
+            return []
 
         x = np.array(self.et_pos[:, 0]).T
         y = np.array(self.et_pos[:, 1]).T
         z = np.array(self.et_pos[:, 2]).T
 
-        # LV_ENDOCARDIAL endo
-        surface_index = self.get_surface_start_end_index(Surface.LV_ENDOCARDIAL)
-        I_LV = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 0])
-        J_LV = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 1])
-        K_LV = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 2])
-
-        simplices_lv = np.vstack(
-            (
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 0],
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 1],
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 2],
-            )
-        ).T
-
-        # RV free wall
-        surface_index = self.get_surface_start_end_index(Surface.RV_FREEWALL)
-        I_FW = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 0])
-        J_FW = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 1])
-        K_FW = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 2])
-        simplices_fw = np.vstack(
-            (
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 0],
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 1],
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 2],
-            )
-        ).T
-
-        # RV septum
-        surface_index = self.get_surface_start_end_index(Surface.RV_SEPTUM)
-        I_S = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 0])
-        J_S = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 1])
-        K_S = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 2])
-        simplices_s = np.vstack(
-            (
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 0],
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 1],
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 2],
-            )
-        ).T
-
-        # Epicardium
-        surface_index = self.get_surface_start_end_index(Surface.EPICARDIAL)
-        I_epi = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 0])
-        J_epi = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 1])
-        K_epi = np.asarray(self.et_indices[surface_index[0] : surface_index[1] + 1, 2])
-        simplices_epi = np.vstack(
-            (
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 0],
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 1],
-                self.et_indices[surface_index[0] : surface_index[1] + 1, 2],
-            )
-        ).T
+        surface_enum = []
+        if surface == "endo" or surface == "all":
+            surface_enum.append({
+                "surface": Surface.LV_ENDOCARDIAL,
+                "color": face_color_lv,
+                "name": "LV endocardium",
+                "opacity": 1
+            })
+            surface_enum.append({
+                "surface": Surface.RV_FREEWALL,
+                "color": face_color_rv,
+                "name": "RV free wall",
+                "opacity": 1
+            })
+            surface_enum.append({
+                "surface": Surface.RV_SEPTUM,
+                "color": face_color_rv,
+                "name": "RV septum",
+                "opacity": 1
+            })
 
         if surface == "all":
-            points3D = np.vstack(
+            surface_enum.append({
+                "surface": Surface.EPICARDIAL,
+                "color": face_color_epi,
+                "name": "Epicardium",
+                "opacity": 0.4
+            })
+
+        if surface == "epi": # we do not append here
+            surface_enum = [{
+                "surface": Surface.EPICARDIAL,
+                "color": face_color_epi,
+                "name": "Epicardium",
+                "opacity": 1
+            }]
+
+        output = []
+
+        for surface_type in surface_enum:
+            surface_index = self.get_surface_start_end_index(surface_type["surface"])
+
+            ijk = [np.asarray(self.et_indices[surface_index[0]: surface_index[1] + 1, idx]) for idx in range(0,3)]
+
+            simplices = [self.et_indices[surface_index[0] : surface_index[1] + 1, idx] for idx in range(0,3)]
+
+            points_3d = np.vstack(
                 (self.et_pos[:, 0], self.et_pos[:, 1], self.et_pos[:, 2])
             ).T
 
-            tri_vertices_epi = list(map(lambda index: points3D[index], simplices_epi))
-            tri_vertices_fw = list(map(lambda index: points3D[index], simplices_fw))
-            tri_vertices_s = list(map(lambda index: points3D[index], simplices_s))
-            tri_vertices_lv = list(map(lambda index: points3D[index], simplices_lv))
-
-            triangles_LV = go.Mesh3d(
+            tri_vertices = list(map(lambda index: points_3d[index], np.asarray(simplices).T))
+            triangles = go.Mesh3d(
                 x=x,
                 y=y,
                 z=z,
-                color=face_color_LV,
-                i=I_LV,
-                j=J_LV,
-                k=K_LV,
-                opacity=1,
-                name="LV edocardial",
+                color=surface_type["color"],
+                i=ijk[0],
+                j=ijk[1],
+                k=ijk[2],
+                opacity=surface_type["opacity"],
+                name=surface_type["name"],
                 showlegend=True,
             )
 
-            triangles_FW = go.Mesh3d(
-                x=x,
-                y=y,
-                z=z,
-                color=face_color_RV,
-                name="RV free wall",
-                showlegend=True,
-                i=I_FW,
-                j=J_FW,
-                k=K_FW,
-                opacity=1,
-            )
-
-            triangles_S = go.Mesh3d(
-                x=x,
-                y=y,
-                z=z,
-                color=face_color_RV,
-                name="RV septum",
-                showlegend=True,
-                i=I_S,
-                j=J_S,
-                k=K_S,
-                opacity=1,
-            )
-
-            triangles_epi = go.Mesh3d(
-                x=x,
-                y=y,
-                z=z,
-                color=face_color_epi,
-                i=I_epi,
-                j=J_epi,
-                k=K_epi,
-                opacity=0.4,
-                name="epicardial",
-                showlegend=True,
-            )
+            output.append(triangles)
 
             lists_coord = [
-                [[T[k % 3][c] for k in range(4)] + [None] for T in tri_vertices_epi]
+                [[T[k % 3][c] for k in range(4)] + [None] for T in tri_vertices]
                 for c in range(3)
             ]
-            Xe, Ye, Ze = [
-                functools.reduce(lambda x, y: x + y, lists_coord[k]) for k in range(3)
-            ]
-
-            # define the lines to be plotted
-            lines_epi = go.Scatter3d(
-                x=Xe,
-                y=Ye,
-                z=Ze,
-                mode="lines",
-                line=go.scatter3d.Line(color="rgb(0,0,0)", width=1.5),
-                showlegend=True,
-                name="wireframe epicardial",
-            )
-
-            lists_coord = [
-                [[T[k % 3][c] for k in range(4)] + [None] for T in tri_vertices_fw]
-                for c in range(3)
-            ]
-            Xe, Ye, Ze = [
-                functools.reduce(lambda x, y: x + y, lists_coord[k]) for k in range(3)
-            ]
-
-            # define the lines to be plotted
-            lines_fw = go.Scatter3d(
-                x=Xe,
-                y=Ye,
-                z=Ze,
-                mode="lines",
-                line=go.scatter3d.Line(color="rgb(0,0,0)", width=1.5),
-                showlegend=True,
-                name="wireframe rv free wall",
-            )
-
-            lists_coord = [
-                [[T[k % 3][c] for k in range(4)] + [None] for T in tri_vertices_s]
-                for c in range(3)
-            ]
-            Xe, Ye, Ze = [
-                functools.reduce(lambda x, y: x + y, lists_coord[k]) for k in range(3)
-            ]
-
-            # define the lines to be plotted
-            lines_s = go.Scatter3d(
-                x=Xe,
-                y=Ye,
-                z=Ze,
-                mode="lines",
-                line=go.scatter3d.Line(color="rgb(0,0,0)", width=1.5),
-                showlegend=True,
-                name="wireframe rv septum",
-            )
-
-            lists_coord = [
-                [[T[k % 3][c] for k in range(4)] + [None] for T in tri_vertices_lv]
-                for c in range(3)
-            ]
-            Xe, Ye, Ze = [
-                functools.reduce(lambda x, y: x + y, lists_coord[k]) for k in range(3)
-            ]
-
-            # define the lines to be plotted
-            lines_lv = go.Scatter3d(
-                x=Xe,
-                y=Ye,
-                z=Ze,
-                mode="lines",
-                line=go.scatter3d.Line(color="rgb(0,0,0)", width=1.5),
-                showlegend=True,
-                name="wireframe lv edocardial",
-            )
-
-            return [
-                triangles_epi,
-                triangles_LV,
-                triangles_FW,
-                triangles_S,
-                lines_epi,
-                lines_lv,
-                lines_fw,
-                lines_s,
-            ]
-
-        if surface == "endo":
-            points3D = np.vstack(
-                (self.et_pos[:, 0], self.et_pos[:, 1], self.et_pos[:, 2])
-            ).T
-            simplices = np.vstack(
-                (
-                    self.et_indices[
-                        self.surface_start_end[0, 0] : self.surface_start_end[2, 1] + 1,
-                        0,
-                    ],
-                    self.et_indices[
-                        self.surface_start_end[0, 0] : self.surface_start_end[2, 1] + 1,
-                        1,
-                    ],
-                    self.et_indices[
-                        self.surface_start_end[0, 0] : self.surface_start_end[2, 1] + 1,
-                        2,
-                    ],
-                )
-            ).T
-
-            tri_vertices = list(map(lambda index: points3D[index], simplices))
-
-            triangles_LV = go.Mesh3d(
-                x=x,
-                y=y,
-                z=z,
-                color=face_color_LV,
-                i=I_LV,
-                j=J_LV,
-                k=K_LV,
-                opacity=opacity,
-                name="LV edocardial",
-                showlegend=True,
-            )
-
-            triangles_FW = go.Mesh3d(
-                x=x,
-                y=y,
-                z=z,
-                color=face_color_RV,
-                name="RV freewall",
-                showlegend=True,
-                i=I_FW,
-                j=J_FW,
-                k=K_FW,
-                opacity=opacity,
-            )
-
-            # define the lists Xe, Ye, Ze, of x, y, resp z coordinates of edge end points for each triangle
-            lists_coord = [
-                [[T[k % 3][c] for k in range(4)] for T in tri_vertices]
-                for c in range(3)
-            ]
-            Xe, Ye, Ze = [
+            xe, ye, ze = [
                 functools.reduce(lambda x, y: x + y, lists_coord[k]) for k in range(3)
             ]
 
             # define the lines to be plotted
             lines = go.Scatter3d(
-                x=Xe,
-                y=Ye,
-                z=Ze,
+                x=xe,
+                y=ye,
+                z=ze,
                 mode="lines",
                 line=go.scatter3d.Line(color="rgb(0,0,0)", width=1.5),
                 showlegend=True,
-                name="wireframe",
+                name=f"wireframe {surface_type['name']}",
             )
 
-            return triangles_LV, triangles_FW, lines
+            output.append(lines)
 
-        if surface == "epi":
-            surface_index = self.get_surface_start_end_index(Surface.EPICARDIAL)
-            points3D = np.vstack(
-                (self.et_pos[:, 0], self.et_pos[:, 1], self.et_pos[:, 2])
-            ).T
-            simplices = np.vstack(
-                (
-                    self.et_indices[surface_index[0] : surface_index[1] + 1, 0],
-                    self.et_indices[surface_index[0] : surface_index[1] + 1, 1],
-                    self.et_indices[surface_index[0] : surface_index[1] + 1, 2],
-                )
-            ).T
+        return output
 
-            tri_vertices = list(map(lambda index: points3D[index], simplices))
-
-            triangles_epi = go.Mesh3d(
-                x=x,
-                y=y,
-                z=z,
-                color=face_color_epi,
-                i=I_epi,
-                j=J_epi,
-                k=K_epi,
-                opacity=0.8,
-                name="epicardial",
-                showlegend=True,
-            )
-
-            # define the lists Xe, Ye, Ze, of x, y, resp z coordinates of edge end points for each triangle
-            lists_coord = [
-                [[T[k % 3][c] for k in range(4)] for T in tri_vertices]
-                for c in range(3)
-            ]
-            Xe, Ye, Ze = [
-                functools.reduce(lambda x, y: x + y, lists_coord[k]) for k in range(3)
-            ]
-
-            # define the lines to be plotted
-            lines = go.Scatter3d(
-                x=Xe,
-                y=Ye,
-                z=Ze,
-                mode="lines",
-                line=go.scatter3d.Line(color="rgb(0,0,0)", width=1.5),
-                name="wireframe",
-                showlegend=True,
-            )
-
-            return [triangles_epi, lines]
-
-    def get_intersection_with_plane(self, P0, N0, surface_to_use=None):
+    def get_intersection_with_plane(self, po: np.ndarray, no: np.ndarray, surface_to_use: Surface=None) -> np.ndarray:
         """Calculate intersection points between a plane with the
         biventricular model (LV_ENDOCARDIAL only)
 
         Parameters
         ----------
-        `P0` (3,1) array[float] a point of the plane
-        `N0` (3,1) array[float normal to the plane
+        `po` (3,1) array[float] a point of the plane
+        `no` (3,1) array[float normal to the plane
 
         Returns
         -------
 
-        `Fidx` (N,3) array[float] are indices of the surface nodes indicating
+        `f_idx` (N,3) array[float] are indices of the surface nodes indicating
         intersecting the plane"""
 
-        # Adjust P0 & N0 into a column vector
-        N0 = N0 / np.linalg.norm(N0)
+        # Adjust po & no into a column vector
+        no = no / np.linalg.norm(no)
 
-        Fidx = []
+        f_idx = []
 
         if surface_to_use is None:
             surface_to_use = [Surface.LV_ENDOCARDIAL]
@@ -1259,20 +1032,20 @@ class BiventricularModel:
             # Get the faces
             faces = self.get_surface_faces(surface)
 
-            # --- find triangles that intersect with plane: (P0,N0)
+            # --- find triangles that intersect with plane: (po,no)
             # calculate sign distance of each vertices
 
-            # set the origin of the model at P0
-            centered_vertex = self.et_pos - [list(P0)] * len(self.et_pos)
+            # set the origin of the model at po
+            centered_vertex = self.et_pos - [list(po)] * len(self.et_pos)
             # projection on the normal
-            dist = np.dot(N0, centered_vertex.T)
+            dist = np.dot(no, centered_vertex.T)
 
-            sgnDist = np.sign(dist[faces])
+            signed_distance = np.sign(dist[faces])
             # search for triangles having the vertex on the both sides of the
             # frame plane => intersecting with the frame plane
             valid_index = [
-                np.any(sgnDist[i] > 0) and np.any(sgnDist[i] < 0)
-                for i in range(len(sgnDist))
+                np.any(signed_distance[i] > 0) and np.any(signed_distance[i] < 0)
+                for i in range(len(signed_distance))
             ]
             intersecting_face_idx = np.where(valid_index)[0]
 
@@ -1285,22 +1058,22 @@ class BiventricularModel:
 
             # pivot points
 
-            iPos = [
-                x for x in intersecting_face_idx if np.sum(sgnDist[x] > 0) == 1
+            i_pos = [
+                x for x in intersecting_face_idx if np.sum(signed_distance[x] > 0) == 1
             ]  # all
             # triangles with one vertex on the positive part
-            iNeg = [
-                x for x in intersecting_face_idx if np.sum(sgnDist[x] < 0) == 1
+            i_neg = [
+                x for x in intersecting_face_idx if np.sum(signed_distance[x] < 0) == 1
             ]  # all
             # triangles with one vertex on the negative part
             p1 = []
             u = []
 
-            for face_index in iPos:  # triangles where only one
+            for face_index in i_pos:  # triangles where only one
                 # point
                 # on positive side
                 # pivot points
-                pivot_point_mask = sgnDist[face_index, :] > 0
+                pivot_point_mask = signed_distance[face_index, :] > 0
                 res = centered_vertex[faces[face_index, pivot_point_mask], :][0]
                 p1.append(list(res))
                 # u vectors
@@ -1313,10 +1086,10 @@ class BiventricularModel:
                     )
                 )
 
-            for face_index in iNeg:  # triangles where only one
+            for face_index in i_neg:  # triangles where only one
                 # point on negative side
                 # pivot points
-                pivot_point_mask = sgnDist[face_index, :] < 0
+                pivot_point_mask = signed_distance[face_index, :] < 0
                 res = centered_vertex[faces[face_index, pivot_point_mask], :][
                     0
                 ]  # select the vertex on the negative side
@@ -1341,18 +1114,18 @@ class BiventricularModel:
             mat[0:3, 1::2] = p1
             p1 = mat
 
-            sI = -np.dot(N0.T, p1) / (np.dot(N0.T, u))
-            factor_u = np.array([list(sI)] * 3)
+            si = -np.dot(no.T, p1) / (np.dot(no.T, u))
+            factor_u = np.array([list(si)] * 3)
             pts = np.add(p1, np.multiply(factor_u, u)).T
             # add vertices that are on the surface
-            Pon = centered_vertex[faces[sgnDist == 0], :]
-            pts = np.vstack((pts, Pon))
+            pon = centered_vertex[faces[signed_distance == 0], :]
+            pts = np.vstack((pts, pon))
             # #change points to the original position
-            Fidx = Fidx + list(pts + [list(P0)] * len(pts))
+            f_idx = f_idx + list(pts + [list(po)] * len(pts))
 
-        return Fidx
+        return f_idx
 
-    def get_intersection_with_dicom_image(self, frame, surface=None):
+    def get_intersection_with_dicom_image(self, frame: Frame, surface: Surface=None) -> np.ndarray:
         """Get the intersection contour points between the biventricular
         model with a DICOM image
 
@@ -1377,22 +1150,16 @@ class BiventricularModel:
         image_orientation = np.asarray(frame.orientation, dtype=float)
 
         # get image position and the image vectors
-        V1 = np.asarray(image_orientation[0:3], dtype=float)
-        V2 = np.asarray(image_orientation[3:6], dtype=float)
-        V3 = np.cross(V1, V2)
+        v1 = np.asarray(image_orientation[0:3], dtype=float)
+        v2 = np.asarray(image_orientation[3:6], dtype=float)
+        v3 = np.cross(v1, v2)
 
         # get intersection points
-        P = self.get_intersection_with_plane(image_position, V3, surface_to_use=surface)
+        p = self.get_intersection_with_plane(image_position, v3, surface_to_use=surface)
 
-        return P
+        return p
 
-    def get_surface_faces(self, surface):
-        """Get the faces definition for a surface triangulation"""
-
-        surface_index = self.get_surface_start_end_index(surface)
-        return self.et_indices[surface_index[0] : surface_index[1] + 1, :]
-
-    def compute_data_xi(self, weight, data):
+    def compute_data_xi(self, weight: float, data: GPDataSet) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Projects the N guide points to the closest point of the model
         surface.
 
@@ -1402,23 +1169,15 @@ class BiventricularModel:
 
         Parameters
         -----------
-
         `weight` float with weights given to the data points
-
         `data` GPDataSet object with guide points
 
         Returns
         --------
-
         `data_points_index` (`N`,1) array[int] with index of the closest
         control point to the each node
-
-
         `w` (`N`,`N`) matrix[float] of  weights of the data points
-
-
         `distance_d_prior` (`N`,1) matrix[float] distances to the closest points
-
         `psi_matrix` basis function matrix (`N`,`NUM_NODES`)
 
         """
@@ -1431,7 +1190,6 @@ class BiventricularModel:
         distance_d_prior = []
         index = []
         data_points_index = []
-        indexL = []
         index_unique = []  # add by LDT 3/11/2021
 
         basis_matrix = self.basis_matrix
@@ -1475,9 +1233,9 @@ class BiventricularModel:
                     dict_unique = dict(
                         zip(unique_index_closest, range(0, len(unique_index_closest)))
                     )  # create a dictionary = {'unique element': its list index}
-                    vrtx = list(dict_unique.keys())  # list of all the dictionary keys
+                    vertex = list(dict_unique.keys())  # list of all the dictionary keys
                     common_elm = list(
-                        set(index_unique) & set(vrtx)
+                        set(index_unique) & set(vertex)
                     )  # intersection between the array index_unique and the unique points in index_closest
 
                     def filter_new(full_list, excludes):
@@ -1489,7 +1247,7 @@ class BiventricularModel:
 
                     # togli gli elementi comuni
                     index_unique.append(
-                        list(filter_new(vrtx, common_elm))
+                        list(filter_new(vertex, common_elm))
                     )  # stores the new vertices that are NOT in already in the index_unique list
                     index_unique = flatten(index_unique)
 
@@ -1530,9 +1288,9 @@ class BiventricularModel:
                     if surface.value < 8:  # these are the landmarks without apex
                         # and rv inserts
                         centroid_valve = self.et_pos[surface_index[1]]
-                        centroid_GP_valve = contour_points.mean(axis=0)
-                        translation_GP_model = centroid_valve - centroid_GP_valve
-                        translated_points = np.add(contour_points, translation_GP_model)
+                        centroid_gp_valve = contour_points.mean(axis=0)
+                        translation_gp_model = centroid_valve - centroid_gp_valve
+                        translated_points = np.add(contour_points, translation_gp_model)
 
                     else:  # rv_inserts  and apex don't
                         # need to be translated
@@ -1583,7 +1341,7 @@ class BiventricularModel:
             np.asarray(psi_matrix),
         ]
 
-    def extract_linear_hex_mesh(self, reorder_nodes=True):
+    def extract_linear_hex_mesh(self, reorder_nodes : bool=True) -> tuple[np.ndarray, np.ndarray]:
         """
         Compute linear hex mesh associated with control mesh topology using
         points position from the subdivision surface.
@@ -1605,7 +1363,6 @@ class BiventricularModel:
         --------
 
         `new_nodes_position` (NUM_NODES,3) array[float] new position of the nodes
-
         `new_elements` (nbElem, 8) array mesh connectivity
 
         """
@@ -1654,7 +1411,7 @@ class BiventricularModel:
 
         return new_nodes_position, new_elements
 
-    def evaluate_derivatives(self, xi_position, elements=None):
+    def evaluate_derivatives(self, xi_position: np.ndarray, elements: list=None) -> tuple[list, list, np.ndarray, np.ndarray, np.ndarray]:
         """
         Evaluate derivatives at xi_position within each element in *elements* list'
 
@@ -1662,10 +1419,7 @@ class BiventricularModel:
         -----------
 
         xi_position (n,3) array of xi positions were to estimate derivatives
-
         elements: (m) list of elements were to estimate derivatives
-
-
         Returns:
         --------
 
@@ -1728,19 +1482,14 @@ class BiventricularModel:
 
         Parameters
         -----------
-
         `s` float between 0 and 1 local coordinate
-
         `t` float between 0 and 1 local coordinate
-
         `u` float between 0 and 1 local coordinate
 
         `elem_number` int element number in the control mesh
         (coarse mesh 186 elements )
-
         `displacement_s` float for finite difference calculation only (D-affine
         reg)
-
         `displacement_t` float for finite difference calculation only (D-affine
         reg)
 
@@ -1982,7 +1731,7 @@ class BiventricularModel:
             control_points,
         )
 
-    def compute_local_cs(self, position, element_number=None):
+    def compute_local_cs(self, position: list, element_number: int=None) -> None:
         """Computes local coordinates system at any point of the subdivision
         surface. x1 - circumferential direction, x2- longitudinal direction,
         x3- transmural direction
@@ -2052,7 +1801,7 @@ class BiventricularModel:
                 # matrix to compute node position. 2) subtract points to
                 # compute the corresponding vectors
 
-    def evaluate_surface_field(self, field, vertex_map):
+    def evaluate_surface_field(self, field: np.ndarray, vertex_map: list) -> np.ndarray:
         """Evaluate field at the each surface points giving a sparse field
         defined at a subset of surface points.
 
@@ -2087,7 +1836,7 @@ class BiventricularModel:
 
         basis_matrix = np.zeros((len(vertex_map), self.NUM_NODES))
 
-        # first estimate the control points from the known fiels
+        # first estimate the control points from the known fields
         for v_index, v in enumerate(vertex_map):
             xi = self.et_vertex_xi[v]
             et_index = self.et_vertex_element_num[v]
@@ -2112,7 +1861,7 @@ class BiventricularModel:
 
         return interpolated_field
 
-    def evaluate_field(self, field, vertex_map, position, elements=None):
+    def evaluate_field(self, field: np.ndarray, vertex_map: list, position: np.ndarray, elements: list=None) -> tuple[np.ndarray, np.ndarray]:
         """Evaluates field at the each xi position within a element of the
         control grid
 
@@ -2184,13 +1933,3 @@ class BiventricularModel:
         points = np.dot(basis_matrix, self.control_mesh)
 
         return points, interpolated_field
-
-    def update_control_mesh(self, new_control_mesh: np.ndarray) -> None:
-        """Update control mesh
-        Parameters
-        ----------
-        new_control_mesh: (388,3) array of new control node positions
-        """
-        self.control_mesh = new_control_mesh
-        self.et_pos = np.linalg.multi_dot([self.matrix, self.control_mesh])
-

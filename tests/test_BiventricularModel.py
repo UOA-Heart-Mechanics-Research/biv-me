@@ -106,10 +106,12 @@ def test_update_control_mesh():
     updated_control_mesh[[1, 50, 5, 8],:] += updated_control_mesh[[1,50,5,8],:]
     test_model.update_control_mesh(updated_control_mesh)
     assert np.array_equal(test_model.control_mesh, updated_control_mesh)
+    assert np.array_equal(test_model.et_pos, np.linalg.multi_dot([test_model.matrix, test_model.control_mesh]))
 
     updated_control_mesh[[1, 50, 5, 8],:] /= 2
     test_model.update_control_mesh(updated_control_mesh)
     assert np.array_equal(test_model.control_mesh, updated_control_mesh)
+    assert np.array_equal(test_model.et_pos, np.linalg.multi_dot([test_model.matrix, test_model.control_mesh]))
 
 @pytest.mark.parametrize("scaling_factor, expected_scaling",[
             (0.5, 0.5),
@@ -133,7 +135,6 @@ def test_get_scaling(scaling_factor, expected_scaling):
 def test_get_translation():
 
     gp_dataset = GPDataSet()
-
     translations = np.array([[0, 0, 0], [10, 0, 0], [0, 10, 0], [0, 0, 10], [10, 10, 10]])
     for translation in translations:
         # create fake GPDataSet - only valves and apex are needed for scaling
@@ -144,7 +145,6 @@ def test_get_translation():
             test_model.get_surface_vertex_start_end_index(Surface.TRICUSPID_VALVE)[1],] + translation
 
         model_translation = test_model.get_translation(gp_dataset)
-
         np.array_equal(model_translation,translation)
 
 def test_get_rotation():
@@ -184,8 +184,64 @@ def test_get_rotation():
         rotated_vertices = np.array([np.dot(model_rotation, node) for node in test_model.et_pos])
         assert np.isclose(rotated_vertices[np.concatenate((rv_fw, rv_septum, lv_endo), axis=None),:], gp_dataset.points_coordinates, atol=1e-2).all()
 
+def test_update_pose_and_scale():
+    gp_dataset = GPDataSet()
 
-# def test_update_pose_and_scale():
+    test_model.update_control_mesh(test_model.control_mesh - test_model.et_pos.mean(axis=0))
+    affine_position = np.append(test_model.et_pos, np.ones((test_model.et_pos.shape[0],1)), axis=1)
+
+    transformation_matrix = np.array([[0, -0.70710, 0.70710, 0], [0.866, -0.35355, -0.35355, -5], [0.5,  0.61237,  0.6123, 0], [0, 0, 0, 4.5]])
+
+    gp_dataset.apex = np.dot(affine_position[test_model.APEX_INDEX,], transformation_matrix)
+    gp_dataset.apex = gp_dataset.apex[:-1]
+    gp_dataset.mitral_centroid = np.dot(affine_position[
+                                            test_model.get_surface_vertex_start_end_index(Surface.MITRAL_VALVE)[1],],
+                                        transformation_matrix)[:-1]
+    gp_dataset.tricuspid_centroid = np.dot(affine_position[
+                                               test_model.get_surface_vertex_start_end_index(Surface.TRICUSPID_VALVE)[
+                                                   1],], transformation_matrix)[:-1]
+
+    rv_fw_start_end = test_model.get_surface_vertex_start_end_index(Surface.RV_FREEWALL)
+    rv_septum_start_end = test_model.get_surface_vertex_start_end_index(Surface.RV_SEPTUM)
+    lv_endo_start_end = test_model.get_surface_vertex_start_end_index(Surface.LV_ENDOCARDIAL)
+
+    rv_fw = range(rv_fw_start_end[0], rv_fw_start_end[1])
+    rv_fw_points = np.dot(affine_position[rv_fw, :], transformation_matrix)
+    rv_septum = range(rv_septum_start_end[0], rv_septum_start_end[1])
+    rv_septum_points = np.dot(affine_position[rv_septum, :], transformation_matrix)
+    lv_endo = range(lv_endo_start_end[0], lv_endo_start_end[1])
+    lv_endo_points = np.dot(affine_position[lv_endo, :], transformation_matrix)
+
+    gp_dataset.contour_type = [ContourType.SAX_RV_FREEWALL for _ in rv_fw]
+    [gp_dataset.contour_type.append(ContourType.SAX_RV_SEPTUM) for _ in rv_septum]
+    [gp_dataset.contour_type.append(ContourType.LAX_LV_ENDOCARDIAL) for _ in lv_endo]
+    gp_dataset.contour_type = np.asarray(gp_dataset.contour_type)
+
+    gp_dataset.points_coordinates = np.vstack((rv_fw_points[:,:-1], rv_septum_points[:,:-1], lv_endo_points[:,:-1]))
+
+    print("gp_dataset.points_coordinates.shape ", gp_dataset.points_coordinates.shape)
+    test_model.update_pose_and_scale(gp_dataset)
+
+    assert np.isclose(test_model.et_pos[np.concatenate((rv_fw, rv_septum, lv_endo), axis=None), :],
+                      gp_dataset.points_coordinates, atol=1e-2).all()
+
+@pytest.mark.parametrize("test_surface, expected_faces",[
+            (Surface.LV_ENDOCARDIAL, test_model.surface_start_end[0, :]),
+            (Surface.RV_SEPTUM, test_model.surface_start_end[1, :]),
+            (Surface.RV_FREEWALL, test_model.surface_start_end[2, :]),
+            (Surface.EPICARDIAL, test_model.surface_start_end[3, :]),
+            (Surface.MITRAL_VALVE, test_model.surface_start_end[4, :]),
+            (Surface.AORTA_VALVE, test_model.surface_start_end[5, :]),
+            (Surface.TRICUSPID_VALVE, test_model.surface_start_end[6, :]),
+            (Surface.PULMONARY_VALVE, test_model.surface_start_end[7, :])
+        ])
+def test_get_surface_faces(test_surface, expected_faces):
+    print(test_model.get_surface_faces(test_surface))
+    print(test_model.et_indices[expected_faces[0]: expected_faces[1] + 1, :])
+    assert np.array_equal(test_model.get_surface_faces(test_surface), test_model.et_indices[expected_faces[0]: expected_faces[1] + 1, :])
+
+
+
 # def evaluate_field(self, field, vertex_map, position, elements=None)
 # def evaluate_surface_field
 # def compute_local_cs
@@ -193,7 +249,6 @@ def test_get_rotation():
 # def evaluate_derivatives
 # def extract_linear_hex_mesh
 # def compute_data_xi
-# def get_surface_faces
 # get_intersection_with_dicom_image
 # get_intersection_with_plane
 # def plot_surface

@@ -210,8 +210,6 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
 
                 biventricular_model.update_pose_and_scale(data_set)
 
-
-
                 # # perform a stiff fit
                 # displacement, err = biventricular_model.lls_fit_model(weight_GP,data_set,1e10)
                 # biventricular_model.control_mesh = np.add(biventricular_model.control_mesh,
@@ -295,7 +293,6 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                     "rgb(0,127,0)", "rgb(0,127,127)", "rgb(127,0,0)", "all"
                 )
                 data = model + contourPlots
-                # TimeSeries_step2.append([data, num])
 
                 output_folder_html = Path(output_folder, f"html{gp_suffix}")
                 output_folder_html.mkdir(exist_ok=True)
