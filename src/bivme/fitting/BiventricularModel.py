@@ -721,7 +721,7 @@ class BiventricularModel:
         dataset_coordinates = [dataset.apex, dataset.mitral_centroid, dataset.tricuspid_centroid]
         model_point_indices = [self.APEX_INDEX, self.get_surface_vertex_start_end_index(Surface.MITRAL_VALVE)[1], self.get_surface_vertex_start_end_index(Surface.TRICUSPID_VALVE)[1]]
         model_coordinates = self.et_pos[model_point_indices,:]
-        translation = np.mean(dataset_coordinates,axis=0) - np.mean(model_coordinates,axis=0)
+        translation = np.mean(dataset_coordinates, axis=0) - np.mean(model_coordinates,axis=0)
 
         return translation
 
@@ -792,7 +792,7 @@ class BiventricularModel:
             + 1,
             :,
         ]
-        #model_epi = self.et_pos
+
         temp_d_model = [
             np.dot(x_axis_model, point_model)
             for point_model in (point_proj_model - temp_original_model)
@@ -819,7 +819,7 @@ class BiventricularModel:
         rv_endo_points_model = self.et_pos[
             self.get_surface_vertex_start_end_index(Surface.RV_SEPTUM)[
                 0
-            ] : self.get_surface_vertex_start_end_index(Surface.RV_FREEWALL)[1]
+            ]:self.get_surface_vertex_start_end_index(Surface.RV_FREEWALL)[1]
             + 1,
             :,
         ]
@@ -835,7 +835,6 @@ class BiventricularModel:
         ) / np.dot(x_axis_model, x_axis_model)
         rv_proj = centroid + scale * x_axis
         rv_proj_model = centroid_model + scale_model * x_axis_model
-
 
         y_axis = rv_centroid - rv_proj
         y_axis_model = rv_centroid_model - rv_proj_model

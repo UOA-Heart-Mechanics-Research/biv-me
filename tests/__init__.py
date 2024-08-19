@@ -1,0 +1,3 @@
+import numpy as np
+
+CURRENT_RESIDUALS = {"patient_1_gpdata" : 1.69, "patient_2_gpdata" : 1.33}

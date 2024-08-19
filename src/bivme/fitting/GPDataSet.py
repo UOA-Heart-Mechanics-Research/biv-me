@@ -233,6 +233,7 @@ class GPDataSet(object):
             self.pulmonary_centroid = P[pulmonary_index, :].mean(axis=0)
 
         apex_index = self.contour_type == ContourType.APEX_POINT
+
         if np.sum(apex_index) > 0:
             self.apex = P[apex_index, :]
 

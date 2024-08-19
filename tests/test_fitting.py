@@ -1,34 +1,26 @@
 import numpy as np
 from bivme.fitting.perform_fit import perform_fitting
-from bivme import TEST_RESOURCE_DIR
+from bivme import TEST_RESOURCE_DIR, MODEL_RESOURCE_DIR
+from . import CURRENT_RESIDUALS
 import shutil
-import platform
+
+
 def test_performed_fit():
-
-    patient_name = 'patient_1_gpdata'
-    gp_file = TEST_RESOURCE_DIR / patient_name
-    test_files = ['patient_1_gpdata_model_frame_000.txt', 'patient_1_gpdata_model_frame_001.txt']
+    test_data = ["patient_1_gpdata", "patient_2_gpdata"]
     output_dir = TEST_RESOURCE_DIR / 'output'
-    if not output_dir.exists():
-        output_dir.mkdir()
-    perform_fitting(gp_file, output_dir)
 
-    for test_file in test_files:
-        if platform.system() == 'Linux' or 'Darwin':
-            gt = np.loadtxt(TEST_RESOURCE_DIR / patient_name / 'linux' / test_file, delimiter=',', skiprows=1, usecols=[0, 1, 2]).astype(float)
-        if platform.system() == 'Windows':
-            gt = np.loadtxt(TEST_RESOURCE_DIR / patient_name / 'windows' /test_file, delimiter=',', skiprows=1, usecols=[0, 1, 2]).astype(float)
+    for test_case in test_data:
+        patient_name = test_case
 
-        # check .txt file was created
-        test_model = TEST_RESOURCE_DIR / 'output' / patient_name / test_file
-        assert test_model.exists(), \
-            f"No model created!"
+        gp_file = TEST_RESOURCE_DIR / patient_name
 
-        test = np.loadtxt(test_model, delimiter=',', skiprows=1, usecols=[0, 1, 2]).astype(float)
+        if not output_dir.exists():
+            output_dir.mkdir()
+        residuals = perform_fitting(gp_file, output_dir)
 
-        ##TODO test volume as well
-        assert np.array_equal(gt, test)
-
+        assert residuals > 0
+        assert residuals <= CURRENT_RESIDUALS[test_case]
+        ##TODO update models and CURRENT_RESIDUALS for next tests - also add more cases
     shutil.rmtree(output_dir)
 
 

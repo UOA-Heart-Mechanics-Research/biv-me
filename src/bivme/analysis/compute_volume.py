@@ -28,7 +28,6 @@ import fnmatch
 # for printing while progress bar is progressing
 console = None
 
-
 def find_volume(case_name: str, model_file: os.PathLike, output_file: os.PathLike, biv_model_folder: os.PathLike, precision: int) -> None:
     """
         # Authors: ldt, cm

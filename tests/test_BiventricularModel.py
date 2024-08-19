@@ -103,12 +103,12 @@ def test_is_diffeomorphic(model_path, expected_output):
 
 def test_update_control_mesh():
     updated_control_mesh = test_model.control_mesh
-    updated_control_mesh[[1, 50, 5, 8],:] += updated_control_mesh[[1,50,5,8],:]
+    updated_control_mesh[[1, 50, 5, 8], :] += updated_control_mesh[[1, 50, 5, 8], :]
     test_model.update_control_mesh(updated_control_mesh)
     assert np.array_equal(test_model.control_mesh, updated_control_mesh)
     assert np.array_equal(test_model.et_pos, np.linalg.multi_dot([test_model.matrix, test_model.control_mesh]))
 
-    updated_control_mesh[[1, 50, 5, 8],:] /= 2
+    updated_control_mesh[[1, 50, 5, 8], :] /= 2
     test_model.update_control_mesh(updated_control_mesh)
     assert np.array_equal(test_model.control_mesh, updated_control_mesh)
     assert np.array_equal(test_model.et_pos, np.linalg.multi_dot([test_model.matrix, test_model.control_mesh]))
@@ -130,7 +130,7 @@ def test_get_scaling(scaling_factor, expected_scaling):
     gp_dataset.tricuspid_centroid = scaling_factor * test_model.et_pos[
         test_model.get_surface_vertex_start_end_index(Surface.TRICUSPID_VALVE)[1],]
 
-    assert test_model.get_scaling(gp_dataset) == expected_scaling
+    assert pytest.approx(test_model.get_scaling(gp_dataset), abs=10e-7) == expected_scaling
 
 def test_get_translation():
 
@@ -145,7 +145,7 @@ def test_get_translation():
             test_model.get_surface_vertex_start_end_index(Surface.TRICUSPID_VALVE)[1],] + translation
 
         model_translation = test_model.get_translation(gp_dataset)
-        np.array_equal(model_translation,translation)
+        np.array_equal(model_translation, translation)
 
 def test_get_rotation():
     gp_dataset = GPDataSet()

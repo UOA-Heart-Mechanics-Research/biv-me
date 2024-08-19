@@ -12,7 +12,7 @@ import numpy as np
 
 def solve_convex_problem(
     biv_model: BiventricularModel, data_set: GPDataSet, weight_gp: float, low_smoothing_weight: float, transmural_weight: float, output_file: os.PathLike
-) -> None:
+) -> float:
     """This function performs the proper diffeomorphic fit.
     Parameters
     ----------
@@ -58,6 +58,7 @@ def solve_convex_problem(
     step_err = np.sqrt(np.sum(step_err) / len(prior_position))
     print("Explicitly constrained fit")
 
+    residuals = -1
     while abs(step_err - previous_step_err) > tol and iteration < 10:
         print("     Iteration #" + str(iteration + 1) + " ECF error " + str(step_err))
         with open(output_file, "a") as f:  # LDT
@@ -133,7 +134,6 @@ def solve_convex_problem(
             # Due to numerical approximations, epicardium and endocardium
             # can 'touch' (but not cross),
             # leading to a negative jacobian. If it happens, we stop.
-            diffeo = 0
             print("Diffeomorphic condition not verified ")
             break
         else:
@@ -149,13 +149,15 @@ def solve_convex_problem(
             step_err = np.sqrt(np.sum(step_err) / len(prior_position))
             iteration = iteration + 1
 
+    residuals = step_err
+
     with open(output_file, "a") as f:  # LDT
         f.write("End of the implicitly constrained fit \n")
         f.write("--- %s seconds ---\n" % (time.time() - start_time))
 
     print("--- End of the explicitly constrained fit ---")
     print("--- %s seconds ---" % (time.time() - start_time))
-
+    return residuals
 
 def fit_least_squares_model(biv_model: BiventricularModel, weight_gp: float, data_set: GPDataSet, smoothing_factor: float) -> [np.ndarray, float]:
     [

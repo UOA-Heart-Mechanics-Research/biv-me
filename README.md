@@ -70,8 +70,29 @@ def greet(name: str) -> str:
 Usage
 -----------------------------------------------
 
+### Fit a Biv-me model to GP files
+The script for the mesh fitting can be found in src/bivme/fitting
+```
+usage: perform_fit.py [-h] [-gp DIR_GP] [-o OUTPUT_DIR] [-w] [-gp_suf GP_SUFFIX] [-si_suf SI_SUFFIX] [-f FORMAT]
+
+options:
+  -h, --help            show this help message and exit
+  -gp DIR_GP, --dir_gp DIR_GP
+                        directory containing guidepoint files
+  -o OUTPUT_DIR, --output_dir OUTPUT_DIR
+                        output directory
+  -w, --overwrite       Overwrite existing output mesh
+  -gp_suf GP_SUFFIX, --gp_suffix GP_SUFFIX
+                        guidepoint to use
+  -si_suf SI_SUFFIX, --si_suffix SI_SUFFIX
+                        slice info to use
+  -f FORMAT, --format FORMAT
+                        Format of the output model (Only .obj and .vtk are currently supported)
+
+```
+
 ### Calculate volumes from Biv-me models
-The script for the volume calculation can be found in bivme/analysis
+The script for the volume calculation can be found in src/bivme/analysis
 
 ```
 usage: compute_volume.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_FILE] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-p PRECISION]
