@@ -9,9 +9,10 @@ import shutil
 from bivme.fitting import BiventricularModel
 from bivme.fitting import GPDataSet
 import numpy as np
+from loguru import logger
 
 def solve_convex_problem(
-    biv_model: BiventricularModel, data_set: GPDataSet, weight_gp: float, low_smoothing_weight: float, transmural_weight: float, output_file: os.PathLike
+    biv_model: BiventricularModel, data_set: GPDataSet, weight_gp: float, low_smoothing_weight: float, transmural_weight: float, my_logger: logger
 ) -> float:
     """This function performs the proper diffeomorphic fit.
     Parameters
@@ -60,17 +61,7 @@ def solve_convex_problem(
 
     residuals = -1
     while abs(step_err - previous_step_err) > tol and iteration < 10:
-        print("     Iteration #" + str(iteration + 1) + " ECF error " + str(step_err))
-        with open(output_file, "a") as f:  # LDT
-            f.write(
-                "     Iteration #"
-                + str(iteration + 1)
-                + " Smoothing weight "
-                + str(low_smoothing_weight)
-                + "\t ECF error "
-                + str(step_err)
-                + "\n"
-            )
+        my_logger.info(f"     Iteration {iteration + 1} Smoothing weight {low_smoothing_weight}	 ECF error {step_err}")
 
         previous_step_err = step_err
         linear_part_x = matrix(
@@ -151,10 +142,7 @@ def solve_convex_problem(
 
     residuals = step_err
 
-    with open(output_file, "a") as f:  # LDT
-        f.write("End of the implicitly constrained fit \n")
-        f.write("--- %s seconds ---\n" % (time.time() - start_time))
-
+    my_logger.success(f"End of the implicitly constrained fit. Time taken: {time.time() - start_time}")
     print("--- End of the explicitly constrained fit ---")
     print("--- %s seconds ---" % (time.time() - start_time))
     return residuals
@@ -192,7 +180,7 @@ def fit_least_squares_model(biv_model: BiventricularModel, weight_gp: float, dat
     return solf, err
 
 
-def solve_least_squares_problem(biv_model, weight_gp, data_set, output_file):
+def solve_least_squares_problem(biv_model, weight_gp, data_set, my_logger):
     """This function performs a series of LLS fits. At each iteration the
     least squares optimisation is performed and the determinant of the
     Jacobian matrix is calculated.
@@ -216,21 +204,9 @@ def solve_least_squares_problem(biv_model, weight_gp, data_set, output_file):
     while (isdiffeo == 1) & (high_weight > weight_gp * 1e2) & (iteration < 50):
         # print('high_weight', high_weight) ####to LOG
         displacement, err = fit_least_squares_model(biv_model, weight_gp, data_set, high_weight)
-        try:
-            with open(output_file, "a") as f:  # LDT
-                f.write(
-                    "     Iteration #"
-                    + str(iteration)
-                    + " Weight "
-                    + str(high_weight)
-                    + "\t ICF error "
-                    + str(err)
-                    + "\n"
-                )
-        except:
-            pass
 
-        print("     Iteration #" + str(iteration) + " ICF error " + str(err))
+        my_logger.info(f"     Iteration {iteration} Weight {high_weight}	 ICF error {err}")
+
         isdiffeo = biv_model.is_diffeomorphic(
             np.add(biv_model.control_mesh, displacement), min_jacobian
         )
@@ -247,16 +223,9 @@ def solve_least_squares_problem(biv_model, weight_gp, data_set, output_file):
                 high_weight = high_weight * factor
                 isdiffeo = 1
         iteration = iteration + 1
-    try:
-        with open(text_file, "a") as f:  # LDT
-            f.write("End of the implicitly constrained fit \n")
-            f.write("--- %s seconds ---\n" % (time.time() - start_time))
 
-    except:
-        pass
+    my_logger.success(f"End of the explicitely constrained fit. Time taken: {time.time() - start_time}")
 
-    print("End of the implicitly constrained fit")
-    print("--- %s seconds ---" % (time.time() - start_time))
     return high_weight
 
 

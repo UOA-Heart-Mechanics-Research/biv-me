@@ -7,6 +7,7 @@ from pathlib import Path
 from plotly.offline import plot
 import argparse
 import pathlib
+import datetime
 
 from bivme.fitting.BiventricularModel import BiventricularModel
 from bivme.fitting.GPDataSet import GPDataSet
@@ -52,7 +53,7 @@ contours_to_plot = [
     ContourType.PULMONARY_PHANTOM,
 ]
 
-def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="", si_suffix: str ="", frames_to_fit: list[int]=[], output_format: str =".vtk", **kwargs) -> float:
+def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="", si_suffix: str ="", frames_to_fit: list[int]=[], output_format: str =".vtk", my_logger: logger = logger, **kwargs) -> float:
     # performs all the BiVentricular fitting operations
 
     try:
@@ -70,17 +71,17 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
 
         filename = Path(folder) / f"GPFile{gp_suffix}.txt"
         if not filename.exists():
-            logger.error(f"Cannot find {filename} file! Skipping this model")
+            my_logger.error(f"Cannot find {filename} file! Skipping this model")
             return -1
 
         filename_info = Path(folder) / f"SliceInfoFile{si_suffix}.txt"
         if not filename_info.exists():
-            logger.error(f"Cannot find {filename_info} file! Skipping this model")
+            my_logger.error(f"Cannot find {filename_info} file! Skipping this model")
             return -1
 
         # extract the patient name from the folder name
         case = os.path.basename(os.path.normpath(folder))
-        logger.info(f"case: {case}")
+        my_logger.info(f"case: {case}")
 
         # read all the frames from the GPFile
         all_frames = pd.read_csv(str(filename), sep="\t")
@@ -89,7 +90,7 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
             ed_frame = int(case_frame_dict[str(case)][0])
         except:
             ed_frame = 1
-            logger.info(f"ED set to frame # 1")
+            my_logger.info(f"ED set to frame # 1")
 
         if len(frames_to_fit) == 0:
             frames_to_fit = np.unique(
@@ -101,16 +102,16 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
         Path(output_folder).mkdir(parents=True, exist_ok=True)
 
         # create log files where to store fitting errors and shift
-        error_file = output_folder / f"error_file{gp_suffix}.txt"
+        #error_file = output_folder / f"error_file{gp_suffix}.txt"
         shift_file = output_folder / f"shift_file{gp_suffix}.txt"
         pos_file = output_folder / f"pos_file{gp_suffix}.txt"
 
-        with error_file.open("w", encoding ="utf-8") as f: #automatically initialises it
-            f.write("Log for patient: " + case + "\n")
+        #with error_file.open("w", encoding ="utf-8") as f: #automatically initialises it
+        #    f.write("Log for patient: " + case + "\n")
 
         # The next lines are used to measure shift using only a key frame
         if measure_shift_EDonly == True:
-            logger.info("Shift measured only at ED frame")
+            my_logger.info("Shift measured only at ED frame")
 
             ed_dataset = GPDataSet(
                 str(filename),
@@ -134,7 +135,7 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                 file.close()
 
         # initialise time series lists
-        logger.info(f"Fitting of {str(case)}")
+        my_logger.info(f"Fitting of {str(case)}")
 
         residuals = 0
         with Progress(transient=True) as progress:
@@ -143,15 +144,15 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
 
             for idx, num in enumerate(sorted(frames_to_fit)):
                 num = int(num)  # frame number
-                if logger is not None:
-                    logger.info(f"Processing frame #{num}")
+
+                my_logger.info(f"Processing frame #{num}")
                 model_file = Path(
                     output_folder, f"{case}{gp_suffix}_model_frame_{num:03}.txt"
                 )
                 model_file.touch(exist_ok=True)
 
-                with open(error_file, "a") as f:
-                    f.write("\nFRAME #" + str(int(num)) + "\n")
+                #with open(error_file, "a") as f:
+                #    f.write("\nFRAME #" + str(int(num)) + "\n")
 
                 data_set = GPDataSet(
                     str(filename), str(filename_info), case, sampling=sampling, time_frame_number=num
@@ -167,7 +168,7 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                     data_set.get_unintersected_slices()
                 else:
                     # measure and apply shift to current frame
-                    shifted_slice = data_set.sinclaire_slice_shifting(error_file, int(num))
+                    shifted_slice = data_set.sinclaire_slice_shifting(my_logger, int(num))
                     shift_measure = shifted_slice[0]
                     pos_measure = shifted_slice[1]
 
@@ -225,22 +226,22 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                 try:
                     _ = data_set.create_valve_phantom_points(20, ContourType.MITRAL_VALVE)
                 except:
-                    logger.warning('Error in creating mitral phantom points')
+                    my_logger.warning('Error in creating mitral phantom points')
 
                 try:
                     _ = data_set.create_valve_phantom_points(20, ContourType.TRICUSPID_VALVE)
                 except:
-                    logger.warning('Error in creating tricuspid phantom points')
+                    my_logger.warning('Error in creating tricuspid phantom points')
 
                 try:
                     _ = data_set.create_valve_phantom_points(20, ContourType.PULMONARY_VALVE)
                 except:
-                    logger.warning('Error in creating pulmonary phantom points')
+                    my_logger.warning('Error in creating pulmonary phantom points')
 
                 try:
                     _ = data_set.create_valve_phantom_points(20, ContourType.AORTA_VALVE)
                 except:
-                    logger.warning('Error in creating aorta phantom points')
+                    my_logger.warning('Error in creating aorta phantom points')
 
                 contour_plots = data_set.PlotDataSet(contours_to_plot)
 
@@ -258,7 +259,7 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                 data_set.weights[data_set.contour_type == ContourType.PULMONARY_VALVE] = 1
 
                 # Perform linear fit (step1)
-                solve_least_squares_problem(biventricular_model, weight_GP, data_set, error_file)
+                solve_least_squares_problem(biventricular_model, weight_GP, data_set, my_logger)
 
                 # Perform diffeomorphic fit (step2)
                 residuals += solve_convex_problem(
@@ -267,7 +268,7 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                     weight_GP,
                     low_smoothing_weight,
                     transmural_weight,
-                    error_file,
+                    my_logger,
                 ) / len(sorted(frames_to_fit))
 
                 # Plot final results
@@ -312,7 +313,7 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                         output_folder_obj, f"{case}_{num:03}.obj"
                     )
                     export_to_obj(output_path, vertices, faces)
-                    logger.success(f"{case}_{num:03}.obj successfully saved to {output_folder_obj}")
+                    my_logger.success(f"{case}_{num:03}.obj successfully saved to {output_folder_obj}")
                 elif output_format == ".vtk":
                     # save surface meshes as vtk
                     output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
@@ -344,10 +345,10 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                             output_folder_vtk, f"{case}_{mesh_type[i]}_{num:03}.vtk"
                         )
                         write_vtk_surface(str(mesh_path), vertices, faces_mapped)
-                        logger.success(f"{case}_{mesh_type[i]}_{num:03}.vtk successfully saved to {output_folder_vtk}")
+                        my_logger.success(f"{case}_{mesh_type[i]}_{num:03}.vtk successfully saved to {output_folder_vtk}")
 
                 else:
-                    logger.error('argument format must be .obj or .vtk')
+                    my_logger.error('argument format must be .obj or .vtk')
                     return -1
 
                 progress.advance(task)
@@ -390,7 +391,7 @@ if __name__ == "__main__":
 
     for case in case_dirs:
         logger.info(f"Processing {os.path.basename(case)}")
-        logger_id = logger.add(f"{args.output_dir}/{os.path.basename(case)}/log_file.log", level=log_level, format=log_format,
+        logger_id = logger.add(f"{args.output_dir}/{os.path.basename(case)}/log_file_{datetime.datetime.now()}.log", level=log_level, format=log_format,
                                     colorize=False, backtrace=True,
                                     diagnose=True)
 
@@ -399,7 +400,7 @@ if __name__ == "__main__":
             continue
 
         residuals = perform_fitting(case, out_dir=args.output_dir, gp_suffix=args.gp_suffix, si_suffix=args.si_suffix,
-                        frames_to_fit=[], output_format=args.format)
+                        frames_to_fit=[], output_format=args.format, logger=logger)
         logger.info(f"Average residuals: {residuals} for case {os.path.basename(case)}")
         logger.remove(logger_id)
 

@@ -13,6 +13,7 @@ from .Frame import *
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from . import visualization as viewer
+from loguru import logger
 
 SAMPLED_CONTOUR_TYPES = [
     ContourType.LAX_LV_ENDOCARDIAL,
@@ -731,7 +732,7 @@ class GPDataSet(object):
 
         return contourPlots
 
-    def sinclaire_slice_shifting(self, frame_num, fix_LAX=False):
+    def sinclaire_slice_shifting(self, my_logger : logger, fix_LAX=False):
         """This method does a breath-hold misregistration correction be default for both LAX
         and SAX using Sinclair, Matthew, et al. "Fully automated segmentation-based
         respiratory motion correction of multiplanar cardiac magnetic resonance images
@@ -751,10 +752,8 @@ class GPDataSet(object):
         """
 
         if ContourType.LAX_LV_EPICARDIAL not in self.contour_type:
-            warnings.warn(
-                "LAX_LV_EPICARDIAL contour is missing. Slice shift have not been "
-                "corrected"
-            )
+            my_logger.warning("LAX_LV_EPICARDIAL contour is missing. Slice shift have not been "
+                "corrected")
             return [], []
 
         stoping_criterion = 5
