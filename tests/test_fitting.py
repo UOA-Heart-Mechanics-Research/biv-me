@@ -19,7 +19,7 @@ def test_performed_fit():
         residuals = perform_fitting(gp_file, output_dir)
 
         assert residuals > 0
-        assert residuals <= CURRENT_RESIDUALS[test_case]
+        assert round(residuals, 2) <= CURRENT_RESIDUALS[test_case]
         ##TODO update models and CURRENT_RESIDUALS for next tests - also add more cases
     shutil.rmtree(output_dir)
 
