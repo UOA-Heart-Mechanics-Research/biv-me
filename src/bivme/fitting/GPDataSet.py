@@ -13,6 +13,7 @@ from .Frame import *
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from . import visualization as viewer
+from loguru import logger
 
 SAMPLED_CONTOUR_TYPES = [
     ContourType.LAX_LV_ENDOCARDIAL,
@@ -43,6 +44,7 @@ UNSAMPLED_CONTOUR_TYPES = [
 
 ##Author : Charlène Mauger, University of Auckland, c.mauger@auckland.ac.nz
 class GPDataSet(object):
+
     """This class reads a dataset. A DataSet object has the following properties:
 
     Attributes:
@@ -58,12 +60,12 @@ class GPDataSet(object):
 
     def __init__(
         self,
-        contour_filename,
-        metadata_filename=None,
-        case="default",
-        sampling=1,
-        time_frame_number=None,
-    ):
+        contour_filename: str = None,
+        metadata_filename: str = None,
+        case: str = "default",
+        sampling: int =1,
+        time_frame_number: int=None,
+    ) -> None:
         """Return a DataSet object. Each point of this dataset is characterized by
         its 3D coordinates ([Evenly_spaced_points[:,0],Evenly_spaced_points[:,1],
         Evenly_spaced_points[:,2]]), the slice it belongs to (slice_number) and the surface
@@ -77,7 +79,6 @@ class GPDataSet(object):
                 case: case number
                 time_frame_number: time frame #
         """
-        # arrays
 
         self.points_coordinates = np.empty((0, 3))
         self.contour_type = np.empty((1))
@@ -92,12 +93,14 @@ class GPDataSet(object):
 
         # scalars
         self.time_frame = time_frame_number
-        self._read_contour_file(contour_filename, time_frame_number, sampling)
-        self._initialize_landmarkds()
-        if metadata_filename != None:
-            self._read_dicom_metadata(metadata_filename)
-        else:
-            warnings.warn("Metadata file is not defined ")
+        if contour_filename is not None:
+            self.read_contour_file(contour_filename, time_frame_number, sampling)
+            self.initialize_landmarks()
+
+            if metadata_filename != None:
+                self._read_dicom_metadata(metadata_filename)
+            else:
+                warnings.warn("Metadata file is not defined ")
 
         # Mitral points extracted from Circle belong to the slice -1 (I don't know why...).
         # To be able to apply a breath-hold misregistration correction,
@@ -106,7 +109,7 @@ class GPDataSet(object):
         # If you don't have this problem with your dataset, you can comment it.
         # self.identify_mitral_valve_points()
 
-    def _read_contour_file(self, filename, time_frame_number=None, sampling=1):
+    def read_contour_file(self, filename: str, time_frame_number: int=None, sampling: int=1) -> None:
         """add  by A. Mira 02/2020"""
         # column num 3 of my datset is a space
         if not os.path.exists(filename):
@@ -153,7 +156,7 @@ class GPDataSet(object):
             contypes = contypes[valid_contour_index]
             weights = weights[valid_contour_index]
 
-        contypes = self._convert_contour_types(contypes)
+        contypes = self.convert_contour_types(contypes)
         # increment contours points which don't need sampling
 
         valid_contour_index = np.array([x in UNSAMPLED_CONTOUR_TYPES for x in contypes])
@@ -205,7 +208,7 @@ class GPDataSet(object):
                         (self.weights, C_weights[Cx_index[0::sample]])
                     )
 
-    def _initialize_landmarkds(self):
+    def initialize_landmarks(self):
         "add by A.Mira on 01/2020"
         # calc valve centroids
 
@@ -213,10 +216,14 @@ class GPDataSet(object):
         mitral_index = self.contour_type == ContourType.MITRAL_VALVE
         if np.sum(mitral_index) > 0:
             self.mitral_centroid = P[mitral_index, :].mean(axis=0)
+        else:
+            assert f"No mitral valve points!"
 
         tricuspid_index = self.contour_type == ContourType.TRICUSPID_VALVE
         if np.sum(tricuspid_index) > 0:
             self.tricuspid_centroid = P[tricuspid_index, :].mean(axis=0)
+        else:
+            assert f"No tricuspid valve points!"
 
         aorta_contour_index = self.contour_type == ContourType.AORTA_VALVE
         if np.sum(aorta_contour_index) > 0:
@@ -227,6 +234,7 @@ class GPDataSet(object):
             self.pulmonary_centroid = P[pulmonary_index, :].mean(axis=0)
 
         apex_index = self.contour_type == ContourType.APEX_POINT
+
         if np.sum(apex_index) > 0:
             self.apex = P[apex_index, :]
 
@@ -234,7 +242,7 @@ class GPDataSet(object):
                 self.apex = self.apex[0, :]
 
     @staticmethod
-    def _convert_contour_types(contours):
+    def convert_contour_types(contours):
         "add by A.Mira on 01/2020"
         # convert contours from string type to Contour enumeration
         # type
@@ -724,7 +732,7 @@ class GPDataSet(object):
 
         return contourPlots
 
-    def sinclaire_slice_shifting(self, frame_num, fix_LAX=False):
+    def sinclaire_slice_shifting(self, my_logger : logger, fix_LAX=False):
         """This method does a breath-hold misregistration correction be default for both LAX
         and SAX using Sinclair, Matthew, et al. "Fully automated segmentation-based
         respiratory motion correction of multiplanar cardiac magnetic resonance images
@@ -744,10 +752,8 @@ class GPDataSet(object):
         """
 
         if ContourType.LAX_LV_EPICARDIAL not in self.contour_type:
-            warnings.warn(
-                "LAX_LV_EPICARDIAL contour is missing. Slice shift have not been "
-                "corrected"
-            )
+            my_logger.warning("LAX_LV_EPICARDIAL contour is missing. Slice shift have not been "
+                "corrected")
             return [], []
 
         stoping_criterion = 5
@@ -798,7 +804,7 @@ class GPDataSet(object):
             stoping_criterion = np.max(int_t)
 
         # update mitral, tricuspid points and apex
-        self._initialize_landmarkds()
+        self.initialize_landmarks()
 
         return translation, position
 
@@ -1314,7 +1320,7 @@ class GPDataSet(object):
                 tol = np.max(int_t)
 
         # update mitral, tricuspid points and apex
-        self._initialize_landmarkds()
+        self.initialize_landmarks()
 
         return translation, position
 

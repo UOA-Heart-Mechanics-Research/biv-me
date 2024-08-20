@@ -44,11 +44,48 @@ Install the bivme package
 pip install -e .
 ```
 
+Notation
+-----------------------------------------------
+If you wish to contribute to this project, we ask you to follow the naming conventions below :
+- **Variable**: use lowercase word. A variable that use multiple words should be separated with an underscore (snake case)
+```sitename``` should be written as ```site_name```
+- **Function and Method**: function/method names should follow the PEP 8 naming conventions ```def MyFunction()``` should be written as ```def my_function()```
+- **Constant**: constant names should be written in uppercase letters with underscores separating words ```MYCONSTANT = 3.1416``` should be written ```MY_CONSTANT = 3.1416```
+- **Class**; class names should follow the CamelCase convention: ```class myclass:``` should be written as ```class MyClass:```
+- **Package and Module** : Avoid using underscores or hyphens in package names to maintain consistency with the Python standard library and third-party packages. ```my_package_name_with_underscores = ...``` should be written ```mypackage = ...```
+- **Type variable**: follow the convention of using CamelCase with a leading capital letter: ```def my_function(items: dict[int, str]):``` should be written as ```def my_function(items: Dict[int, str]):```
+- **Exception** exception names should have the suffix “Error.”: ```class MyCustomException:``` should be ```class MyCustomExceptionError:```
+- Stick to ASCII characters to ensure smooth collaboration and consistent code execution: avoid for example ```ç = 42```. Instead prefer ```count = 42```
+- Use type hints for code readability and prevent type-related errors.
+```
+def greet(name):
+    return "Hello, " + name
+```
+should be
+```
+def greet(name: str) -> str:
+    return "Hello, " + name
+```
+
 Usage
 -----------------------------------------------
 
+### Fit a Biv-me model to GP files
+The script for the mesh fitting can be found in src/bivme/fitting
+```
+usage: perform_fit.py [-h] [-config CONFIG_FILE]
+
+Biv-me
+
+options:
+  -h, --help            show this help message and exit
+  -config CONFIG_FILE, --config_file CONFIG_FILE
+                        Config file containing fitting parameters
+
+```
+
 ### Calculate volumes from Biv-me models
-The script for the volume calculation can be found in bivme/analysis
+The script for the volume calculation can be found in src/bivme/analysis
 
 ```
 usage: compute_volume.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_FILE] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-p PRECISION]
@@ -65,6 +102,8 @@ usage: compute_volume.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_FILE] [-b BIV_MODEL_F
   -p PRECISION, --precision PRECISION
                         Output precision (default: 2)
 ```
+
+
 
 **Step 1**
 

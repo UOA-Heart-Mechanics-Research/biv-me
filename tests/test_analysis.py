@@ -7,7 +7,7 @@ import os
 import pandas as pd
 
 def test_compute_volume():
-    model_file = TEST_RESOURCE_DIR / 'case_1' / 'case_1_model_frame_001.txt'
+    model_file = TEST_RESOURCE_DIR / 'template' / 'template_model_frame_001.txt'
     output_file = 'test_lvrv_volumes.csv'
 
     fieldnames = ['name', 'frame', 'lv_vol', 'lvm', 'rv_vol', 'rvm', 'lv_epivol', 'rv_epivol']
