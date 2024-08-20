@@ -1,5 +1,9 @@
 
 title = "Configuration file for biv-me"
+version = "1.0.0" # for semantic versioning - Major.Minor.Patch sequence
+# e.g software version 2.3.1 means that the software is in its second major version,
+# with three additional functionalities added, and one patch fix implemented.
+# When a developer fixes a bug in that version, the next version release is named version 2.3.2.
 
 [input]
 gp_directory = "./../../../example/guidepoints"
@@ -21,6 +25,8 @@ shifting = "all_frame"  # derived_from_ed, none, all_frame
 # * "derived_from_ed"      : The correction is calculated at ED only and propagated to all the frames
 # * "all"  : Breathold misregistration is calculated for all the time frames
 # Default: "derived_from_ed"
+
+ed_frame = 0  # ED frame
 
 [gp_processing]
 sampling = 1
@@ -55,7 +61,6 @@ overwrite = true
 output_directory = "./../../ouput/"
 # Define where to save the fitted models and files
 # default: ./../../ouput/
-
 
 [multiprocessing]
 workers = 1

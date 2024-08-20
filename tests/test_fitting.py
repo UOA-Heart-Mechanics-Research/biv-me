@@ -20,7 +20,7 @@ def test_performed_fit():
                       "gp_suffix": str(),
                       "si_suffix": str(),
                       },
-            "breathhold_correction": {"shifting": str()},
+            "breathhold_correction": {"shifting": str(), "ed_frame": int()},
             "gp_processing": {"sampling": int()},
             "multiprocessing": {"workers": int()},
             "fitting_weights": {"guide_points": float(), "convex_problem": float(), "transmural": float()},
