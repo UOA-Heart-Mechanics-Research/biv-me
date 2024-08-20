@@ -57,7 +57,6 @@ def solve_convex_problem(
     prev_displacement = np.zeros((biv_model.NUM_NODES, 3))
     step_err = np.linalg.norm(data_points - prior_position, axis=1)
     step_err = np.sqrt(np.sum(step_err) / len(prior_position))
-    print("Explicitly constrained fit")
 
     residuals = -1
     while abs(step_err - previous_step_err) > tol and iteration < 10:
@@ -125,7 +124,6 @@ def solve_convex_problem(
             # Due to numerical approximations, epicardium and endocardium
             # can 'touch' (but not cross),
             # leading to a negative jacobian. If it happens, we stop.
-            print("Diffeomorphic condition not verified ")
             break
         else:
             prev_displacement[:, 0] = prev_displacement[:, 0] + sx
@@ -143,8 +141,6 @@ def solve_convex_problem(
     residuals = step_err
 
     my_logger.success(f"End of the implicitly constrained fit. Time taken: {time.time() - start_time}")
-    print("--- End of the explicitly constrained fit ---")
-    print("--- %s seconds ---" % (time.time() - start_time))
     return residuals
 
 def fit_least_squares_model(biv_model: BiventricularModel, weight_gp: float, data_set: GPDataSet, smoothing_factor: float) -> [np.ndarray, float]:

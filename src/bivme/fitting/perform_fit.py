@@ -8,6 +8,8 @@ from plotly.offline import plot
 import argparse
 import pathlib
 import datetime
+import tomli
+import shutil
 
 from bivme.fitting.BiventricularModel import BiventricularModel
 from bivme.fitting.GPDataSet import GPDataSet
@@ -18,7 +20,6 @@ from bivme.fitting.diffeomorphic_fitting_utils import (
     plot_timeseries,
 )
 
-from bivme.fitting.config_params import *
 from bivme.meshing.mesh_io import write_vtk_surface, export_to_obj
 from loguru import logger
 from rich.progress import Progress
@@ -53,7 +54,7 @@ contours_to_plot = [
     ContourType.PULMONARY_PHANTOM,
 ]
 
-def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="", si_suffix: str ="", frames_to_fit: list[int]=[], output_format: str =".vtk", my_logger: logger = logger, **kwargs) -> float:
+def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_suffix: str ="", si_suffix: str ="", frames_to_fit: list[int]=[], output_format: str =".vtk", my_logger: logger = logger, **kwargs) -> float:
     # performs all the BiVentricular fitting operations
 
     try:
@@ -102,22 +103,17 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
         Path(output_folder).mkdir(parents=True, exist_ok=True)
 
         # create log files where to store fitting errors and shift
-        #error_file = output_folder / f"error_file{gp_suffix}.txt"
         shift_file = output_folder / f"shift_file{gp_suffix}.txt"
         pos_file = output_folder / f"pos_file{gp_suffix}.txt"
 
-        #with error_file.open("w", encoding ="utf-8") as f: #automatically initialises it
-        #    f.write("Log for patient: " + case + "\n")
-
         # The next lines are used to measure shift using only a key frame
-        if measure_shift_EDonly == True:
+        if config["breathhold_correction"]["shifting"] == "derived_from_ed":
             my_logger.info("Shift measured only at ED frame")
-
             ed_dataset = GPDataSet(
                 str(filename),
                 str(filename_info),
                 case,
-                sampling=sampling,
+                sampling=config["gp_processing"]["sampling"],
                 time_frame_number=ed_frame,
             )
             result_at_ed = ed_dataset.sinclaire_slice_shifting(frame_num=ed_frame)
@@ -155,18 +151,15 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                 #    f.write("\nFRAME #" + str(int(num)) + "\n")
 
                 data_set = GPDataSet(
-                    str(filename), str(filename_info), case, sampling=sampling, time_frame_number=num
+                    str(filename), str(filename_info), case, sampling=config["gp_processing"]["sampling"], time_frame_number=num
                 )
                 biventricular_model = BiventricularModel(MODEL_RESOURCE_DIR, case)
-                model = biventricular_model.plot_surface(
-                    "rgb(0,127,0)", "rgb(0,0,127)", "rgb(127,0,0)", surface="all"
-                )
 
-                if measure_shift_EDonly == True:
+                if config["breathhold_correction"]["shifting"] == "derived_from_ed":
                     # apply shift measured previously using ED frame
                     data_set.apply_slice_shift(shift_at_ed, pos_ED)
                     data_set.get_unintersected_slices()
-                else:
+                elif config["breathhold_correction"]["shifting"] == "all_frame":
                     # measure and apply shift to current frame
                     shifted_slice = data_set.sinclaire_slice_shifting(my_logger, int(num))
                     shift_measure = shifted_slice[0]
@@ -194,6 +187,8 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                             file.write(str(pos_measure))
                             file.close()
                     pass
+                else:
+                    my_logger.warning(f'Method for misregistration correction {config["breathhold_correction"]["shifting"]} does not exist. No correction will be applied')
 
                 biventricular_model.update_pose_and_scale(data_set)
 
@@ -259,15 +254,15 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
                 data_set.weights[data_set.contour_type == ContourType.PULMONARY_VALVE] = 1
 
                 # Perform linear fit (step1)
-                solve_least_squares_problem(biventricular_model, weight_GP, data_set, my_logger)
+                solve_least_squares_problem(biventricular_model, config["fitting_weights"]["guide_points"], data_set, my_logger)
 
                 # Perform diffeomorphic fit (step2)
                 residuals += solve_convex_problem(
                     biventricular_model,
                     data_set,
-                    weight_GP,
-                    low_smoothing_weight,
-                    transmural_weight,
+                    config["fitting_weights"]["guide_points"],
+                    config["fitting_weights"]["convex_problem"],
+                    config["fitting_weights"]["transmural"],
                     my_logger,
                 ) / len(sorted(frames_to_fit))
 
@@ -358,25 +353,48 @@ def perform_fitting(folder: str, out_dir: str ="./results/", gp_suffix: str ="",
 
 
 if __name__ == "__main__":
-    ##TODO create json config for setup and save this json config so we know the parameters used for each fit
     parser = argparse.ArgumentParser(description='Biv-me')
-    parser.add_argument('-gp', '--dir_gp', default="./../../../example/guidepoints", type=str,
-                        help='directory containing guidepoint files')
-    parser.add_argument('-o', '--output_dir', default="./../../../output/fitted", type=str,
-                        help='output directory')
-    parser.add_argument('-w', '--overwrite', action="store_true",
-                        help='Overwrite existing output mesh')
-    parser.add_argument('-gp_suf', '--gp_suffix', default="", type=str,
-                        help='guidepoint to use')
-    parser.add_argument('-si_suf', '--si_suffix', default="", type=str,
-                        help='slice info to use')
-    parser.add_argument('-f', '--format', default=".vtk", type=str,
-                        help='Format of the output model (Only .obj and .vtk are currently supported)')
+    parser.add_argument('-config', '--config_file', type=str,
+                        help='Config file containing fitting parameters')
     args = parser.parse_args()
 
+    # Load config
+    assert Path(args.config_file).exists(), \
+        f'Cannot not find {args.config_file}!'
+    with open(args.config_file, mode="rb") as fp:
+        config = tomli.load(fp)
+
+    # TOML Schema Validation
+    match config:
+        case {
+            "input": {"gp_directory": str(),
+                      "gp_suffix": str(),
+                      "si_suffix": str(),
+                      },
+            "breathhold_correction": {"shifting": str()},
+            "gp_processing": {"sampling": int()},
+            "multiprocessing": {"workers": int()},
+            "fitting_weights": {"guide_points": float(), "convex_problem": float(), "transmural": float()},
+            "output": {"output_directory": str(), "show_logging": bool(), "mesh_format": str(), "generate_log_file": bool(), "overwrite": bool()},
+        }:
+            pass
+        case _:
+            raise ValueError(f"Invalid configuration: {config}")
+
+    # save config file to the output folder
+    output_folder = Path(config["output"]["output_directory"])
+    output_folder.mkdir(parents=True, exist_ok=True)
+    shutil.copy(args.config_file, output_folder)
+
+    assert Path(config["input"]["gp_directory"]).exists(), \
+        f'gp_directory does not exist. Cannot find {config["input"]["gp_directory"]}!'
+
     # set list of cases to process
-    case_list = os.listdir(args.dir_gp)
-    case_dirs = [Path(args.dir_gp, case).as_posix() for case in case_list]
+    case_list = os.listdir(config["input"]["gp_directory"])
+    case_dirs = [Path(config["input"]["gp_directory"], case).as_posix() for case in case_list]
+
+    if not config["output"]["show_logging"]:
+        logger.remove()
 
     log_level = "DEBUG"
     log_format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS zz}</green> | <level>{level: <8}</level> | <yellow>Line {line: >4} ({file}):</yellow> <b>{message}</b>"
@@ -385,25 +403,27 @@ if __name__ == "__main__":
     # start processing...
     start_time = time.time()
 
-    if not (args.format.endswith('.obj') or args.format.endswith('.vtk')):
-        logger.error('argument format must be .obj or .vtk')
-        raise argparse.ArgumentTypeError('argument format must be .obj or .vtk')
+    if not (config["output"]["mesh_format"].endswith('.obj') or config["output"]["mesh_format"].endswith('.vtk')):
+        logger.error(f'argument mesh_format must be .obj or .vtk. {config["output"]["mesh_format"]} given.')
+        sys.exit(0)
 
     for case in case_dirs:
         logger.info(f"Processing {os.path.basename(case)}")
-        logger_id = logger.add(f"{args.output_dir}/{os.path.basename(case)}/log_file_{datetime.datetime.now()}.log", level=log_level, format=log_format,
-                                    colorize=False, backtrace=True,
-                                    diagnose=True)
+        if config["output"]["generate_log_file"]:
+            logger_id = logger.add(f'{config["output"]["output_directory"]}/{os.path.basename(case)}/log_file_{datetime.datetime.now()}.log', level=log_level, format=log_format,
+                                        colorize=False, backtrace=True,
+                                        diagnose=True)
 
-        if not args.overwrite and os.path.exists(os.path.join(args.output_dir, os.path.basename(case))):
+        if not config["output"]["overwrite"] and os.path.exists(os.path.join(config["output"]["output_directory"], os.path.basename(case))):
             logger.info("Folder already exists for this case. Proceeding to next case")
             continue
 
-        residuals = perform_fitting(case, out_dir=args.output_dir, gp_suffix=args.gp_suffix, si_suffix=args.si_suffix,
-                        frames_to_fit=[], output_format=args.format, logger=logger)
+        residuals = perform_fitting(case, config, out_dir=config["output"]["output_directory"], gp_suffix=config["input"]["gp_suffix"], si_suffix=config["input"]["si_suffix"],
+                        frames_to_fit=[], output_format=config["output"]["mesh_format"], logger=logger)
         logger.info(f"Average residuals: {residuals} for case {os.path.basename(case)}")
-        logger.remove(logger_id)
+        if config["output"]["generate_log_file"]:
+            logger.remove(logger_id)
 
     logger.info(f"Total cases processed: {len(case_dirs)}")
     logger.info(f"Total time: {time.time() - start_time}")
-    logger.success(f"Done. Results are saved in {args.output_dir}")
+    logger.success(f'Done. Results are saved in {config["output"]["output_directory"]}')

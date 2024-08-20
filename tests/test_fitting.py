@@ -3,11 +3,32 @@ from bivme.fitting.perform_fit import perform_fitting
 from bivme import TEST_RESOURCE_DIR, MODEL_RESOURCE_DIR
 from . import CURRENT_RESIDUALS
 import shutil
-
-
+from pathlib import Path
+import tomli
 def test_performed_fit():
     test_data = ["patient_1_gpdata", "patient_2_gpdata"]
     output_dir = TEST_RESOURCE_DIR / 'output'
+
+    config_file = '../biv-me/src/bivme/configs/config.toml'
+    with open(config_file, mode="rb") as fp:
+        config = tomli.load(fp)
+
+    # TOML Schema Validation
+    match config:
+        case {
+            "input": {"gp_directory": str(),
+                      "gp_suffix": str(),
+                      "si_suffix": str(),
+                      },
+            "breathhold_correction": {"shifting": str()},
+            "gp_processing": {"sampling": int()},
+            "multiprocessing": {"workers": int()},
+            "fitting_weights": {"guide_points": float(), "convex_problem": float(), "transmural": float()},
+            "output": {"output_directory": str(), "show_logging": bool(), "mesh_format": str(), "generate_log_file": bool(), "overwrite": bool()},
+        }:
+            pass
+        case _:
+            raise ValueError(f"Invalid configuration: {config}")
 
     for test_case in test_data:
         patient_name = test_case
@@ -16,7 +37,7 @@ def test_performed_fit():
 
         if not output_dir.exists():
             output_dir.mkdir()
-        residuals = perform_fitting(gp_file, output_dir)
+        residuals = perform_fitting(gp_file, config, output_dir)
 
         assert residuals > 0
         assert round(residuals, 2) <= CURRENT_RESIDUALS[test_case]
