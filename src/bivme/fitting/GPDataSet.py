@@ -31,6 +31,7 @@ SAMPLED_CONTOUR_TYPES = [
     ContourType.SAX_RV_SEPTUM,
     ContourType.LAX_RV_SEPTUM,
     ContourType.SAX_RV_OUTLET,
+    ContourType.REMOVED
 ]
 UNSAMPLED_CONTOUR_TYPES = [
     ContourType.MITRAL_VALVE,
@@ -84,7 +85,6 @@ class GPDataSet(object):
         self.contour_type = np.empty((1))
         self.slice_number = np.empty((1))
         self.weights = np.empty((1))
-        self.time_frame = None
         self.number_of_slice = 0
         self.frames = {}
 
@@ -94,11 +94,12 @@ class GPDataSet(object):
         # scalars
         self.time_frame = time_frame_number
         if contour_filename is not None:
-            self.read_contour_file(contour_filename, time_frame_number, sampling)
+            #self.read_contour_file(contour_filename, time_frame_number, sampling)
+            self.read_contour_file(contour_filename, sampling)
             self.initialize_landmarks()
 
             if metadata_filename != None:
-                self._read_dicom_metadata(metadata_filename)
+                self.read_dicom_metadata(metadata_filename)
             else:
                 warnings.warn("Metadata file is not defined ")
 
@@ -109,15 +110,15 @@ class GPDataSet(object):
         # If you don't have this problem with your dataset, you can comment it.
         # self.identify_mitral_valve_points()
 
-    def read_contour_file(self, filename: str, time_frame_number: int=None, sampling: int=1) -> None:
+    def read_contour_file(self, filename: str, sampling: int=1) -> None:
         """add  by A. Mira 02/2020"""
         # column num 3 of my datset is a space
         if not os.path.exists(filename):
             warnings.warn("Contour files does not exist")
             return
-        P = []
+        points = []
         slices = []
-        contypes = []
+        contour_types = []
         weights = []
         time_frame = []
         try:
@@ -125,67 +126,67 @@ class GPDataSet(object):
                 open(filename), sep="\t", header=None, low_memory=False
             )  # LDT 15/11 added low_memory False
             for line_index, line in enumerate(data.values[1:]):
-                P.append([float(x) for x in line[:3]])
+                points.append([float(x) for x in line[:3]])
 
                 slices.append(int(line[4]))
-                contypes.append(line[3])
+                contour_types.append(line[3])
 
                 weights.append(float(line[5]))
-                try:
-                    time_frame.append(int(float(line[6])))
-                except:
-                    time_frame.append(time_frame_number)
+                #try:
+                #    time_frame.append(int(float(line[6])))
+                #except:
+                #    time_frame.append(time_frame_number)
 
-            P = np.array(P)
+            points = np.array(points)
             slices = np.array(slices)
-            contypes = np.array(contypes)
+            contour_types = np.array(contour_types)
             weights = np.array(weights)
-            time_frame = np.array(time_frame)
+            #time_frame = np.array(time_frame)
 
         except ValueError:
             print("Wrong file format: {0}".format(filename))
 
-        if time_frame_number is not None:
-            valid_contour_index = np.array(time_frame == time_frame_number)
-            if np.sum(valid_contour_index) == 0:
-                warnings.warn("Wrong time frame number")
-                return
+        ##if time_frame_number > -1:
+        ##    valid_contour_index = np.array(time_frame == time_frame_number)
+        ##    if np.sum(valid_contour_index) == 0:
+        ##        warnings.warn("Wrong time frame number")
+        ##        return
+##
+        ##    points = points[valid_contour_index, :]
+        ##    slices = slices[valid_contour_index]
+        ##    contour_types = contour_types[valid_contour_index]
+        ##    weights = weights[valid_contour_index]
 
-            P = P[valid_contour_index, :]
-            slices = slices[valid_contour_index]
-            contypes = contypes[valid_contour_index]
-            weights = weights[valid_contour_index]
-
-        contypes = self.convert_contour_types(contypes)
+        contour_types = self.convert_contour_types(contour_types)
         # increment contours points which don't need sampling
 
-        valid_contour_index = np.array([x in UNSAMPLED_CONTOUR_TYPES for x in contypes])
+        valid_contour_index = np.array([x in UNSAMPLED_CONTOUR_TYPES for x in contour_types])
 
-        self.points_coordinates = P[valid_contour_index]
-        self.contour_type = contypes[valid_contour_index]
+        self.points_coordinates = points[valid_contour_index]
+        self.contour_type = contour_types[valid_contour_index]
         self.slice_number = slices[valid_contour_index]
         self.weights = weights[valid_contour_index]
         del_index = list(np.where(valid_contour_index)[0])
-        P = np.delete(P, del_index, axis=0)
-        contypes = np.delete(contypes, del_index)
+        points = np.delete(points, del_index, axis=0)
+        contour_types = np.delete(contour_types, del_index)
         slices = np.delete(slices, del_index)
         weights = np.delete(weights, del_index)
 
         self.number_of_slice = len(self.slice_number)  # slice index starting with 0
 
-        self._sample_contours(P, slices, contypes, weights, sampling)  # there are
+        self.sample_contours(points, slices, contour_types, weights, sampling)  # there are
         # too many
         # points extracted from cvi files.  To reduce computation time,
         # the contours points are sampled
 
         self.number_of_slice = max(self.slice_number) + 1
 
-    def _sample_contours(self, points, slices, contypes, weights, sample):
+    def sample_contours(self, points, slices, contour_types, weights, sample):
         for j in np.unique(slices):  # For slice i, extract evenly
             # spaced point for all type
-            for contour_index, contour_type in enumerate(SAMPLED_CONTOUR_TYPES):
-                C = points[(contypes == contour_type) & (slices == j), :]
-                C_weights = weights[(contypes == contour_type) & (slices == j)]
+            for contour_index, type in enumerate(SAMPLED_CONTOUR_TYPES):
+                C = points[(contour_types == type) & (slices == j), :]
+                C_weights = weights[(contour_types == type) & (slices == j)]
 
                 if len(C) > 0:
                     # sort the points by euclidean distance from the
@@ -202,7 +203,7 @@ class GPDataSet(object):
                         (self.slice_number, [j] * len(Cx[0::sample, :]))
                     )
                     self.contour_type = np.hstack(
-                        (self.contour_type, [contour_type] * len(Cx[0::sample, :]))
+                        (self.contour_type, [type] * len(Cx[0::sample, :]))
                     )
                     self.weights = np.hstack(
                         (self.weights, C_weights[Cx_index[0::sample]])
@@ -330,7 +331,7 @@ class GPDataSet(object):
 
         return np.asarray(rv_epi), np.array(rv_epi_contour), np.array(rv_epi_slice)
 
-    def _read_dicom_metadata(self, name):
+    def read_dicom_metadata(self, name):
         """This function reads the 'name' file containing dicom info
         (see example SliceInfo.txt).
         Input:
@@ -622,7 +623,7 @@ class GPDataSet(object):
 
         return new_points
 
-    def PlotDataSet(self, contours_to_plot=[]):
+    def plot_dataset(self, contours_to_plot=[]):
         """This function plots this entire dataset.
         Input:
             Con
@@ -651,6 +652,7 @@ class GPDataSet(object):
                 ContourType.LAX_LV_EPICARDIAL,
                 ContourType.SAX_LV_ENDOCARDIAL,
                 ContourType.LAX_LV_ENDOCARDIAL,
+                ContourType.REMOVED,
             ]
         )
         lines_color_map = np.array(
@@ -674,6 +676,7 @@ class GPDataSet(object):
                 "rgb(255,127,80)",
                 "rgb(85,107,47)",
                 "rgb(50,205,50)",
+                "rgb(128,128,128)",
             ]
         )
         # points types
@@ -732,7 +735,7 @@ class GPDataSet(object):
 
         return contourPlots
 
-    def sinclaire_slice_shifting(self, my_logger : logger, fix_LAX=False):
+    def sinclaire_slice_shifting(self, my_logger : logger, fix_lax : bool=False):
         """This method does a breath-hold misregistration correction be default for both LAX
         and SAX using Sinclair, Matthew, et al. "Fully automated segmentation-based
         respiratory motion correction of multiplanar cardiac magnetic resonance images
@@ -756,22 +759,21 @@ class GPDataSet(object):
                 "corrected")
             return [], []
 
-        stoping_criterion = 5
-        # The stoping_criterion is the residual translation
+        stopping_criterion = 5
+        # The stopping_criterion is the residual translation
         # read the slice number corresponding to each frame
         translation = np.zeros((len(self.frames.keys()), 2))  # 2D translation
         position = np.zeros((len(self.frames.keys()), 3))
         iteration_num = 1
 
-        while stoping_criterion > 1 and iteration_num < 50:
+        while stopping_criterion > 1 and iteration_num < 50:
             # print('iteration',iteration_num )
             nb_translations = 0
             np_frames = np.unique(self.slice_number)
 
             int_t = []
             for index, id in enumerate(np_frames):
-                # print('slice', id)
-                t = self._get_slice_shift_sinclaire(id, iteration_num, fix_LAX)
+                t = self._get_slice_shift_sinclaire(id, iteration_num, fix_lax)
 
                 if not (t is None):
                     nb_translations += 1
@@ -801,7 +803,7 @@ class GPDataSet(object):
                     self.points_coordinates[indexes, :] = P3_LV
 
             iteration_num = iteration_num + 1
-            stoping_criterion = np.max(int_t)
+            stopping_criterion = np.max(int_t)
 
         # update mitral, tricuspid points and apex
         self.initialize_landmarks()
@@ -819,19 +821,19 @@ class GPDataSet(object):
         ]
 
         np_slices = np.unique(self.slice_number)
+
         redundant_slices = []
-        for index, id in enumerate(np_slices):
+        for index, slice_id in enumerate(np_slices):
             zero_count = 0
             for c_indx, contour in enumerate(lax_registered_contours):
-                contour_intersect_points = self._get_slice_intersection_points(
-                    contour, id
+                contour_intersect_points = self.get_slice_intersection_points(
+                    contour, slice_id
                 )
                 if len(contour_intersect_points) == 0:
                     zero_count += 1
-                    # print(contour)
-            # print('zero_count ', zero_count)
-            if zero_count == 4:
-                redundant_slices.append(id)
+
+            if zero_count == len(lax_registered_contours): # none of the LAX are intersecting with this SAX
+                redundant_slices.append(slice_id)
 
         if len(self.points_coordinates) == 0:
             return np.zeros(0), np.zeros(0)
@@ -840,11 +842,14 @@ class GPDataSet(object):
         for i in redundant_slices:
             valid_index = valid_index * (self.slice_number != i)
 
-        # remove unitersetcted sax slices (based on LAX contours),
-        self.points_coordinates = self.points_coordinates[valid_index]
-        self.contour_type = self.contour_type[valid_index]
-        self.slice_number = self.slice_number[valid_index]
-        self.weights = self.weights[valid_index]
+        # remove unintersected sax slices (based on LAX contours),
+        #self.points_coordinates = self.points_coordinates[valid_index]
+        #self.contour_type = self.contour_type[valid_index]
+        #self.slice_number = self.slice_number[valid_index]
+        #self.weights = self.weights[valid_index]
+
+        self.weights[~valid_index] = 0.0
+        self.contour_type[~valid_index] = ContourType.REMOVED
 
         return redundant_slices, valid_index
 
@@ -862,7 +867,7 @@ class GPDataSet(object):
         np_slices = np.unique(self.slice_number)
         redundant_slices = []
         for index, id in enumerate(np_slices):
-            contour_intersect_points = self._get_slice_intersection_points(
+            contour_intersect_points = self.get_slice_intersection_points(
                 lax_registered_contours, id
             )
             if len(contour_intersect_points) == 0:
@@ -881,11 +886,14 @@ class GPDataSet(object):
                 )
         valid_index = ~invalid_index
 
-        # remove unitersetcted sax slices (based on LAX contours),
-        self.points_coordinates = self.points_coordinates[valid_index]
-        self.contour_type = self.contour_type[valid_index]
-        self.slice_number = self.slice_number[valid_index]
-        self.weights = self.weights[valid_index]
+        # remove unintersected sax slices (based on LAX contours),
+        #self.points_coordinates = self.points_coordinates[valid_index]
+        #self.contour_type = self.contour_type[valid_index]
+        #self.slice_number = self.slice_number[valid_index]
+        #self.weights = self.weights[valid_index]
+
+        self.weights[~valid_index] = 0.0
+        self.contour_type[~valid_index] = ContourType.REMOVED
 
         return redundant_slices, valid_index
 
@@ -975,7 +983,7 @@ class GPDataSet(object):
             # Compute contours intersection with  Dicom slice i.
             # -----LDT: return intersection points of the contour of  "#slice_number"
             # -----LDT: with the contours from  any  other slice in the stack.
-            contour_intersect_points = self._get_slice_intersection_points(
+            contour_intersect_points = self.get_slice_intersection_points(
                 intersecting_contour, slice_number
             )
 
@@ -1039,7 +1047,7 @@ class GPDataSet(object):
 
         return t
 
-    def _get_slice_intersection_points(self, contour, slice_number):
+    def get_slice_intersection_points(self, contour, slice_number):
         """return intersection points of the contour of  "#slice_number"
         with the contours from  any  other slice in the stack. There the
         points of a slice are assumed to be ordered also in slice position is considered !!
@@ -1287,7 +1295,7 @@ class GPDataSet(object):
             nb_frames = np.unique(self.slice_number)
             int_t = []
             for index, id in enumerate(nb_frames):
-                t = self._get_slice_shift_combined(id, model, fix_LA)
+                t = self.get_slice_shift_combined(id, model, fix_LA)
                 if t is not None:
                     nb_translations += 1
                     int_t.append(np.linalg.norm(t))
@@ -1324,7 +1332,7 @@ class GPDataSet(object):
 
         return translation, position
 
-    def _get_slice_shift_combined(self, slice_number, model, fix_LA=False):
+    def get_slice_shift_combined(self, slice_number, model, fix_LA=False):
         """
         computes translation of slice #slice_number minimizing the
         distance between
@@ -1401,7 +1409,7 @@ class GPDataSet(object):
                     continue
 
             # Compute contours intersection with  Dicom slice i
-            contour_intersect_points = self._get_slice_intersection_points(
+            contour_intersect_points = self.get_slice_intersection_points(
                 intersecting_contour, slice_number
             )
 
