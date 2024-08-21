@@ -31,7 +31,7 @@ SAMPLED_CONTOUR_TYPES = [
     ContourType.SAX_RV_SEPTUM,
     ContourType.LAX_RV_SEPTUM,
     ContourType.SAX_RV_OUTLET,
-    ContourType.REMOVED
+    ContourType.EXCLUDED
 ]
 UNSAMPLED_CONTOUR_TYPES = [
     ContourType.MITRAL_VALVE,
@@ -96,7 +96,7 @@ class GPDataSet(object):
         if contour_filename is not None:
             #self.read_contour_file(contour_filename, time_frame_number, sampling)
             self.read_contour_file(contour_filename, sampling)
-            self.initialize_landmarks()
+            self.success = self.initialize_landmarks()
 
             if metadata_filename != None:
                 self.read_dicom_metadata(metadata_filename)
@@ -109,6 +109,7 @@ class GPDataSet(object):
         # from to apply the correct shift.
         # If you don't have this problem with your dataset, you can comment it.
         # self.identify_mitral_valve_points()
+
 
     def read_contour_file(self, filename: str, sampling: int=1) -> None:
         """add  by A. Mira 02/2020"""
@@ -209,22 +210,25 @@ class GPDataSet(object):
                         (self.weights, C_weights[Cx_index[0::sample]])
                     )
 
-    def initialize_landmarks(self):
+    def initialize_landmarks(self) -> bool:
         "add by A.Mira on 01/2020"
         # calc valve centroids
 
         P = self.points_coordinates
         mitral_index = self.contour_type == ContourType.MITRAL_VALVE
-        if np.sum(mitral_index) > 0:
-            self.mitral_centroid = P[mitral_index, :].mean(axis=0)
+
+        if np.sum(mitral_index)>0:
+            self.mitral_centroid = P[mitral_index,:].mean(axis=0)
         else:
-            assert f"No mitral valve points!"
+            logger.error(f"No mitral valve points for this frame! Skipping it")
+            return False
 
         tricuspid_index = self.contour_type == ContourType.TRICUSPID_VALVE
-        if np.sum(tricuspid_index) > 0:
+        if np.sum(tricuspid_index)>0:
             self.tricuspid_centroid = P[tricuspid_index, :].mean(axis=0)
         else:
-            assert f"No tricuspid valve points!"
+            logger.error(f"No tricuspid valve points for this frame! Skipping it")
+            return False
 
         aorta_contour_index = self.contour_type == ContourType.AORTA_VALVE
         if np.sum(aorta_contour_index) > 0:
@@ -241,7 +245,7 @@ class GPDataSet(object):
 
             if len(self.apex) > 0:
                 self.apex = self.apex[0, :]
-
+        return True
     @staticmethod
     def convert_contour_types(contours):
         "add by A.Mira on 01/2020"
@@ -652,7 +656,7 @@ class GPDataSet(object):
                 ContourType.LAX_LV_EPICARDIAL,
                 ContourType.SAX_LV_ENDOCARDIAL,
                 ContourType.LAX_LV_ENDOCARDIAL,
-                ContourType.REMOVED,
+                ContourType.EXCLUDED,
             ]
         )
         lines_color_map = np.array(
@@ -806,7 +810,7 @@ class GPDataSet(object):
             stopping_criterion = np.max(int_t)
 
         # update mitral, tricuspid points and apex
-        self.initialize_landmarks()
+        _ = self.initialize_landmarks()
 
         return translation, position
 
@@ -849,7 +853,7 @@ class GPDataSet(object):
         #self.weights = self.weights[valid_index]
 
         self.weights[~valid_index] = 0.0
-        self.contour_type[~valid_index] = ContourType.REMOVED
+        self.contour_type[~valid_index] = ContourType.EXCLUDED
 
         return redundant_slices, valid_index
 
@@ -887,13 +891,10 @@ class GPDataSet(object):
         valid_index = ~invalid_index
 
         # remove unintersected sax slices (based on LAX contours),
-        #self.points_coordinates = self.points_coordinates[valid_index]
-        #self.contour_type = self.contour_type[valid_index]
-        #self.slice_number = self.slice_number[valid_index]
-        #self.weights = self.weights[valid_index]
-
-        self.weights[~valid_index] = 0.0
-        self.contour_type[~valid_index] = ContourType.REMOVED
+        self.points_coordinates = self.points_coordinates[valid_index]
+        self.contour_type = self.contour_type[valid_index]
+        self.slice_number = self.slice_number[valid_index]
+        self.weights = self.weights[valid_index]
 
         return redundant_slices, valid_index
 
@@ -1328,7 +1329,7 @@ class GPDataSet(object):
                 tol = np.max(int_t)
 
         # update mitral, tricuspid points and apex
-        self.initialize_landmarks()
+        _ = self.initialize_landmarks()
 
         return translation, position
 

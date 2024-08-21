@@ -54,7 +54,7 @@ contours_to_plot = [
     ContourType.TRICUSPID_PHANTOM,
     ContourType.MITRAL_PHANTOM,
     ContourType.PULMONARY_PHANTOM,
-    ContourType.REMOVED,
+    ContourType.EXCLUDED,
 ]
 
 def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_suffix: str ="", si_suffix: str ="", frames_to_fit: list[int]=[], output_format: str =".vtk", my_logger: logger = logger, **kwargs) -> float:
@@ -87,6 +87,7 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
         frame_name = [re.search(r'GPFile_*(\d+)\.txt', str(file), re.IGNORECASE)[1] for file in time_frame]
         frame_name = sorted(frame_name)
 
+
         ed_frame = config["breathhold_correction"]["ed_frame"]
         my_logger.info(f'ED set to frame #{config["breathhold_correction"]["ed_frame"]}')
 
@@ -94,6 +95,7 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
             frames_to_fit = np.unique(
                 frame_name
             )  # if you want to fit all _frames#
+
 
         # create a separate output folder for each patient
         output_folder = Path(out_dir) / case
@@ -106,7 +108,7 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
         # The next lines are used to measure shift using only a key frame
         if config["breathhold_correction"]["shifting"] == "derived_from_ed":
             my_logger.info("Shift measured only at ED frame")
-            filename = Path(folder) / f"GPFile_{gp_suffix}{frame_name[ed_frame]:02}.txt"
+            filename = Path(folder) / f"GPFile_{gp_suffix}{frame_name[ed_frame]:03}.txt"
             if not filename.exists():
                 my_logger.error(f"Cannot find {filename} file! Skipping this model")
                 return -1
@@ -118,7 +120,8 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                 sampling=config["gp_processing"]["sampling"],
                 time_frame_number=ed_frame,
             )
-
+            if not ed_dataset.success:
+                return -1
             result_at_ed = ed_dataset.sinclaire_slice_shifting(my_logger)
             _, _ = ed_dataset.get_unintersected_slices()
 
@@ -153,7 +156,7 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                 )
                 model_file.touch(exist_ok=True)
 
-                filename = Path(folder) / f"GPFile_{gp_suffix}{frame_name[num]:02}.txt"
+                filename = Path(folder) / f"GPFile_{gp_suffix}{num:03}.txt"
                 if not filename.exists():
                     my_logger.error(f"Cannot find {filename} file! Skipping this model")
                     return -1
@@ -161,6 +164,8 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                 data_set = GPDataSet(
                     str(filename), str(filename_info), case, sampling=config["gp_processing"]["sampling"], time_frame_number=num
                 )
+                if not data_set.success:
+                    return -1
                 biventricular_model = BiventricularModel(MODEL_RESOURCE_DIR, case)
 
                 if config["breathhold_correction"]["shifting"] == "derived_from_ed":
