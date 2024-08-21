@@ -1,0 +1,63 @@
+
+title = "Configuration file for biv-me"
+
+[input]
+gp_directory = "./../../../example/guidepoints"
+# Define the directory containing guidepoint files
+# default: ./../../../example/guidepoints
+
+gp_suffix = ''
+# Define guidepoints to use if we do not want to fit all the models in the input folder
+# Default: ""
+
+si_suffix = ''
+# Define slice info to use if multiple SliceInfo.txt file are available
+# Default: ""
+
+[breathhold_correction]
+shifting = "all_frame"  # derived_from_ed, none, all_frame
+# Define the method used for breathhold misregistration correction.
+# Allowed values:
+# * "derived_from_ed"      : The correction is calculated at ED only and propagated to all the frames
+# * "all"  : Breathold misregistration is calculated for all the time frames
+# Default: "derived_from_ed"
+
+[gp_processing]
+sampling = 1
+# Controls whether to sample the data points or not. This can be useful when dealing with very dense data points.
+# sampling = 1 means all the points are kept, sampling = 2 means that 1 every two points is kept etc.
+# Default: 1
+
+[fitting_weights]
+guide_points = 100.0
+convex_problem = 1e6
+transmural = 0.01
+
+[output]
+show_logging = true
+# Change the log visibility.
+# If true, logs will show on the console.
+# Default: true
+
+generate_log_file = true
+# Decide wether or not to save the logs. If true, a .log file will be generated
+# Default: true
+
+mesh_format = ".obj"
+# Allowed values:
+# * ".obj" : write the mesh as a wavefront .obj file - compatible with most computer graphics/mesh visualisation software
+# * ".vtk" : write the mesh as tvk format
+# Default: ".obj"
+
+overwrite = true
+# Define to overwrite the output mesh if it exists
+
+output_directory = "./../../ouput/"
+# Define where to save the fitted models and files
+# default: ./../../ouput/
+
+
+[multiprocessing]
+workers = 1
+# number of workers to use for multi processing
+# default: 1
