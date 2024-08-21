@@ -479,7 +479,6 @@ class Mesh:
                 '3D' for hexahedron)
 
         Returns:
-
         """
 
         # %% Write Nodes list in Continuity format
@@ -520,7 +519,7 @@ class Mesh:
         f.write(elem_string)
         f.close()
 
-    def export_mesh_cont6(self,filename, elem_type = '2D',scale = 1):
+    def export_mesh_cont6(self, filename, elem_type = '2D',scale = 1):
         filename_nodes = filename + '_nodes'
         filename_elem = filename + '_elem'
 
