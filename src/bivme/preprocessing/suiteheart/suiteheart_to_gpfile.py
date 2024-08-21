@@ -3,6 +3,8 @@ import numpy as np
 import glob
 from pathlib import Path
 import scipy.io as sio
+import argparse
+from loguru import logger
 
 
 class Frame():
@@ -211,9 +213,7 @@ def process_lax(laxfile, saxfile):
     lax_gp = []
 
     for phase in range(num_phases):
-        # print(f"Processing frame {phase+1}")
         for slice in range(num_slices):
-            # print(f"Processing slice {slice+1}")
             # Get img2world transform
             position = lax_mat['image_position'][phase][slice][0]
             orientation = lax_mat['orientation'][phase][slice][0]
@@ -276,78 +276,43 @@ def process_lax(laxfile, saxfile):
                         break
                 
             # Determine mitral valve points
-            # Attempt to extract from MV annulus in SAX matlab export
-            # Stored as direction and magnitude in 3D - don't ask why...
-            # try:
-            #     mv_dir = np.array([sax_mat['mv_annulus'][phase][slice][0][0][0][0], 
-            #                     sax_mat['mv_annulus'][phase][slice][1][0][0][0]])
-            #     mv_mag = np.array([sax_mat['mv_annulus'][phase][slice][0][0][1][0][0], 
-            #                         sax_mat['mv_annulus'][phase][slice][1][0][1][0][0]])
-            #     mv=[]
-            #     for i in range(len(mv_dir)):
-            #         mv.append(mv_dir[i] * mv_mag[i])
-            # except:
-            #     mv = []
-            mv=[]
-            if len(mv) == 0:
-                # print('No MV annulus found')
+            # Present on all slices (2ch, 3ch, 4ch)
+            # Attempt to extract from MV annulus in LAX matlab export
+            try:
+                mv1 = lax_mat['mv_annulus'][phase][slice][0][0][2][0]
+                mv2 = lax_mat['mv_annulus'][phase][slice][0][0][2][1]
+                mv=np.array([mv1,mv2])
+            except:
+                logger.info(f"MV annulus not found in {laxfile}")
                 # Try to extract from intersection of LV endo and LA endo
                 if len(la_endo) > 0:
                     mv = get_landmarks_from_intersections(lv_endo, la_endo, distance_cutoff=1)
                 else:
                     mv = []
-            else:
-                # Convert back to 2D for now
-                mv_2D = []
-                for points in mv:
-                    points = np.array([points[0], points[1], points[2], 1])
-                    # Transform to image space
-                    points = np.dot(points, np.linalg.inv(img2world.T))
-                    points = points[:2]
-                    mv_2D.append(points)
-                mv = np.array([mv_2D[0], mv_2D[1]])
-                
-            # Determine tricuspid valve points
-            # Attempt to extract from TV annulus in SAX matlab export
-            # Stored as direction and magnitude in 3D - don't ask why...
-            # TODO: Figure out why only one point stored for tv annulus
-
-            # try:
-            #     tv_dir = np.array([sax_mat['tv_annulus'][phase][slice][0][0][0][0],
-            #                         sax_mat['tv_annulus'][phase][slice][1][0][0][0]])
-            #     tv_mag = np.array([sax_mat['tv_annulus'][phase][slice][0][0][1][0][0],
-            #                         sax_mat['tv_annulus'][phase][slice][1][0][1][0][0]])
-            #     tv=[]
-            #     for i in range(len(tv_dir)):
-            #         tv.append(tv_dir[i] * tv_mag[i])
-            # except:
-            #     tv = []
-            tv=[]
-            if len(tv) == 0:
-                # print('No TV annulus found')
-                # Try to extract from intersection of RV endo and RA endo
-                if len(ra_endo) > 0:
-                    tv = get_landmarks_from_intersections(rv_endo, ra_endo, distance_cutoff=1)
-                else:
-                    tv = []
-            else:
-                # Convert back to 2D for now
-                tv_2D = []
-                for points in tv:
-                    points = np.array([points[0], points[1], points[2], 1])
-                    # Transform to image space
-                    points = np.dot(points, np.linalg.inv(img2world.T))
-                    points = points[:2]
-                    tv_2D.append(points)
-                tv = np.array([tv_2D[0], tv_2D[1]])
             
-            if len(rv_endo) > 0: # therefore it is a 4Ch slice -> get lv epi apex
+            if len(rv_endo) > 0: # therefore it is a 4Ch slice -> get lv epi apex and tv points
+                # Determine LV apex
                 mv_centroid = np.mean(mv, axis=0)
                 # Get lv epi point furthest from centroid
                 distances = [np.sqrt((v[0] - mv_centroid[0])**2 + (v[1] - mv_centroid[1])**2) for v in lv_epi]
                 lv_apex = lv_epi[np.argmax(distances)]
+
+                # Determine tricuspid valve points
+                # Attempt to extract from TV annulus in LAX matlab export
+                try:
+                    tv1 = lax_mat['tv_annulus'][phase][slice][0][0][2][0]
+                    tv2 = lax_mat['tv_annulus'][phase][slice][0][0][2][1]
+                    tv=np.array([tv1,tv2])
+                except:
+                    logger.info(f"TV annulus not found in {laxfile}")
+                    # Try to extract from intersection of RV endo and RA endo
+                    if len(ra_endo) > 0:
+                        tv = get_landmarks_from_intersections(rv_endo, ra_endo, distance_cutoff=1)
+                    else:
+                        tv = []
             else:
                 lv_apex = []
+                tv = []
             
             points2D = [lv_endo, lv_epi, rv_fw, rv_septum, mv, tv, lv_apex]
             points_contypes = ['LAX_LV_ENDOCARDIAL', 'LAX_LV_EPICARDIAL', 'LAX_RV_FREEWALL', 'LAX_RV_SEPTUM', 'MITRAL_VALVE', 'TRICUSPID_VALVE', 'APEX_POINT']
@@ -404,17 +369,9 @@ def write_slice_info_file(saxfile,laxfile, sliceinfofile):
         
         string = f"{uid}\tframeID:\t{slice+1}\tImagePositionPatient\t{position[0]:.3f}\t{position[1]:.3f}\t{position[2]:.3f}\tImageOrientationPatient\t{orientation[0]:.3f}\t{orientation[1]:3f}\t{orientation[2]:.3f}\t{orientation[3]:.3f}\t{orientation[4]:.3f}\t{orientation[5]:.3f}\tPixelSpacing\t{spacing[0]:.3f}\t{spacing[1]:.3f}\n"
         
-        # Get around network disconnects
-        count=0
-        while True:
-            if count<100000000000000000000000000000:
-                count+=1
-                try:
-                    with open(sliceinfofile, 'a') as f:
-                        f.write(string)
-                    break
-                except:
-                    pass
+        # Append to slice info file
+        with open(sliceinfofile, 'a') as f:
+            f.write(string)
     
     
 
@@ -423,18 +380,23 @@ if __name__ == "__main__":
     Converts between SuiteHeart .mat files and GPFile.txt and SliceInfoFile.txt for use in biv fitting
 
     Author: Joshua Dillon
-    Last updated: 2024-07-09
+    Last updated: 2024-08-08
     '''
 
-    dir_mat = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\stf\suiteheart"
-    dir_out = r"R:\resmed201900006-biomechanics-in-heart-disease\Sandboxes\Debbie\collaborations\stf\bivme\processed"
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data-dir', '-d', action='store', help='path to directory containing .mat files exported from suiteheart')
+    parser.add_argument('--out-dir', '-o', action='store', help='path to output directory for gpfile and sliceinfofile')
+    args = parser.parse_args()
 
-    # caselist  = ["cardiohance_022"]
+    dir_mat = args.data_dir
+    dir_out = args.out_dir
+
     caselist = os.listdir(dir_mat)
     casedirs = [Path(dir_mat, case).as_posix() for case in caselist]
 
     for folder in casedirs:
-        print(folder)
+        logger.info(f"Processing {os.path.basename(folder)}")
+
         if not os.path.exists(os.path.join(dir_out, os.path.basename(folder))):
             os.makedirs(os.path.join(dir_out, os.path.basename(folder)))
 
@@ -447,16 +409,24 @@ if __name__ == "__main__":
         lax_gp = process_lax(laxfile, saxfile)
 
         # Write GPFile
-        gpfile = os.path.join(dir_out, os.path.basename(folder), "GPFile.txt")
+        gpfile = os.path.join(dir_out, os.path.basename(folder))
+        assert os.path.exists(gpfile), f"Cannot write to {os.path.join(gpfile, 'GPFile.txt')}!"
+        gpfile = os.path.join(gpfile, "GPFile.txt")
+
         with open(gpfile, 'w') as f:
             f.write("x\ty\tz\tcontour type\tsliceID\tweight\ttime frame\n")
             for line in sax_gp:
                 f.write(line)
             for line in lax_gp:
                 f.write(line)
-        print(f"Saved GPFile to {gpfile}")
+        
+        logger.success(f"Saved GPFile to {gpfile}")
 
         # Write slice info file
-        sliceinfofile = os.path.join(dir_out, os.path.basename(folder), "SliceInfoFile.txt")
+        sliceinfofile = os.path.join(dir_out, os.path.basename(folder))
+        assert os.path.exists(sliceinfofile), f"Cannot write to {os.path.join(sliceinfofile, 'SliceInfoFile.txt')}!"
+        sliceinfofile = os.path.join(sliceinfofile, "SliceInfoFile.txt")
+
         write_slice_info_file(saxfile,laxfile, sliceinfofile)
-        print(f"Saved SliceInfoFile to {sliceinfofile}")
+        
+        logger.success(f"Saved SliceInfoFile to {sliceinfofile}")
