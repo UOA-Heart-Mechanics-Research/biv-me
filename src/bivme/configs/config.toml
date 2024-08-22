@@ -52,7 +52,7 @@ mesh_format = ".obj"
 overwrite = true
 # Define to overwrite the output mesh if it exists
 
-output_directory = "./../../ouput/"
+output_directory = "./../../output/"
 # Define where to save the fitted models and files
 # default: ./../../ouput/
 

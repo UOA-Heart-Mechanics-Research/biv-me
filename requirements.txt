@@ -8,7 +8,6 @@ nltk==3.8.1
 numpy==1.26.4
 numpy-stl==3.1.1
 rich==13.7.1
-mayavi==4.8.2
 loguru==0.7.2
 configobj==5.0.8
 pytest==8.3.2

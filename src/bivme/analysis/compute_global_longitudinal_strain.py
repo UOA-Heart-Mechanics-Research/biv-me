@@ -1,268 +1,158 @@
 # Author: Anna Mira
-# Reviewed by Laura Dal Toso on 7/08/2023
+# Reviewed by Laura Dal Toso on 18/08/2022
+# Reviewed by Charlene Mauger on 22/08/2024
 
-# This script computes the GLS from the models output by the BIVFitting code
-
-
+# This script computes the global circumferential strain from the models output
 import os
+import re
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import time
 import csv
-import pylab as pl
-from mayavi import mlab
+from loguru import logger
+from scipy.spatial import cKDTree
+from scipy.spatial.distance import cdist
+import argparse
+import fnmatch
+from rich.progress import Progress
+from bivme.meshing.mesh import Mesh
+from bivme import MODEL_RESOURCE_DIR
 
-from bivme.meshing.geometric_tools import *
-from bivme.meshing.mesh import *
-import bivme.meshing.visualization as viewer
-
-
-def GL_strain( folder,output_file):
-
-    '''
+def calculate_longitudinal_strain(case_name: str, model_file: os.PathLike, biv_model_folder: os.PathLike, precision: int) -> dict:
+    """
     # Author: ldt
     # Date: 18/08/22
 
     This functions measures various strain metrics, from the models fitted at ES and ED.
-    Input: 
-        - folder: folder where the Model.txt files are saved 
-        - output_file: csv file where the srtain measures should be saved  
+    Input:
+        - folder: folder where the Model.txt files are saved
+        - output_file: csv file where the srtain measures should be saved
 
-    '''
+    """
 
-    case =  os.path.basename(os.path.normpath(folder))
-    print('case: ', case )
+    # read GP file
+    control_points = np.loadtxt(model_file, delimiter=',', skiprows=1, usecols=[0, 1, 2]).astype(float)
 
-    input_path_model = '../../BiV_Modelling/model/'
-    subdivision_matrix_file = os.path.join(input_path_model,
-                                                "subdivision_matrix.txt")
-    model_file = os.path.join(input_path_model, 'model.txt')
-    elements_file = os.path.join(input_path_model,'ETIndicesSorted.txt') #3 vertices for each face
-    material_file = os.path.join(input_path_model,'ETIndicesMaterials.txt') #face indices
+    frame_name = re.search(r'Frame_(\d+)\.txt', str(model_file), re.IGNORECASE)[1]
+    # assign values to dict
+    results_dict = {'case': case_name, 'frame': frame_name} | {
+        k: '' for k in ['lv_gls_2ch', 'lv_gls_4ch', 'rvs_gls_4ch', 'rvfw_gls_4ch']
+    }
 
-    ls_points_file = './InputFiles/ls_points.txt'
-    plot_figure = True
-    
+    subdivision_matrix_file = biv_model_folder / "subdivision_matrix.txt"
+    assert subdivision_matrix_file.exists(), \
+        f"biv_model_folder does not exist. Cannot find {subdivision_matrix_file} file!"
 
-    if not os.path.exists(subdivision_matrix_file):
-        ValueError('Missing subdivision_matrix.txt')
-    if not os.path.exists(model_file):
-        ValueError('Missing model.txt')
-    if not os.path.exists(elements_file):
-        ValueError('Missing ETIndicesSorted.txt')
-    if not os.path.exists(material_file):
-        ValueError('Missing ETIndicesMaterials.txt')
+    longitudinal_points_file = biv_model_folder / 'ls_points.txt'
+    assert longitudinal_points_file.exists(), \
+        f"biv_model_folder does not exist. Cannot find {longitudinal_points_file} file!"
 
+    ls_points = pd.read_table(longitudinal_points_file, sep='\t')
 
-    ls_points = pd.read_table(ls_points_file, sep = ' ')
-    ################## read model ########################
-    subdivision_matrix = (np.loadtxt(subdivision_matrix_file)).astype(float)
-    control_points = np.loadtxt(model_file).astype(float)
-    faces = np.loadtxt(elements_file).astype(int)-1
-    vertices =  np.dot(subdivision_matrix, control_points)
-    mat = np.loadtxt(material_file, dtype='str')
+    if control_points.shape[0] > 0:
 
+        subdivision_matrix = (np.loadtxt(subdivision_matrix_file)).astype(float)
 
+        vertices = np.dot(subdivision_matrix, control_points)
 
-    ## convert labels to integer correspondig to the sorted list
-    # of unique labels types
-    unique_material = np.unique(mat[:,1])
-    materials  = np.zeros(mat.shape)
+        lv_gls_2ch_idx = (ls_points[(ls_points.View == "2CH") & (ls_points.Surface == "LV")].Index).to_numpy()
+        lv_gls_2ch_vertices = vertices[lv_gls_2ch_idx, :]
+        lv_gls_2ch = np.linalg.norm(lv_gls_2ch_vertices[1:, ]-lv_gls_2ch_vertices[:-1, ], axis=1)
+        results_dict['lv_gls_2ch'] = round(np.sum(lv_gls_2ch), precision)
 
-    for index,m in enumerate(unique_material):
-        face_index = mat[:,1] == m
-        materials[face_index,0] = mat[face_index,0].astype(int)
-        materials[face_index, 1] = [index] *np.sum(face_index)
+        lv_gls_4ch_idx = (ls_points[(ls_points.View == "4CH") & (ls_points.Surface == "LV")].Index).to_numpy()
+        lv_gls_4ch_vertices = vertices[lv_gls_4ch_idx, :]
+        lv_gls_4ch = np.linalg.norm(lv_gls_4ch_vertices[1:, :] - lv_gls_4ch_vertices[:-1, :], axis=1)
+        results_dict['lv_gls_4ch'] = round(np.sum(lv_gls_4ch), precision)
 
+        rvs_gls_4ch_idx = (ls_points[(ls_points.View == "4CH") & (ls_points.Surface == "RVS")].Index).to_numpy()
+        rvs_gls_4ch_vertices = vertices[rvs_gls_4ch_idx, :]
+        rvs_gls_4ch = np.linalg.norm(rvs_gls_4ch_vertices[1:, :] - rvs_gls_4ch_vertices[:-1, :], axis=1)
+        results_dict['rvs_gls_4ch'] = round(np.sum(rvs_gls_4ch), precision)
 
-    model = Mesh('mesh')
-    model.set_nodes(vertices*10)
-    model.set_elements(faces)
-    model.set_materials(materials[:,0], materials[:,1])
+        rvfw_gls_4ch_idx = (ls_points[(ls_points.View == "4CH") & (ls_points.Surface == "RVFW")].Index).to_numpy()
+        rvfw_gls_4ch_vertices = vertices[rvfw_gls_4ch_idx, :]
+        rvfw_gls_4ch = np.linalg.norm(rvfw_gls_4ch_vertices[1:, :] - rvfw_gls_4ch_vertices[:-1, :], axis=1)
+        results_dict['rvfw_gls_4ch'] = round(np.sum(rvfw_gls_4ch), precision)
 
-    # Select RV endocardial
-    RV_ENDO = model.get_mesh_component([6,9,10,11], reindex_nodes=False)
-    RV_ENDO.materials = np.zeros_like(RV_ENDO.materials)
-    RV_SEPTUM = model.get_mesh_component([10], reindex_nodes=False)
-    RV_SEPTUM.materials = np.zeros_like(RV_SEPTUM.materials)
-    LV_ENDO = model.get_mesh_component([0,2,4], reindex_nodes=False)
-    LV_ENDO.materials = np.zeros_like(LV_ENDO.materials)
+        return results_dict
 
-    if plot_figure:
+    else:
+        logger.error(f"No strain calculated for {model_file} please check the model file")
+        return np.zeros((1, 4))
 
-        fig = viewer.Figure('model', size=(600, 600))
-        fig.plot_mesh('wire', model, opacity=1, line_colour=(0, 0.2, 0.3),
-                    mode = 'wireframe')
-        fig.plot_mesh('LV_ENDO', LV_ENDO, opacity=0.99, line_opacity= 0.3,
-                    face_colour=(0.8, 0.9, 0.8))
-        fig.plot_mesh('RV_ENDO', RV_ENDO, opacity=0.99, line_opacity= 0.3,
-                    face_colour=(0.8, 1, 0.9))
-        fig.plot_mesh('RV_SEPTUM', RV_SEPTUM, opacity=0.99, line_opacity= 0.3,
-                    face_colour=(0.8, 1,   0.9))
-        
+if __name__ == "__main__":
 
+    biv_resource_folder = MODEL_RESOURCE_DIR
 
-    # Computation of strain 
-    lv_lax_verts = []
-    rv_lax_verts = []
-    rvs_lax_verts = []
+    # parse command-line argument
+    parser = argparse.ArgumentParser(description="LV & RV mass and volume calculation")
+    parser.add_argument('-mdir', '--model_dir', type=Path, help='path to biv models')
+    parser.add_argument('-o', '--output_path', type=Path, help='output path', default="./")
+    parser.add_argument("-b", '--biv_model_folder', default=biv_resource_folder,
+                        help="folder containing subdivision matrices"
+                             f" (default: {biv_resource_folder})")
+    parser.add_argument("-pat", '--patterns', default="*",
+                        help="folder patterns to include (default '*')")
+    parser.add_argument("-ed", '--ed_frame', default=0, type=int,
+                        help="ED frame")
+    parser.add_argument("-p", '--precision', type=int, default=2,
+                        help="Output precision")
+    args = parser.parse_args()
 
-    region = ['4CH', '3CH']
+    fieldnames = ['name', 'frame', 'lv_gls_2ch', 'lv_gls_4ch', 'rvs_gls_4ch', 'rvfw_gls_4ch']
 
-    for slice in range(len(region)):
+    assert args.model_dir.exists(), \
+        f"model_dir does not exist."
 
-        # extract LV LAX slice
-        index = np.logical_and(ls_points.Surface == 'LV', ls_points.Level ==
-                            region[slice])
-        verts = ls_points.ENDO[index]
-        lv_lax_verts.append(verts)
+    assert args.output_path.exists(), \
+        f"output_path does not exist."
 
-        if plot_figure:
-            fig.plot_points('lvslice{0}'.format(slice),
-                            model.nodes[verts], size=2,
-                        color=(1, 0, 0))
+    folders = [p.name for p in Path(args.model_dir).glob(args.patterns) if os.path.isdir(p)]
+    logger.info(f"Found {len(folders)} model folders.")
 
-        # extract LAX RV slice
-        index = np.logical_and(ls_points.Surface == 'RV', ls_points.Level ==
-                            region[slice])
-        verts = ls_points.ENDO[index]
+    output_ls_strain_file = args.output_path / 'global_longitudinal_strain.csv'
+    with open(output_ls_strain_file, 'w', newline='') as f:
+        # create output file and write header
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        logger.info(f"Created {args.output_path} for the results.")
 
-        rv_lax_verts.append(verts)
-        if plot_figure:
-            fig.plot_points('rvslice{0}'.format(slice),
-                            model.nodes[verts], size=1.5,
-                        color=(0.6, 0, 0.6))
+    for i, folder in enumerate(folders):
+        rule = re.compile(fnmatch.translate("*model_frame*.txt"), re.IGNORECASE)
+        models = [args.model_dir / folder / Path(name) for name in os.listdir(args.model_dir / folder) if
+                  rule.match(name)]
 
-        # extract RVS LAX slice
-        index = np.logical_and(ls_points.Surface == 'RVS', ls_points.Level ==
-                            region[slice])
-        verts = ls_points.ENDO[index]
-        rvs_lax_verts.append(np.array(verts))
+        models = sorted(models)
+        logger.info(f"Processing {str(args.model_dir / folder)} ({i + 1}/{len(folders)})")
+        with Progress(transient=True) as progress:
+            task = progress.add_task(f"Calculating strains", total=len(models))
+            console = progress
 
-        if plot_figure:
-            fig.plot_points('rvsslice{0}'.format(slice),
-                            model.nodes[verts], size=1.5,
-                        color=(0, 0, 1))
+            strain_values = [calculate_longitudinal_strain(folder, biv_model_file, biv_resource_folder, args.precision) for biv_model_file in models]
+            strain_values = pd.DataFrame(strain_values)
 
-            mlab.show()
-            #mlab.savefig('./results/mlab_contour3d.png')
+            with open(output_ls_strain_file, 'a', newline='') as file:
+                # print out measurements in spreadsheet
+                strain_writer = csv.writer(file)
+                for idx, biv_model_file in enumerate(models):
 
+                    strain_writer.writerow([folder,
+                                            strain_values['frame'].iloc[idx],
+                                            100 * (strain_values['lv_gls_2ch'].iloc[args.ed_frame] -
+                                                   strain_values['lv_gls_2ch'].iloc[idx]) /
+                                            strain_values['lv_gls_2ch'].iloc[args.ed_frame],
+                                            100 * (strain_values['lv_gls_4ch'].iloc[args.ed_frame] -
+                                                   strain_values['lv_gls_4ch'].iloc[idx]) /
+                                            strain_values['lv_gls_4ch'].iloc[args.ed_frame],
+                                            100 * (strain_values['rvs_gls_4ch'].iloc[args.ed_frame] -
+                                                   strain_values['rvs_gls_4ch'].iloc[idx]) /
+                                            strain_values['rvs_gls_4ch'].iloc[args.ed_frame],
+                                            100 * (strain_values['rvfw_gls_4ch'].iloc[args.ed_frame] -
+                                                   strain_values['rvfw_gls_4ch'].iloc[idx]) /
+                                            strain_values['rvfw_gls_4ch'].iloc[args.ed_frame]
+                                            ])
+            progress.advance(task)
 
-
-    models  = [k for k in np.sort(list(os.listdir(folder))) if 'Model' in k]
-    case = os.path.basename(os.path.normpath(folder))
-
-    if len(models)>0:
-        
-        try:
-            
-            for frame in models: 
-                if 'ES' in frame:
-                    node_file_ES = os.path.join(folder, frame)
-                else:
-                    node_file_ED = os.path.join(folder, frame)
-
-            if not (os.path.exists(node_file_ES)):
-                raise ValueError
-            if not (os.path.exists(node_file_ED)):
-                raise ValueError
-
-            fitted_nodes_ES = np.dot(subdivision_matrix,
-                                    np.loadtxt(node_file_ES, delimiter=',',skiprows=1).astype(float))
-            fitted_nodes_ED = np.dot(subdivision_matrix,
-                                np.loadtxt(node_file_ED,delimiter=',',skiprows=1).astype(float)  )
-
-            lv_ls = []
-            rv_ls = []
-            rvs_ls =[]
-            
-            
-            for i in range (0,len(region)):
-                
-                #         compute lv local strain
-                l_ed = np.linalg.norm(fitted_nodes_ED[lv_lax_verts[i][1:]] - \
-                                    fitted_nodes_ED[lv_lax_verts[i][:-1]], axis=1)
-                l_es = np.linalg.norm(fitted_nodes_ES[lv_lax_verts[i][1:]] - \
-                                    fitted_nodes_ES[lv_lax_verts[i][:-1]], axis = 1)
-
-                if plot_figure:
-                    fig.plot_points('rvslice{0}'.format(slice),l_ed, size=1.5,
-                                color=(0.6, 0, 0.6))    
-
-                mlab.show()   
-
-                lv_ls.append( (np.sum(l_es)-np.sum(l_ed))/np.sum(l_ed))
-
-            #        compute rv local strain
-                l_ed = np.linalg.norm(fitted_nodes_ED[rv_lax_verts[i][1:]] - \
-                                    fitted_nodes_ED[rv_lax_verts[i][:-1]], axis=1)
-                l_es = np.linalg.norm(fitted_nodes_ES[rv_lax_verts[i][1:]] - \
-                                    fitted_nodes_ES[rv_lax_verts[i][:-1]], axis = 1)
-                rv_ls.append( (np.sum(l_es)-np.sum(l_ed))/np.sum(l_ed))
-
-                #         compute rv septum local strain
-                l_ed = np.linalg.norm(fitted_nodes_ED[rvs_lax_verts[i][1:]] - \
-                                    fitted_nodes_ED[rvs_lax_verts[i][:-1]],
-                                    axis=1)
-                l_es = np.linalg.norm(fitted_nodes_ES[rvs_lax_verts[i][1:]] - \
-                                    fitted_nodes_ES[rvs_lax_verts[i][:-1]],
-                                    axis=1)
-                rvs_ls.append((np.sum(l_es) - np.sum(l_ed)) / np.sum(l_ed))
-            
-            # compute general longitudinal strain for LV
-
-            lv_gls_4CH = lv_ls[0]
-            lv_gls_3CH = lv_ls[1]
-            lv_gls = np.mean(lv_ls)
-            rv_gls_4CH = rv_ls[0]
-            rv_gls_3CH =rv_ls[1]
-            rv_gls = np.mean(rv_ls)
-            rvs_gls_4CH = rvs_ls[0]
-            rvs_gls_3CH = rvs_ls[1]
-            rvs_gls = np.mean(rvs_ls)
-
-            with open(output_file, 'a',newline="") as f:
-                writer = csv.writer(f)
-                writer.writerow([case, lv_gls_4CH, lv_gls_3CH, lv_gls, rv_gls_4CH, rv_gls_3CH,
-                    rv_gls, rvs_gls_4CH, rvs_gls_3CH, rvs_gls])
-                    
-            return {'case':case, 'lv_gls_4CH':lv_gls_4CH, 'lv_gls_3CH':lv_gls_3CH, 
-                'lv_gls':lv_gls,'rv_gls_4CH':rv_gls_4CH,'rv_gls_3CH':rv_gls_3CH, 'rv_gls':rv_gls,
-                'rvs_gls_4CH':rvs_gls_4CH, 'rvs_gls_3CH':rvs_gls_3CH, 'rvs_gls':rvs_gls}
-        
-        
-        except:
-            pass 
-
-
-if __name__ == '__main__':
-
-   
-    path_to_models = './results'
-    output_file = './results/global_longitudinal_strain.csv'
-    
-
-    # listdir in path_model   
-    EDES_folders = sorted(list(os.listdir(path_to_models)))
-    cases = [patient for patient in EDES_folders if os.path.isdir(
-        os.path.join(path_to_models,patient)) == True]
-    
-    fieldnames = ['name','lv_gls_4CH','lv_gls_3CH','lv_gls','rv_gls_4CH', 'rv_gls_3CH',
-        'rv_gls' ,'rvs_gls_4CH','rvs_gls_3CH','rvs_gls']
-
-    with open(output_file, 'w') as f:
-        writer = csv.DictWriter(f, fieldnames= fieldnames)
-        writer.writeheader() 
-
-
-    print('files in EDES folder', cases)
-
-    # use the following if you need to visualise one patient. 
-    # Change the number in squared brackets depending on which patient you want to visualise.
-    # also set plot_figure = True
-    #result_1case = find_strain(os.path.join(path_to_models, folders[1]), output_file)
-
-    # use the following line if you want the final excel file for all patients
-    all_results = GL_strain(os.path.join(path_to_models,cases[0]), output_file)
-    #if os.path.isdir(os.path.join(path_to_models,patient)) == True]
-
+    logger.success(f"Done. Results are saved in {output_ls_strain_file}")
