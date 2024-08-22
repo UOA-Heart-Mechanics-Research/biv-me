@@ -424,7 +424,7 @@ if __name__ == "__main__":
     for case in case_dirs:
         logger.info(f"Processing {os.path.basename(case)}")
         if config["output"]["generate_log_file"]:
-            logger_id = logger.add(f'{config["output"]["output_directory"]}/{os.path.basename(case)}/log_file_{datetime.datetime.now()}.log', level=log_level, format=log_format,
+            logger_id = logger.add(f'{config["output"]["output_directory"]}/{os.path.basename(case)}/log_file_{datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.log', level=log_level, format=log_format,
                                         colorize=False, backtrace=True,
                                         diagnose=True)
 
