@@ -171,7 +171,7 @@ def SaveGPDataVtk(folder):
                         ]
 
         # extract GPData for current frame
-        GPDatafile = data_set.PlotDataSet(contours_to_plot)  
+        GPDatafile = data_set.plot_dataset(contours_to_plot)
 
         for element in GPDatafile:
             label = element['name']
