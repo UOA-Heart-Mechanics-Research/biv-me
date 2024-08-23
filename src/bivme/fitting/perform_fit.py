@@ -10,6 +10,8 @@ import pathlib
 import datetime
 import tomli
 import shutil
+import re
+import fnmatch
 
 from bivme.fitting.BiventricularModel import BiventricularModel
 from bivme.fitting.GPDataSet import GPDataSet
@@ -52,28 +54,24 @@ contours_to_plot = [
     ContourType.TRICUSPID_PHANTOM,
     ContourType.MITRAL_PHANTOM,
     ContourType.PULMONARY_PHANTOM,
+    ContourType.EXCLUDED,
 ]
 
 def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_suffix: str ="", si_suffix: str ="", frames_to_fit: list[int]=[], output_format: str =".vtk", my_logger: logger = logger, **kwargs) -> float:
     # performs all the BiVentricular fitting operations
 
     try:
-        if "iter_num" in kwargs:
-            iter_num = kwargs.get("iter_num", None)
-            pid = os.getpid()
-            # print('child PID', pid)
-            # assign a new process ID and a new CPU to the child process
-            # iter_num corresponds to the id number of the CPU where the process will be run
-            os.system("taskset -cp %d %d" % (iter_num, pid))
+        #if "iter_num" in kwargs:
+        #    iter_num = kwargs.get("iter_num", None)
+        #    pid = os.getpid()
+        #    # print('child PID', pid)
+        #    # assign a new process ID and a new CPU to the child process
+        #    # iter_num corresponds to the id number of the CPU where the process will be run
+        #    os.system("taskset -cp %d %d" % (iter_num, pid))
 
         if "id_Frame" in kwargs:
             # acquire .csv file containing patient_id, ES frame number, ED frame number if present
             case_frame_dict = kwargs.get("id_Frame", None)
-
-        filename = Path(folder) / f"GPFile{gp_suffix}.txt"
-        if not filename.exists():
-            my_logger.error(f"Cannot find {filename} file! Skipping this model")
-            return -1
 
         filename_info = Path(folder) / f"SliceInfoFile{si_suffix}.txt"
         if not filename_info.exists():
@@ -84,19 +82,20 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
         case = os.path.basename(os.path.normpath(folder))
         my_logger.info(f"case: {case}")
 
-        # read all the frames from the GPFile
-        all_frames = pd.read_csv(str(filename), sep="\t")
-        # select which frames to fit
-        try:
-            ed_frame = int(case_frame_dict[str(case)][0])
-        except:
-            ed_frame = 1
-            my_logger.info(f"ED set to frame # 1")
+        rule = re.compile(fnmatch.translate(f"GPFile_{gp_suffix}*.txt"), re.IGNORECASE)
+        time_frame = [Path(folder) / Path(name) for name in os.listdir(Path(folder)) if rule.match(name)]
+        frame_name = [re.search(r'GPFile_*(\d+)\.txt', str(file), re.IGNORECASE)[1] for file in time_frame]
+        frame_name = sorted(frame_name)
+
+
+        ed_frame = config["breathhold_correction"]["ed_frame"]
+        my_logger.info(f'ED set to frame #{config["breathhold_correction"]["ed_frame"]}')
 
         if len(frames_to_fit) == 0:
             frames_to_fit = np.unique(
-                [i[6] for i in all_frames.values]
-            )  # if you want to fit all _frames
+                frame_name
+            )  # if you want to fit all _frames#
+
 
         # create a separate output folder for each patient
         output_folder = Path(out_dir) / case
@@ -109,6 +108,11 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
         # The next lines are used to measure shift using only a key frame
         if config["breathhold_correction"]["shifting"] == "derived_from_ed":
             my_logger.info("Shift measured only at ED frame")
+            filename = Path(folder) / f"GPFile_{gp_suffix}{frame_name[ed_frame]:03}.txt"
+            if not filename.exists():
+                my_logger.error(f"Cannot find {filename} file! Skipping this model")
+                return -1
+
             ed_dataset = GPDataSet(
                 str(filename),
                 str(filename_info),
@@ -116,7 +120,12 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                 sampling=config["gp_processing"]["sampling"],
                 time_frame_number=ed_frame,
             )
-            result_at_ed = ed_dataset.sinclaire_slice_shifting(frame_num=ed_frame)
+            if not ed_dataset.success:
+                return -1
+            result_at_ed = ed_dataset.sinclaire_slice_shifting(my_logger)
+            _, _ = ed_dataset.get_unintersected_slices()
+
+            ##TODO remove basal slice (maybe looking at the distance between the contours centroid and the projection of the line mitral centroid/apex)
             shift_at_ed = result_at_ed[0]
             pos_ed = result_at_ed[1]
             # np.save(os.path.join(output_folder, 'shift.txt'), shift_at_ed)
@@ -147,21 +156,26 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                 )
                 model_file.touch(exist_ok=True)
 
-                #with open(error_file, "a") as f:
-                #    f.write("\nFRAME #" + str(int(num)) + "\n")
+                filename = Path(folder) / f"GPFile_{gp_suffix}{num:03}.txt"
+                if not filename.exists():
+                    my_logger.error(f"Cannot find {filename} file! Skipping this model")
+                    return -1
 
                 data_set = GPDataSet(
                     str(filename), str(filename_info), case, sampling=config["gp_processing"]["sampling"], time_frame_number=num
                 )
+                if not data_set.success:
+                    return -1
                 biventricular_model = BiventricularModel(MODEL_RESOURCE_DIR, case)
 
                 if config["breathhold_correction"]["shifting"] == "derived_from_ed":
                     # apply shift measured previously using ED frame
-                    data_set.apply_slice_shift(shift_at_ed, pos_ED)
+                    data_set.apply_slice_shift(shift_at_ed, pos_ed)
                     data_set.get_unintersected_slices()
                 elif config["breathhold_correction"]["shifting"] == "all_frame":
                     # measure and apply shift to current frame
-                    shifted_slice = data_set.sinclaire_slice_shifting(my_logger, int(num))
+                    shifted_slice = data_set.sinclaire_slice_shifting(my_logger)
+                    data_set.get_unintersected_slices()
                     shift_measure = shifted_slice[0]
                     pos_measure = shifted_slice[1]
 
@@ -200,7 +214,7 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                 #                                                   biventricular_model.control_mesh])
                 # displacements = data_set.SAXSliceShiffting(biventricular_model)
 
-                # contour_plots = data_set.PlotDataSet(contours_to_plot)
+                # contour_plots = data_set.plot_dataset(contours_to_plot)
 
                 # plot(go.Figure(contour_plots))
                 # data = contour_plots
@@ -238,7 +252,7 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                 except:
                     my_logger.warning('Error in creating aorta phantom points')
 
-                contour_plots = data_set.PlotDataSet(contours_to_plot)
+                contour_plots = data_set.plot_dataset(contours_to_plot)
 
                 # Example on how to set different weights for different points group (R.B.)
                 data_set.weights[data_set.contour_type == ContourType.MITRAL_PHANTOM] = 2
@@ -253,10 +267,10 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                 data_set.weights[data_set.contour_type == ContourType.AORTA_VALVE] = 1
                 data_set.weights[data_set.contour_type == ContourType.PULMONARY_VALVE] = 1
 
-                # Perform linear fit (step1)
+                # Perform linear fit
                 solve_least_squares_problem(biventricular_model, config["fitting_weights"]["guide_points"], data_set, my_logger)
 
-                # Perform diffeomorphic fit (step2)
+                # Perform diffeomorphic fit
                 residuals += solve_convex_problem(
                     biventricular_model,
                     data_set,
@@ -371,7 +385,7 @@ if __name__ == "__main__":
                       "gp_suffix": str(),
                       "si_suffix": str(),
                       },
-            "breathhold_correction": {"shifting": str()},
+            "breathhold_correction": {"shifting": str(), "ed_frame": int()},
             "gp_processing": {"sampling": int()},
             "multiprocessing": {"workers": int()},
             "fitting_weights": {"guide_points": float(), "convex_problem": float(), "transmural": float()},
@@ -410,7 +424,7 @@ if __name__ == "__main__":
     for case in case_dirs:
         logger.info(f"Processing {os.path.basename(case)}")
         if config["output"]["generate_log_file"]:
-            logger_id = logger.add(f'{config["output"]["output_directory"]}/{os.path.basename(case)}/log_file_{datetime.datetime.now()}.log', level=log_level, format=log_format,
+            logger_id = logger.add(f'{config["output"]["output_directory"]}/{os.path.basename(case)}/log_file_{datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.log', level=log_level, format=log_format,
                                         colorize=False, backtrace=True,
                                         diagnose=True)
 

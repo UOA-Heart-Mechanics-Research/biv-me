@@ -182,7 +182,7 @@ if __name__ == "__main__":
     assert args.output_path.exists(), \
         f"output_path does not exist."
 
-    folders = [p.name for p in Path(args.model_dir).glob(args.patterns)]
+    folders = [p.name for p in Path(args.model_dir).glob(args.patterns) if os.path.isdir(p)]
     logger.info(f"Found {len(folders)} model folders.")
 
     output_volume_file = args.output_path / 'lvrv_volumes.csv'
@@ -196,6 +196,7 @@ if __name__ == "__main__":
         ## TODO: recursive param with walk() filtering
         rule = re.compile(fnmatch.translate("*model_frame*.txt"), re.IGNORECASE)
         models = [args.model_dir / folder / Path(name) for name in os.listdir(args.model_dir / folder) if rule.match(name)]
+        models = sorted(models)
 
         logger.info(f"Processing {str(args.model_dir / folder)} ({i+1}/{len(folders)})")
         with Progress(transient=True) as progress:
