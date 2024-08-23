@@ -87,7 +87,7 @@ if __name__ == "__main__":
     biv_resource_folder = MODEL_RESOURCE_DIR
 
     # parse command-line argument
-    parser = argparse.ArgumentParser(description="LV & RV mass and volume calculation")
+    parser = argparse.ArgumentParser(description="Global longitudinal strain calculation")
     parser.add_argument('-mdir', '--model_dir', type=Path, help='path to biv models')
     parser.add_argument('-o', '--output_path', type=Path, help='output path', default="./")
     parser.add_argument("-b", '--biv_model_folder', default=biv_resource_folder,
@@ -140,17 +140,17 @@ if __name__ == "__main__":
 
                     strain_writer.writerow([folder,
                                             strain_values['frame'].iloc[idx],
-                                            100 * (strain_values['lv_gls_2ch'].iloc[args.ed_frame] -
-                                                   strain_values['lv_gls_2ch'].iloc[idx]) /
+                                            (strain_values['lv_gls_2ch'].iloc[idx] -
+                                                   strain_values['lv_gls_2ch'].iloc[args.ed_frame]) /
                                             strain_values['lv_gls_2ch'].iloc[args.ed_frame],
-                                            100 * (strain_values['lv_gls_4ch'].iloc[args.ed_frame] -
-                                                   strain_values['lv_gls_4ch'].iloc[idx]) /
+                                            (strain_values['lv_gls_4ch'].iloc[idx] -
+                                                   strain_values['lv_gls_4ch'].iloc[args.ed_frame]) /
                                             strain_values['lv_gls_4ch'].iloc[args.ed_frame],
-                                            100 * (strain_values['rvs_gls_4ch'].iloc[args.ed_frame] -
-                                                   strain_values['rvs_gls_4ch'].iloc[idx]) /
+                                            (strain_values['rvs_gls_4ch'].iloc[idx] -
+                                                   strain_values['rvs_gls_4ch'].iloc[args.ed_frame]) /
                                             strain_values['rvs_gls_4ch'].iloc[args.ed_frame],
-                                            100 * (strain_values['rvfw_gls_4ch'].iloc[args.ed_frame] -
-                                                   strain_values['rvfw_gls_4ch'].iloc[idx]) /
+                                            (strain_values['rvfw_gls_4ch'].iloc[idx] -
+                                                   strain_values['rvfw_gls_4ch'].iloc[args.ed_frame]) /
                                             strain_values['rvfw_gls_4ch'].iloc[args.ed_frame]
                                             ])
             progress.advance(task)
