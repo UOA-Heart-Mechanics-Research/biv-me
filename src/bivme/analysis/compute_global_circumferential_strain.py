@@ -111,7 +111,7 @@ if __name__ == "__main__":
     biv_resource_folder = MODEL_RESOURCE_DIR
 
     # parse command-line argument
-    parser = argparse.ArgumentParser(description="LV & RV mass and volume calculation")
+    parser = argparse.ArgumentParser(description="Global circumferential strain calculation")
     parser.add_argument('-mdir', '--model_dir', type=Path, help='path to biv models')
     parser.add_argument('-o', '--output_path', type=Path, help='output path', default="./")
     parser.add_argument("-b", '--biv_model_folder', default=biv_resource_folder,
@@ -164,32 +164,32 @@ if __name__ == "__main__":
 
                     strain_writer.writerow([folder,
                                             strain_values['frame'].iloc[idx],
-                                            100 * (strain_values['lv_gcs_apex'].iloc[args.ed_frame] -
-                                                   strain_values['lv_gcs_apex'].iloc[idx]) /
+                                            (strain_values['lv_gcs_apex'].iloc[idx] -
+                                                   strain_values['lv_gcs_apex'].iloc[args.ed_frame]) /
                                             strain_values['lv_gcs_apex'].iloc[args.ed_frame],
-                                            100 * (strain_values['lv_gcs_mid'].iloc[args.ed_frame] -
-                                                   strain_values['lv_gcs_mid'].iloc[idx]) /
+                                            (strain_values['lv_gcs_mid'].iloc[idx] -
+                                                   strain_values['lv_gcs_mid'].iloc[args.ed_frame]) /
                                             strain_values['lv_gcs_mid'].iloc[args.ed_frame],
-                                            100 * (strain_values['lv_gcs_base'].iloc[args.ed_frame] -
-                                                   strain_values['lv_gcs_base'].iloc[idx]) /
+                                            (strain_values['lv_gcs_base'].iloc[idx] -
+                                                   strain_values['lv_gcs_base'].iloc[args.ed_frame]) /
                                             strain_values['lv_gcs_base'].iloc[args.ed_frame],
-                                            100 * (strain_values['rvfw_gcs_apex'].iloc[args.ed_frame] -
-                                                   strain_values['rvfw_gcs_apex'].iloc[idx]) /
+                                            (strain_values['rvfw_gcs_apex'].iloc[idx] -
+                                                   strain_values['rvfw_gcs_apex'].iloc[args.ed_frame]) /
                                             strain_values['rvfw_gcs_apex'].iloc[args.ed_frame],
-                                            100 * (strain_values['rvfw_gcs_mid'].iloc[args.ed_frame] -
-                                                   strain_values['rvfw_gcs_mid'].iloc[idx]) /
+                                            (strain_values['rvfw_gcs_mid'].iloc[idx] -
+                                                   strain_values['rvfw_gcs_mid'].iloc[args.ed_frame]) /
                                             strain_values['rvfw_gcs_mid'].iloc[args.ed_frame],
-                                            100 * (strain_values['rvfw_gcs_base'].iloc[args.ed_frame] -
-                                                   strain_values['rvfw_gcs_base'].iloc[idx]) /
+                                            (strain_values['rvfw_gcs_base'].iloc[idx] -
+                                                   strain_values['rvfw_gcs_base'].iloc[args.ed_frame]) /
                                             strain_values['rvfw_gcs_base'].iloc[args.ed_frame],
-                                            100 * (strain_values['rvs_gcs_apex'].iloc[args.ed_frame] -
-                                                   strain_values['rvs_gcs_apex'].iloc[idx]) /
+                                            (strain_values['rvs_gcs_apex'].iloc[idx] -
+                                                   strain_values['rvs_gcs_apex'].iloc[args.ed_frame]) /
                                             strain_values['rvs_gcs_apex'].iloc[args.ed_frame],
-                                            100 * (strain_values['rvs_gcs_mid'].iloc[args.ed_frame] -
-                                                   strain_values['rvs_gcs_mid'].iloc[idx]) /
+                                            (strain_values['rvs_gcs_mid'].iloc[idx] -
+                                                   strain_values['rvs_gcs_mid'].iloc[args.ed_frame]) /
                                             strain_values['rvs_gcs_mid'].iloc[args.ed_frame],
-                                            100 * (strain_values['rvs_gcs_base'].iloc[args.ed_frame] -
-                                                   strain_values['rvs_gcs_base'].iloc[idx]) /
+                                            (strain_values['rvs_gcs_base'].iloc[idx] -
+                                                   strain_values['rvs_gcs_base'].iloc[args.ed_frame]) /
                                             strain_values['rvs_gcs_base'].iloc[args.ed_frame]
                                             ])
             progress.advance(task)
