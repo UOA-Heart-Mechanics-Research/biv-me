@@ -25,6 +25,7 @@ def test_init_build_mode(test_build_input, expected_build):
     assert model.APEX_INDEX == 5485#50
     assert model.NUM_GAUSSIAN_POINTS == 5049
     assert model.NUM_SUBDIVIDED_FACES == 11760
+    assert model.NUM_COARSE_FACES == 708
     assert model.NUM_NODES_THRU_WALL == 160
     assert model.NUM_LOCAL_POINTS == 12509
 
@@ -35,6 +36,7 @@ def test_init_build_mode(test_build_input, expected_build):
     assert model.jac_12.shape == (11968, model.NUM_NODES)
     assert model.jac_13.shape == (11968, model.NUM_NODES)
     assert model.et_indices.shape == (model.NUM_SUBDIVIDED_FACES, 3)
+    assert model.et_indices_control_mesh.shape == (model.NUM_COARSE_FACES, 3)
     assert model.et_vertex_element_num.shape == (model.NUM_SURFACE_NODES,)
     assert model.basis_matrix.shape == (model.NUM_SURFACE_NODES, model.NUM_NODES)
     assert model.gtstsg_x.shape == (model.NUM_NODES, model.NUM_NODES)

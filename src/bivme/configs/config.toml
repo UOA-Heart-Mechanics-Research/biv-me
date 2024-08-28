@@ -19,7 +19,7 @@ si_suffix = ''
 # Default: ""
 
 [breathhold_correction]
-shifting = "all_frame"  # derived_from_ed, none, all_frame
+shifting = "derived_from_ed"  # derived_from_ed, none, all_frame
 # Define the method used for breathhold misregistration correction.
 # Allowed values:
 # * "derived_from_ed"      : The correction is calculated at ED only and propagated to all the frames
@@ -34,6 +34,22 @@ sampling = 1
 # sampling = 1 means all the points are kept, sampling = 2 means that 1 every two points is kept etc.
 # Default: 1
 
+num_of_phantom_points_mv = 30
+# Controls the number of points to be generated on the mitral valve annulus
+# Default: 30. Use 0 if you do not want any to be generated
+
+num_of_phantom_points_tv = 30
+# Controls the number of points to be generated on the tricuspid valve annulus
+# Default: 30. Use 0 if you do not want any to be generated
+
+num_of_phantom_points_pv = 20
+# Controls the number of points to be generated on the pulmonary valve annulus
+# Default: 20. Use 0 if you do not want any to be generated
+
+num_of_phantom_points_av = 20
+# Controls the number of points to be generated on the aortic valve annulus
+# Default: 20. Use 0 if you do not want any to be generated
+
 [fitting_weights]
 guide_points = 100.0
 convex_problem = 1e6
@@ -46,14 +62,28 @@ show_logging = true
 # Default: true
 
 generate_log_file = true
-# Decide wether or not to save the logs. If true, a .log file will be generated
+# Decide whether or not to save the logs. If true, a .log file will be generated
 # Default: true
+
+export_control_mesh = false
+# Decide whether or not to save the coarse mesh. If true, the coarse mesh will be generated (format: mesh_format)
+# Default: false
 
 mesh_format = ".obj"
 # Allowed values:
 # * ".obj" : write the mesh as a wavefront .obj file - compatible with most computer graphics/mesh visualisation software
 # * ".vtk" : write the mesh as tvk format
 # Default: ".obj"
+
+closed_mesh = false
+# Option to export mesh object as closed or not closed
+# Default: "false"
+
+output_meshes = ["LV_ENDOCARDIAL", "RV_ENDOCARDIAL", "EPICARDIAL"]
+# Allowed values:
+# * "LV_ENDOCARDIAL" : LV endocardium
+# * "RV_ENDOCARDIAL" : RV endocardium - RVFW and RVS
+# * "EPICARDIAL" : Epicardium
 
 overwrite = true
 # Define to overwrite the output mesh if it exists

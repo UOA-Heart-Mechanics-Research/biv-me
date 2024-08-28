@@ -36,6 +36,7 @@ class BiventricularModel:
                                             nodes (5810x1).
        et_indices                           Elements connectivities (n1,n2,n3)
                                             for each face (11760x3).
+       et_indices_control_mesh              Element connectivities (n1, n2, n3) for each face of the coarse mesh (708x3)
        basis_matrix                         Matrix (5810x388) containing basis
                                             functions used to evaluate surface
                                             at surface point locations
@@ -110,8 +111,20 @@ class BiventricularModel:
     """Number of points defining the thru wall"""
     NUM_SUBDIVIDED_FACES = 11760
     """Number of faces after subdivision"""
+    NUM_COARSE_FACES = 708
+    """Number of faces before subdivision"""
     NUM_LOCAL_POINTS = 12509
     """Number of local points - used for patch estimation"""
+
+    ##cm_vertex_start_end = np.array(
+    ##    [
+    ##        [0, 104], # LV_ENDOCARDIAL
+    ##        [105, 180],
+    ##        [151, 210],
+    ##        [211, 353], # EPICARDIAL
+    ##    ]
+    ##)
+
     et_vertex_start_end = np.array(
         [
             [0, 1499],
@@ -192,6 +205,30 @@ class BiventricularModel:
         mesh.get_surface_start_end_index(surface_name)
     """
 
+    #cm_start_end = np.array(
+    #    [
+    #        [0, 191],   # LV_ENDOCARDIAL = 0
+    #        [192, 279], # RV_SEPTUM = 1
+    #        [280, 421], # RV_FREEWALL = 2
+    #        [422, 707], # EPICARDIAL = 3
+    #    ]
+    #)
+    ##"""Class constant,  control mesh index limits for embedded triangles `et_indices_control_mesh`.
+    ##Surfaces are defined in the following order
+##
+    ##        LV_ENDOCARDIAL = 0
+    ##        RV_SEPTUM = 1
+    ##        RV_FREEWALL = 2
+    ##        EPICARDIAL =3
+    ##        MITRAL_VALVE =4
+    ##        AORTA_VALVE = 5
+    ##        TRICUSPID_VALVE = 6
+    ##        PULMONARY_VALVE = 7
+##
+    ##To get control meshend and start vertex index use
+    ##get_cm_start_end_index(surface_name)
+    ##"""
+
     def __init__(self, control_mesh_dir: os.PathLike, label: str = "default", build_mode: bool = False):
         """Return a Surface object whose control mesh should be
         fitted to the dataset *DataSet*.
@@ -251,6 +288,15 @@ class BiventricularModel:
         et_index_thru_wall_file = control_mesh_dir / "epi_to_septum_ETindices.txt"
         assert et_index_thru_wall_file.exists(), \
             f"Missing {et_index_file} for myocardial mass calculation"
+
+        et_index_file = control_mesh_dir / "ETIndices_control_mesh.txt"
+        assert et_index_file.exists(), \
+            f"Missing {et_index_file}!"
+
+        self.et_indices_control_mesh = (
+                              pd.read_table(et_index_file, sep=r'\s+', header=None, engine="c")
+                          ).values.astype(int) - 1
+        """ 11760x3 array[int] of elements connectivity (n1,n2,n3) for each face of the coarse_mesh."""
 
         self.et_indices_thru_wall = (
                                        pd.read_table(et_index_thru_wall_file, sep=r'\s+', header=None)

@@ -12,6 +12,8 @@ import tomli
 import shutil
 import re
 import fnmatch
+from copy import deepcopy
+from bivme.fitting.surface_enum import Surface
 
 from bivme.fitting.BiventricularModel import BiventricularModel
 from bivme.fitting.GPDataSet import GPDataSet
@@ -87,7 +89,6 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
         frame_name = [re.search(r'GPFile_*(\d+)\.txt', str(file), re.IGNORECASE)[1] for file in time_frame]
         frame_name = sorted(frame_name)
 
-
         ed_frame = config["breathhold_correction"]["ed_frame"]
         my_logger.info(f'ED set to frame #{config["breathhold_correction"]["ed_frame"]}')
 
@@ -95,7 +96,6 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
             frames_to_fit = np.unique(
                 frame_name
             )  # if you want to fit all _frames#
-
 
         # create a separate output folder for each patient
         output_folder = Path(out_dir) / case
@@ -138,6 +138,28 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                 file.write("pos measured only at ED: frame " + str(ed_frame) + "\n")
                 file.write(str(pos_ed))
                 file.close()
+            biventricular_model = BiventricularModel(MODEL_RESOURCE_DIR, case)
+
+        else:
+            my_logger.info(f"Calculate pose and scale {str(case)}")
+            biventricular_model = BiventricularModel(MODEL_RESOURCE_DIR, case)
+            filename = Path(folder) / f"GPFile_{gp_suffix}{frame_name[ed_frame]:03}.txt"
+            if not filename.exists():
+                my_logger.error(f"Cannot find {filename} file! Skipping this model")
+                return -1
+            ed_dataset = GPDataSet(
+                str(filename),
+                str(filename_info),
+                case,
+                sampling=config["gp_processing"]["sampling"],
+                time_frame_number=ed_frame,
+            )
+            if not ed_dataset.success:
+                return -1
+
+        my_logger.info(f"Calculating pose and scale {str(case)}...")
+        biventricular_model.update_pose_and_scale(ed_dataset)
+        aligned_biventricular_model = deepcopy(biventricular_model)
 
         # initialise time series lists
         my_logger.info(f"Fitting of {str(case)}")
@@ -166,7 +188,6 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                 )
                 if not data_set.success:
                     return -1
-                biventricular_model = BiventricularModel(MODEL_RESOURCE_DIR, case)
 
                 if config["breathhold_correction"]["shifting"] == "derived_from_ed":
                     # apply shift measured previously using ED frame
@@ -204,7 +225,12 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                 else:
                     my_logger.warning(f'Method for misregistration correction {config["breathhold_correction"]["shifting"]} does not exist. No correction will be applied')
 
-                biventricular_model.update_pose_and_scale(data_set)
+                #print("Update_pose_and_sclae")
+                #if num == ed_frame:
+
+                #    aligned_biventricular_model = biventricular_model
+                #else:
+                #    biventricular_model = copy.deepcopy(aligned_biventricular_model)
 
                 # # perform a stiff fit
                 # displacement, err = biventricular_model.lls_fit_model(weight_GP,data_set,1e10)
@@ -233,22 +259,22 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                 # I recommend you to do the same.
 
                 try:
-                    _ = data_set.create_valve_phantom_points(20, ContourType.MITRAL_VALVE)
+                    _ = data_set.create_valve_phantom_points(config["gp_processing"]["num_of_phantom_points_mv"], ContourType.MITRAL_VALVE)
                 except:
                     my_logger.warning('Error in creating mitral phantom points')
 
                 try:
-                    _ = data_set.create_valve_phantom_points(20, ContourType.TRICUSPID_VALVE)
+                    _ = data_set.create_valve_phantom_points(config["gp_processing"]["num_of_phantom_points_tv"], ContourType.TRICUSPID_VALVE)
                 except:
                     my_logger.warning('Error in creating tricuspid phantom points')
 
                 try:
-                    _ = data_set.create_valve_phantom_points(20, ContourType.PULMONARY_VALVE)
+                    _ = data_set.create_valve_phantom_points(config["gp_processing"]["num_of_phantom_points_pv"], ContourType.PULMONARY_VALVE)
                 except:
                     my_logger.warning('Error in creating pulmonary phantom points')
 
                 try:
-                    _ = data_set.create_valve_phantom_points(20, ContourType.AORTA_VALVE)
+                    _ = data_set.create_valve_phantom_points(config["gp_processing"]["num_of_phantom_points_av"], ContourType.AORTA_VALVE)
                 except:
                     my_logger.warning('Error in creating aorta phantom points')
 
@@ -268,6 +294,7 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                 data_set.weights[data_set.contour_type == ContourType.PULMONARY_VALVE] = 1
 
                 # Perform linear fit
+                biventricular_model = deepcopy(aligned_biventricular_model)
                 solve_least_squares_problem(biventricular_model, config["fitting_weights"]["guide_points"], data_set, my_logger)
 
                 # Perform diffeomorphic fit
@@ -313,52 +340,94 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                         )
                     )
 
-                if output_format == ".obj":
-                    output_folder_obj = Path(output_folder, f"obj{gp_suffix}")
-                    output_folder_obj.mkdir(exist_ok=True)
-                    vertices = biventricular_model.et_pos
-                    faces = biventricular_model.et_indices
-                    output_path = Path(
-                        output_folder_obj, f"{case}_{num:03}.obj"
-                    )
-                    export_to_obj(output_path, vertices, faces)
-                    my_logger.success(f"{case}_{num:03}.obj successfully saved to {output_folder_obj}")
-                elif output_format == ".vtk":
-                    # save surface meshes as vtk
-                    output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
-                    output_folder_vtk.mkdir(exist_ok=True)
-                    mesh_type = ["Biv", "LV_endocardium", "RV_endocardium", "epicardium"]
-                    mesh_data = [{"LV_endocardium": 0, "RV_septum": 1, "RV_freewall": 2, "epicardium": 3},
-                                 {"LV_endocardium": 0},
-                                 {"RV_septum": 1, "RV_freewall": 2},
-                                 {"epicardium": 3}]
+                meshes = {}
+                for surface in Surface:
+                    mesh_data = {}
+                    if surface.name in config["output"]["output_meshes"]:
+                        mesh_data[surface.name] = surface.value
+                        if surface.name == "LV_ENDOCARDIAL" and config["output"]["closed_mesh"] == True:
+                            mesh_data["MITRAL_VALVE"] = Surface.MITRAL_VALVE.value
+                            mesh_data["AORTA_VALVE"] = Surface.AORTA_VALVE.value
+                        if surface.name == "RV_FREEWALL" and config["output"]["closed_mesh"] == True:
+                            mesh_data["PULMONARY_VALVE"] = Surface.PULMONARY_VALVE.value
+                            mesh_data["TRICUSPID_VALVE"] = Surface.TRICUSPID_VALVE.value
+                        if surface.name == "EPICARDIAL" and config["output"]["closed_mesh"] == True:
+                            mesh_data["PULMONARY_VALVE"] = Surface.PULMONARY_VALVE.value
+                            mesh_data["TRICUSPID_VALVE"] = Surface.TRICUSPID_VALVE.value
+                            mesh_data["MITRAL_VALVE"] = Surface.MITRAL_VALVE.value
+                            mesh_data["AORTA_VALVE"] = Surface.AORTA_VALVE.value
+                        meshes[surface.name] = mesh_data
 
-                    for i, mesh in enumerate(mesh_data):
-                        vertices = np.array([]).reshape(0, 3)
-                        faces_mapped = np.array([], dtype=np.int64).reshape(0, 3)
+                if "RV_ENDOCARDIAL" in config["output"]["output_meshes"]:
+                    mesh_data["RV_SEPTUM"] = Surface.RV_SEPTUM.value
+                    mesh_data["RV_FREEWALL"] = Surface.RV_FREEWALL.value
+                    if config["output"]["closed_mesh"]:
+                        mesh_data["PULMONARY_VALVE"] = Surface.PULMONARY_VALVE.value
+                        mesh_data["TRICUSPID_VALVE"] = Surface.TRICUSPID_VALVE.value
+                    meshes["RV_ENDOCARDIAL"] = mesh_data
 
-                        offset = 0
-                        for type in mesh:
-                            start_fi = biventricular_model.surface_start_end[mesh[type]][0]
-                            end_fi = biventricular_model.surface_start_end[mesh[type]][1] + 1
-                            faces_et = biventricular_model.et_indices[start_fi:end_fi]
-                            unique_inds = np.unique(faces_et.flatten())
-                            vertices = np.vstack((vertices, biventricular_model.et_pos[unique_inds]))
+                for key, value in meshes.items():
+                    vertices = np.array([]).reshape(0, 3)
+                    faces_mapped = np.array([], dtype=np.int64).reshape(0, 3)
 
-                            # remap faces/indices to 0-indexing
-                            mapping = {old_index: new_index for new_index, old_index in enumerate(unique_inds)}
-                            faces_mapped = np.vstack((faces_mapped, np.vectorize(mapping.get)(faces_et) + offset))
-                            offset += len(biventricular_model.et_pos[unique_inds])
+                    #vertices_cm = np.array([]).reshape(0, 3)
+                    #faces_mapped_cm = np.array([], dtype=np.int64).reshape(0, 3)
 
+                    offset = 0
+                    #offset_cm = 0
+                    for type in value:
+                        start_fi = biventricular_model.surface_start_end[value[type]][0]
+                        end_fi = biventricular_model.surface_start_end[value[type]][1] + 1
+                        faces_et = biventricular_model.et_indices[start_fi:end_fi]
+                        unique_inds = np.unique(faces_et.flatten())
+                        vertices = np.vstack((vertices, biventricular_model.et_pos[unique_inds]))
+
+                        # remap faces/indices to 0-indexing
+                        mapping = {old_index: new_index for new_index, old_index in enumerate(unique_inds)}
+                        faces_mapped = np.vstack((faces_mapped, np.vectorize(mapping.get)(faces_et) + offset))
+                        offset += len(biventricular_model.et_pos[unique_inds])
+
+                    if output_format == ".vtk":
+                        output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
+                        output_folder_vtk.mkdir(exist_ok=True)
                         mesh_path = Path(
-                            output_folder_vtk, f"{case}_{mesh_type[i]}_{num:03}.vtk"
+                            output_folder_vtk, f"{case}_{key}_{num:03}.vtk"
                         )
                         write_vtk_surface(str(mesh_path), vertices, faces_mapped)
-                        my_logger.success(f"{case}_{mesh_type[i]}_{num:03}.vtk successfully saved to {output_folder_vtk}")
+                        my_logger.success(f"{case}_{key}_{num:03}.vtk successfully saved to {output_folder_vtk}")
 
-                else:
-                    my_logger.error('argument format must be .obj or .vtk')
-                    return -1
+                        ##TODO reorganise matrices to be able to export
+                        if config["output"]["export_control_mesh"]:
+                            vertices = biventricular_model.control_mesh
+                            faces = biventricular_model.et_indices_control_mesh
+                            output_path = Path(
+                                output_folder_vtk, f"{case}_{num:03}_coarse_mesh.vtk"
+                            )
+                            write_vtk_surface(output_path, vertices, faces)
+                            my_logger.success(
+                                f"{case}_{num:03}_coarse_mesh.vtk successfully saved to {output_folder_vtk}")
+                    elif output_format == ".obj":
+                        output_folder_obj = Path(output_folder, f"obj{gp_suffix}")
+                        output_folder_obj.mkdir(exist_ok=True)
+                        mesh_path = Path(
+                            output_folder_obj, f"{case}_{key}_{num:03}.obj"
+                        )
+                        export_to_obj(mesh_path, vertices, faces_mapped)
+                        my_logger.success(f"{case}_{key}_{num:03}.obj successfully saved to {output_folder_obj}")
+
+                        ##TODO reorganise matrices to be able to export
+                        if config["output"]["export_control_mesh"]:
+                            vertices = biventricular_model.control_mesh
+                            faces = biventricular_model.et_indices_control_mesh
+                            output_path = Path(
+                                output_folder_obj, f"{case}_{num:03}_coarse_mesh.obj"
+                            )
+                            write_vtk_surface(output_path, vertices, faces)
+                            my_logger.success(
+                                f"{case}_{num:03}_coarse_mesh.obj successfully saved to {output_folder_obj}")
+                    else:
+                        my_logger.error('argument format must be .obj or .vtk')
+                        return -1
 
                 progress.advance(task)
         return residuals
@@ -386,10 +455,10 @@ if __name__ == "__main__":
                       "si_suffix": str(),
                       },
             "breathhold_correction": {"shifting": str(), "ed_frame": int()},
-            "gp_processing": {"sampling": int()},
+            "gp_processing": {"sampling": int(), "num_of_phantom_points_av": int(), "num_of_phantom_points_mv": int(), "num_of_phantom_points_tv": int(), "num_of_phantom_points_pv": int()},
             "multiprocessing": {"workers": int()},
             "fitting_weights": {"guide_points": float(), "convex_problem": float(), "transmural": float()},
-            "output": {"output_directory": str(), "show_logging": bool(), "mesh_format": str(), "generate_log_file": bool(), "overwrite": bool()},
+            "output": {"output_directory": str(), "output_meshes": list(), "closed_mesh": bool(),  "show_logging": bool(), "export_control_mesh": bool(), "mesh_format": str(), "generate_log_file": bool(), "overwrite": bool()},
         }:
             pass
         case _:

@@ -6,6 +6,7 @@ import shutil
 from pathlib import Path
 import tomli
 def test_performed_fit():
+
     test_data = ["patient_1_gpdata", "patient_2_gpdata"]
     output_dir = TEST_RESOURCE_DIR / 'output'
 
@@ -21,10 +22,10 @@ def test_performed_fit():
                       "si_suffix": str(),
                       },
             "breathhold_correction": {"shifting": str(), "ed_frame": int()},
-            "gp_processing": {"sampling": int()},
+            "gp_processing": {"sampling": int(), "num_of_phantom_points_av": int(), "num_of_phantom_points_mv": int(), "num_of_phantom_points_tv": int(), "num_of_phantom_points_pv": int()},
             "multiprocessing": {"workers": int()},
             "fitting_weights": {"guide_points": float(), "convex_problem": float(), "transmural": float()},
-            "output": {"output_directory": str(), "show_logging": bool(), "mesh_format": str(), "generate_log_file": bool(), "overwrite": bool()},
+            "output": {"output_directory": str(), "output_meshes": list(), "closed_mesh": bool(),  "show_logging": bool(), "export_control_mesh": bool(), "mesh_format": str(), "generate_log_file": bool(), "overwrite": bool()},
         }:
             pass
         case _:
