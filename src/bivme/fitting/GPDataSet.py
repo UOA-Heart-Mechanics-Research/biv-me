@@ -120,7 +120,6 @@ class GPDataSet(object):
         slices = []
         contour_types = []
         weights = []
-        time_frame = []
         try:
             data = pd.read_csv(
                 open(filename), sep="\t", header=None, low_memory=False
@@ -130,32 +129,15 @@ class GPDataSet(object):
 
                 slices.append(int(line[4]))
                 contour_types.append(line[3])
-
                 weights.append(float(line[5]))
-                #try:
-                #    time_frame.append(int(float(line[6])))
-                #except:
-                #    time_frame.append(time_frame_number)
 
             points = np.array(points)
             slices = np.array(slices)
             contour_types = np.array(contour_types)
             weights = np.array(weights)
-            #time_frame = np.array(time_frame)
 
         except ValueError:
             print("Wrong file format: {0}".format(filename))
-
-        ##if time_frame_number > -1:
-        ##    valid_contour_index = np.array(time_frame == time_frame_number)
-        ##    if np.sum(valid_contour_index) == 0:
-        ##        warnings.warn("Wrong time frame number")
-        ##        return
-##
-        ##    points = points[valid_contour_index, :]
-        ##    slices = slices[valid_contour_index]
-        ##    contour_types = contour_types[valid_contour_index]
-        ##    weights = weights[valid_contour_index]
 
         contour_types = self.convert_contour_types(contour_types)
         # increment contours points which don't need sampling
@@ -367,7 +349,6 @@ class GPDataSet(object):
             index_image_id = (
                 np.where(["frameID" in x for x in lines[0]])[0][0] + 1
             )
-            
             index_pixel_spacing = (
                 np.where(["PixelSpacing" in x for x in lines[0]])[0][0] + 1
             )
@@ -378,11 +359,9 @@ class GPDataSet(object):
             index_image_id = 3
         # lines = lines[1:]
 
-        contour_frames = np.unique(self.slice_number)
-        frames_to_use = np.where(
-            [int(line[index_image_id]) in contour_frames for line in lines]
-        )[0]
+        self.contoured_slices = np.unique(self.slice_number)
 
+        frames_to_use = [int(line[index_image_id]) -1 for line in lines]
         all_positions = []
         for i in frames_to_use:
             frame_id = int(lines[i][index_image_id])
@@ -1140,7 +1119,9 @@ class GPDataSet(object):
             frame_slice_nb.append(self.frames[uid].slice)
         for index, translation in enumerate(frames_translation):
             for frame in self.frames.values():
-                if not (np.all(frame.position == position[index])):
+
+                # needed to replace np.all by np.allclose as taking the average slice position when doing slice shifting was not meeting the ==
+                if not (np.allclose(frame.position, position[index])) or (frame.image_id not in self.contoured_slices):
                     continue
 
                 frame_uid = frame.image_id
@@ -1165,6 +1146,7 @@ class GPDataSet(object):
 
                 P3_LV = tools.apply_affine_to_points(transformation, pts_LV)
                 indexes = np.where((self.slice_number == frame_uid))
+
                 self.points_coordinates[indexes, :] = P3_LV
 
     def stiff_model_slice_shifting(self, model):
