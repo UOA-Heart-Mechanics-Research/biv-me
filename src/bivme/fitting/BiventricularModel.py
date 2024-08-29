@@ -116,14 +116,13 @@ class BiventricularModel:
     NUM_LOCAL_POINTS = 12509
     """Number of local points - used for patch estimation"""
 
-    ##cm_vertex_start_end = np.array(
-    ##    [
-    ##        [0, 104], # LV_ENDOCARDIAL
-    ##        [105, 180],
-    ##        [151, 210],
-    ##        [211, 353], # EPICARDIAL
-    ##    ]
-    ##)
+    control_mesh_vertex_start_end = np.array(
+        [
+            [0, 104], # LV_ENDOCARDIAL
+            [105, 210], # RV_ENDOCARDIAL
+            [211, 353], # EPICARDIAL
+        ]
+    )
 
     et_vertex_start_end = np.array(
         [
@@ -205,29 +204,23 @@ class BiventricularModel:
         mesh.get_surface_start_end_index(surface_name)
     """
 
-    #cm_start_end = np.array(
-    #    [
-    #        [0, 191],   # LV_ENDOCARDIAL = 0
-    #        [192, 279], # RV_SEPTUM = 1
-    #        [280, 421], # RV_FREEWALL = 2
-    #        [422, 707], # EPICARDIAL = 3
-    #    ]
-    #)
-    ##"""Class constant,  control mesh index limits for embedded triangles `et_indices_control_mesh`.
-    ##Surfaces are defined in the following order
-##
-    ##        LV_ENDOCARDIAL = 0
-    ##        RV_SEPTUM = 1
-    ##        RV_FREEWALL = 2
-    ##        EPICARDIAL =3
-    ##        MITRAL_VALVE =4
-    ##        AORTA_VALVE = 5
-    ##        TRICUSPID_VALVE = 6
-    ##        PULMONARY_VALVE = 7
-##
-    ##To get control meshend and start vertex index use
-    ##get_cm_start_end_index(surface_name)
-    ##"""
+    control_mesh_start_end = np.array(
+        [
+            [0, 191],   # LV_ENDOCARDIAL = 0
+            [192, 421], # RV_ENDOCARDIAL = 1
+            [422, 707], # EPICARDIAL = 2
+        ]
+    )
+    """Class constant,  control mesh index limits for embedded triangles `et_indices_control_mesh`.
+    Surfaces are defined in the following order
+
+            LV_ENDOCARDIAL = 0
+            RV_ENDOCARDIAL = 1
+            EPICARDIAL = 2
+
+    To get control mesh end and start vertex index use
+    get_control_mesh_start_end_index(surface_name)
+    """
 
     def __init__(self, control_mesh_dir: os.PathLike, label: str = "default", build_mode: bool = False):
         """Return a Surface object whose control mesh should be
@@ -636,6 +629,108 @@ class BiventricularModel:
 
         if surface_name == Surface.PULMONARY_VALVE:
             return self.surface_start_end[7, :]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    def get_control_mesh_vertex_start_end_index(self, surface_name: ControlMesh) -> np.ndarray:
+        """Return first and last vertex index for a given surface to use
+        with `et_pos` array
+
+        Parameters
+        -----------
+
+        `surface_name`  Surface name as defined in 'Surface' enumeration
+
+        `Returns`
+        ---------
+        2x1 array with first and last vertices index belonging to
+            surface_name
+        """
+
+        if surface_name == ControlMesh.LV_ENDOCARDIAL:
+            return self.control_mesh_vertex_start_end[0, :]
+
+        if surface_name == ControlMesh.RV_ENDOCARDIAL:
+            return self.control_mesh_vertex_start_end[1, :]
+
+        if surface_name == Surface.EPICARDIAL:
+            return self.control_mesh_vertex_start_end[2, :]
+
+        #if surface_name == Surface.MITRAL_VALVE:
+        #    return self.et_vertex_start_end[4, :]
+#
+        #if surface_name == Surface.AORTA_VALVE:
+        #    return self.et_vertex_start_end[5, :]
+#
+        #if surface_name == Surface.TRICUSPID_VALVE:
+        #    return self.et_vertex_start_end[6, :]
+#
+        #if surface_name == Surface.PULMONARY_VALVE:
+        #    return self.et_vertex_start_end[7, :]
+
+    def get_control_mesh_faces(self, surface: ControlMesh) -> np.ndarray:
+        """Get the faces definition for a surface triangulation"""
+
+        surface_index = self.get_control_mesh_start_end_index(surface)
+        return self.et_indices_control_mesh[surface_index[0] : surface_index[1] + 1, :]
+
+    def get_control_mesh_start_end_index(self, surface_name: ControlMesh) -> np.ndarray:
+        """Return first and last element index for a given surface, tu use
+        with `et_indices_control_mesh` array
+        Parameters
+        ----------
+        `surface_name` surface name as defined by `ControlMesh` enum
+
+        Returns
+        -------
+        2x1 array containing first and last vertices index belonging to
+           `surface_name`
+        """
+
+        if surface_name == ControlMesh.LV_ENDOCARDIAL:
+            return self.surface_start_end[0, :]
+
+        if surface_name == ControlMesh.RV_ENDOCARDIAL:
+            return self.surface_start_end[1, :]
+
+        if surface_name == ControlMesh.EPICARDIAL:
+            return self.surface_start_end[2, :]
+
+        #if surface_name == ControlMesh.MITRAL_VALVE:
+        #    return self.surface_start_end[4, :]
+#
+        #if surface_name == ControlMesh.AORTA_VALVE:
+        #    return self.surface_start_end[5, :]
+#
+        #if surface_name == ControlMesh.TRICUSPID_VALVE:
+        #    return self.surface_start_end[6, :]
+#
+        #if surface_name == ControlMesh.PULMONARY_VALVE:
+        #    return self.surface_start_end[7, :]
 
     def is_diffeomorphic(self, updated_control_mesh: np.ndarray, min_jacobian: float) -> bool:
         """This function checks the Jacobian value at Gauss point location

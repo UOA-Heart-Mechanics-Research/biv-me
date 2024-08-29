@@ -15,6 +15,11 @@ class Surface(IntEnum):
     RV_INSERT = 8  # RV insert.
     APEX = 9
 
+class ControlMesh(IntEnum):
+    """ """
+    LV_ENDOCARDIAL = 0  # LV_ENDOCARDIAL,
+    RV_ENDOCARDIAL = 1  # RV septum,
+    EPICARDIAL = 2  # epicardium,
 
 class ContourType(Enum):
     """ """

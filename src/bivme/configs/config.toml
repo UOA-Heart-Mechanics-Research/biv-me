@@ -19,11 +19,11 @@ si_suffix = ''
 # Default: ""
 
 [breathhold_correction]
-shifting = "derived_from_ed"  # derived_from_ed, none, all_frame
+shifting = "derived_from_ed" # derived_from_ed, average_all_frames
 # Define the method used for breathhold misregistration correction.
 # Allowed values:
 # * "derived_from_ed"      : The correction is calculated at ED only and propagated to all the frames
-# * "all"  : Breathold misregistration is calculated for all the time frames
+# * "average_all_frame"  : Breathold misregistration is calculated by averaging slice shift over all frame
 # Default: "derived_from_ed"
 
 ed_frame = 0  # ED frame
@@ -65,15 +65,15 @@ generate_log_file = true
 # Decide whether or not to save the logs. If true, a .log file will be generated
 # Default: true
 
-export_control_mesh = false
+export_control_mesh = true
 # Decide whether or not to save the coarse mesh. If true, the coarse mesh will be generated (format: mesh_format)
 # Default: false
 
 mesh_format = ".obj"
 # Allowed values:
 # * ".obj" : write the mesh as a wavefront .obj file - compatible with most computer graphics/mesh visualisation software
-# * ".vtk" : write the mesh as tvk format
-# Default: ".obj"
+# * ".vtk" : write the mesh as to vk format
+# Default: ".vtk"
 
 closed_mesh = false
 # Option to export mesh object as closed or not closed
