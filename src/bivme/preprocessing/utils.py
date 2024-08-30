@@ -219,9 +219,9 @@ def Temporal_Matching(contours):
         if np.all(frames == min_frames):
             contours_resampled.points[contour_type] = points
             for point in points:
-                if point.sop_instance_uid not in contours_resampled.frame.keys():
+                if point.sop_instance_uid not in contours_resampled.slice.keys():
                     contours_resampled.add_frame(
-                        point.sop_instance_uid, contours.frame[point.sop_instance_uid]
+                        point.sop_instance_uid, contours.slice[point.sop_instance_uid]
                     )
         else:
             new_frames = []
@@ -239,13 +239,13 @@ def Temporal_Matching(contours):
                     ]
                     if (
                         new_point.sop_instance_uid
-                        not in contours_resampled.frame.keys()
+                        not in contours_resampled.slice.keys()
                     ):
-                        mod_frame = Frame(
-                            contours.frame[new_point.sop_instance_uid].image_id,
-                            contours.frame[new_point.sop_instance_uid].position,
-                            contours.frame[new_point.sop_instance_uid].orientation,
-                            contours.frame[new_point.sop_instance_uid].pixel_spacing,
+                        mod_frame = Slice(
+                            contours.slice[new_point.sop_instance_uid].image_id,
+                            contours.slice[new_point.sop_instance_uid].position,
+                            contours.slice[new_point.sop_instance_uid].orientation,
+                            contours.slice[new_point.sop_instance_uid].pixel_spacing,
                         )
                         mod_frame.time_frame = new_point.time_frame
                         contours_resampled.add_frame(
@@ -363,8 +363,8 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
                     # TODO - don't overwrite inbuilt function "slice"!
                     slice = uid_slice_match[point.sop_instance_uid]
                     point.coordinates = point.coordinates + offsets[slice][0]
-                    contours_CIM.frame[point.sop_instance_uid].position = contours_CIM.frame[point.sop_instance_uid].position + offsets[slice][0]
-                    contours_CIM.frame[point.sop_instance_uid].orientation = contours_CIM.frame[point.sop_instance_uid].orientation + offsets[slice][1]
+                    contours_CIM.slice[point.sop_instance_uid].position = contours_CIM.slice[point.sop_instance_uid].position + offsets[slice][0]
+                    contours_CIM.slice[point.sop_instance_uid].orientation = contours_CIM.slice[point.sop_instance_uid].orientation + offsets[slice][1]
         print('Slice corrections applied successfully')
     
     if valve_points == True: # TODO: ability to toggle on/off RV inserts?
@@ -384,18 +384,18 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
 
 
         # match slices beween cim and circle
-        frame_insert_point = len(contours_CIM.frame.keys())
+        frame_insert_point = len(contours_CIM.slice.keys())
         count=0
         for uid,coords in uid_coords_match.items():
             # if cim has a slice that circle doesn't
-            if uid not in contours_CIM.frame.keys():
+            if uid not in contours_CIM.slice.keys():
                 count+=1
-                new_frame = Frame(image_id= frame_insert_point + count,
+                new_frame = Slice(image_id= frame_insert_point + count,
                                   position = coords[0], orientation = coords[1], pixel_spacing = coords[2])
                 new_frame.time_frame = coords[3]
                 contours_CIM.add_frame(uid, new_frame)
         
-        for uid,frame in contours_CIM.frame.items():
+        for uid,frame in contours_CIM.slice.items():
             if uid not in uid_coords_match.keys():
                 # find closest slice by position, orientation
                 min_pos_d = np.inf
@@ -427,7 +427,7 @@ def CIM_Correction(folder, gpfile, sliceinfofile, cim_data, image_ptrs, cim_offs
                 # remove pre-applied offsets from CIM valve points
                 new_point.coordinates = new_point.coordinates - offsets[f"series_{point['series']}"][int(point['slice'])]
                 
-                for uid,frame in contours_CIM.frame.items():
+                for uid, frame in contours_CIM.slice.items():
                     if uid in uid_slice_match.keys():
                         if point['series'] == '0':
                             if uid_slice_match[uid] == int(point['slice']) and int(frame.time_frame) == int(point['frame']):
