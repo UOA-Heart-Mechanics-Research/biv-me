@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 
 from bivme.preprocessing import Contours
 from bivme.preprocessing.cvi42.parse_cvi42_xml import traverseNode
-from bivme.fitting.Frame import Frame, Point
+from bivme.fitting.Slice import Slice, Point
 
 
 contour_name_map = {
