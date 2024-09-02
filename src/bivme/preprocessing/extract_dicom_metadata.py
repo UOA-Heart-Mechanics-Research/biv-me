@@ -2,7 +2,7 @@ import os
 import pydicom as dcm
 import numpy as np
 
-class Frame():
+class Slice():
     def __init__(self,serie, slice, frame ,position, orientation, pixel_spacing,
                  image = None, subpixel_resolution = 1):
         self.position = position
@@ -96,7 +96,7 @@ def extract_dicom_metadata(dicom_dir, dicom_extension='.dcm',  export_file =None
 
                     if frame == 0:
                         frame = slice_len
-                    image = Frame(serie, slice, frame ,
+                    image = Slice(serie, slice, frame ,
                                   serie_position[index],
                                   serie_orientation[index],
                                   serie_pixel[index])
