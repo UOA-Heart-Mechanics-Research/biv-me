@@ -37,7 +37,7 @@ def calculate_circumferential_strain(case_name: str, model_file: os.PathLike, bi
     frame_name = re.search(r'Frame_(\d+)\.txt', str(model_file), re.IGNORECASE)[1]
     # assign values to dict
     results_dict = {'case': case_name, 'frame': frame_name} | {
-        k: '' for k in ['lv_gcs_apex', 'lv_gcs_mid', 'lv_gcs_base', 'rvfw_gcs_apex', 'rvfw_gcs_mid', 'rvfw_gcs_base', 'rvs_gcs_apex', 'rvs_gcs_mid', 'rvs_gcs_base']
+        k: np.NaN for k in ['lv_gcs_apex', 'lv_gcs_mid', 'lv_gcs_base', 'rvfw_gcs_apex', 'rvfw_gcs_mid', 'rvfw_gcs_base', 'rvs_gcs_apex', 'rvs_gcs_mid', 'rvs_gcs_base']
     }
 
     subdivision_matrix_file = biv_model_folder / "subdivision_matrix.txt"
@@ -101,11 +101,11 @@ def calculate_circumferential_strain(case_name: str, model_file: os.PathLike, bi
         rvs_gcs_base = np.linalg.norm(rvs_gcs_base_vertices[1:, :] - rvs_gcs_base_vertices[:-1, :], axis=1)
         results_dict['rvs_gcs_base'] = round(np.sum(rvs_gcs_base), precision)
 
-        return results_dict
-
     else:
         logger.error(f"No strain calculated for {model_file} please check the model file")
-        return np.zeros((1, 4))
+
+    return results_dict
+
 
 if __name__ == "__main__":
     biv_resource_folder = MODEL_RESOURCE_DIR
