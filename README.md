@@ -158,6 +158,13 @@ options:
 ```
 Results will be saved in {OUTPUT_PATH}/global_longitudinal_strain.csv
 
+### Compute wall thickness
+The script for computing the wall thickness can be found in src/bivme/analysis
+```
+usage: 
+
+```
+
 **Step 4**
 
 After changing the script perform_fit.py according to your needs, there are two options to perform the model fitting. The first option is to fit the list of inout patients sequentially, by running perform_fit.py. 
