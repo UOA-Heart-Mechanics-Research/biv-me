@@ -10,8 +10,8 @@ class Point:
     """
 
     def __init__(
-        self, pixel_coords=None, sop_instance_uid=None, weight=1, time_frame=None
-    ):
+        self, pixel_coords: np.array=None, sop_instance_uid: str=None, weight: float=1, time_frame: int=None
+    ) -> None:
         if pixel_coords == None:
             self.pixel = np.empty(2)
         else:
@@ -22,7 +22,7 @@ class Point:
         self.weight = weight
         self.time_frame = time_frame
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if np.all(self.pixel == other.pixel):
             if self.sop_instance_uid == other.sop_instance_uid:
                 equal = True
@@ -41,17 +41,16 @@ class Point:
         new_point.time_frame = copy.deepcopy(self.time_frame)
         return new_point
 
-
-class Frame:
+class Slice:
     def __init__(
         self,
-        image_id,
-        position,
-        orientation,
-        pixel_spacing,
-        image=None,
-        subpixel_resolution=1,
-    ):
+        image_id: int,
+        position: np.ndarray,
+        orientation: np.ndarray,
+        pixel_spacing: np.ndarray,
+        image: np.ndarray=None,
+        subpixel_resolution: int=1,
+    ) -> None:
         self.position = position
         self.orientation = orientation
         self.pixel_spacing = pixel_spacing
@@ -62,23 +61,23 @@ class Frame:
         self.slice = None
         self.image_id = image_id
 
-    def get_affine_matrix(self, scaling=False):
+    def get_affine_matrix(self, scaling: bool=False) -> np.ndarray:
         spacing = self.pixel_spacing
         image_position_patient = self.position
         image_orientation_patient = self.orientation
         # Translation
-        T = np.identity(4)
-        T[0:3, 3] = image_position_patient
+        translation = np.identity(4)
+        translation[0:3, 3] = image_position_patient
         # Rotation
-        R = np.identity(4)
-        R[0:3, 0] = image_orientation_patient[0:3]
-        R[0:3, 1] = image_orientation_patient[3:7]
-        R[0:3, 2] = np.cross(R[0:3, 0], R[0:3, 1])
-        T = np.dot(T, R)
+        rotation = np.identity(4)
+        rotation[0:3, 0] = image_orientation_patient[0:3]
+        rotation[0:3, 1] = image_orientation_patient[3:7]
+        rotation[0:3, 2] = np.cross(rotation[0:3, 0], rotation[0:3, 1])
+        translation = np.dot(translation, rotation)
         # scale
         if scaling:
-            S = np.identity(4)
-            S[0, 0] = spacing[1]
-            S[1, 1] = spacing[0]
-            T = np.dot(T, S)
-        return T
+            scale = np.identity(4)
+            scale[0, 0] = spacing[1]
+            scale[1, 1] = spacing[0]
+            translation = np.dot(translation, scale)
+        return translation

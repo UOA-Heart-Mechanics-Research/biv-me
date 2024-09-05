@@ -7,7 +7,7 @@ import argparse
 from loguru import logger
 
 
-class Frame():
+class Slice():
     def __init__(self, image_id,position, orientation, pixel_spacing,
                  sopUID=None,image = None, subpixel_resolution = 1):
         self.position = position
@@ -123,7 +123,7 @@ def process_sax(saxfile):
             position = sax_mat['image_position'][phase][slice][0]
             orientation = sax_mat['orientation'][phase][slice][0]
             spacing = sax_mat['pixel_size'][phase][slice][0]
-            slice_obj = Frame(slice, position, orientation, spacing)
+            slice_obj = Slice(slice, position, orientation, spacing)
             img2world = slice_obj.get_affine_matrix()
 
             # Check if contours exist
@@ -218,7 +218,7 @@ def process_lax(laxfile, saxfile):
             position = lax_mat['image_position'][phase][slice][0]
             orientation = lax_mat['orientation'][phase][slice][0]
             spacing = lax_mat['pixel_size'][phase][slice][0]
-            slice_obj = Frame(slice, position, orientation, spacing)
+            slice_obj = Slice(slice, position, orientation, spacing)
             img2world = slice_obj.get_affine_matrix()
 
             # Check if contours exist

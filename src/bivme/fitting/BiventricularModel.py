@@ -1182,7 +1182,7 @@ class BiventricularModel:
 
             signed_distance = np.sign(dist[faces])
             # search for triangles having the vertex on the both sides of the
-            # frame plane => intersecting with the frame plane
+            # slice plane => intersecting with the slice plane
             valid_index = [
                 np.any(signed_distance[i] > 0) and np.any(signed_distance[i] < 0)
                 for i in range(len(signed_distance))
@@ -1265,18 +1265,18 @@ class BiventricularModel:
 
         return f_idx
 
-    def get_intersection_with_dicom_image(self, frame: Frame, surface: Surface=None) -> np.ndarray:
+    def get_intersection_with_dicom_image(self, slice: Slice, surface: Surface=None) -> np.ndarray:
         """Get the intersection contour points between the biventricular
         model with a DICOM image
 
         Example
         -------
-            obj.get_intersection_with_dicom_image(frame, Surface.RV_SEPTUM)
+            obj.get_intersection_with_dicom_image(slice, Surface.RV_SEPTUM)
 
         Parameters
         ----------
 
-        `frame` Frame obj with the dicom information
+        `slice` Slice obj with the dicom information
 
         `surface` Surface enum, model surface to be intersected
 
@@ -1286,8 +1286,8 @@ class BiventricularModel:
         `P` (n,3) array[float] intersecting points
         """
 
-        image_position = np.asarray(frame.position, dtype=float)
-        image_orientation = np.asarray(frame.orientation, dtype=float)
+        image_position = np.asarray(slice.position, dtype=float)
+        image_orientation = np.asarray(slice.orientation, dtype=float)
 
         # get image position and the image vectors
         v1 = np.asarray(image_orientation[0:3], dtype=float)

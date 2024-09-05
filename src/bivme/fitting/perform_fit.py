@@ -181,8 +181,25 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                 file.write("Average shift \n")
                 file.write(str(updated_slice_position))
                 file.close()
+        elif config["breathhold_correction"]["shifting"] == "none":
+            my_logger.info("No correction applied")
+            filename = Path(folder) / f"GPFile_{gp_suffix}{frame_name[ed_frame]:03}.txt"
+            if not filename.exists():
+                my_logger.error(f"Cannot find {filename} file! Skipping this model")
+                return -1
+
+            ed_dataset = GPDataSet(
+                str(filename),
+                str(filename_info),
+                case,
+                sampling=config["gp_processing"]["sampling"],
+                time_frame_number=ed_frame,
+            )
+            if not ed_dataset.success:
+                return -1
+
         else:
-            my_logger.error(f'Method {config["breathhold_correction"]["shifting"]} unavailable.  Allowed values: derived_from_ed or average_all_frame. No correction applied')
+            my_logger.error(f'Method {config["breathhold_correction"]["shifting"]} unavailable.  Allowed values: none, derived_from_ed or average_all_frame. No correction applied')
             return -1
 
         biventricular_model = BiventricularModel(MODEL_RESOURCE_DIR, case)
@@ -220,7 +237,8 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                     my_logger.error(f"Cannot initialize GPDataSet! Skipping this frame")
                     continue
 
-                data_set.apply_slice_shift(shift_to_apply, updated_slice_position)
+                if config["breathhold_correction"]["shifting"] != "none":
+                    data_set.apply_slice_shift(shift_to_apply, updated_slice_position)
                 data_set.get_unintersected_slices()
 
                 # Generates RV epicardial point if they have not been contoured

@@ -19,11 +19,12 @@ si_suffix = ''
 # Default: ""
 
 [breathhold_correction]
-shifting = "derived_from_ed" # derived_from_ed, average_all_frames
+shifting = "derived_from_ed" # derived_from_ed, average_all_frames, none
 # Define the method used for breathhold misregistration correction.
 # Allowed values:
 # * "derived_from_ed"      : The correction is calculated at ED only and propagated to all the frames
 # * "average_all_frame"  : Breathold misregistration is calculated by averaging slice shift over all frame
+# * "none"  : no correction applied
 # Default: "derived_from_ed"
 
 ed_frame = 0  # ED frame
