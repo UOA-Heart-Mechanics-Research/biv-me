@@ -37,7 +37,7 @@ def calculate_longitudinal_strain(case_name: str, model_file: os.PathLike, biv_m
     frame_name = re.search(r'Frame_(\d+)\.txt', str(model_file), re.IGNORECASE)[1]
     # assign values to dict
     results_dict = {'case': case_name, 'frame': frame_name} | {
-        k: '' for k in ['lv_gls_2ch', 'lv_gls_4ch', 'rvs_gls_4ch', 'rvfw_gls_4ch']
+        k: np.NaN for k in ['lv_gls_2ch', 'lv_gls_4ch', 'rvs_gls_4ch', 'rvfw_gls_4ch']
     }
 
     subdivision_matrix_file = biv_model_folder / "subdivision_matrix.txt"
@@ -76,11 +76,11 @@ def calculate_longitudinal_strain(case_name: str, model_file: os.PathLike, biv_m
         rvfw_gls_4ch = np.linalg.norm(rvfw_gls_4ch_vertices[1:, :] - rvfw_gls_4ch_vertices[:-1, :], axis=1)
         results_dict['rvfw_gls_4ch'] = round(np.sum(rvfw_gls_4ch), precision)
 
-        return results_dict
-
     else:
         logger.error(f"No strain calculated for {model_file} please check the model file")
-        return np.zeros((1, 4))
+
+    return results_dict
+
 
 if __name__ == "__main__":
 

@@ -3,7 +3,7 @@ import os
 import numpy as np
 from scipy.spatial import ckdtree
 
-from bivme.fitting.Frame import Frame, Point
+from bivme.fitting.Slice import Slice, Point
 
 
 class Contours:
@@ -14,9 +14,9 @@ class Contours:
             self.points = dict_of_points  # disctionary of collections of points,
         # indexed by contour name, a contour will contains a list of points
         if dict_of_frame == None:
-            self.frame = {}
+            self.slice = {}
         else:
-            self.frame = dict_of_frame  # dictionary of frames indexed by frame uid
+            self.slice = dict_of_frame  # dictionary of frames indexed by frame uid
 
         self.nb_frames = 0
         self.nb_points = 0
@@ -53,7 +53,7 @@ class Contours:
                 gp_file, skip_header=skip_header, usecols=(3), dtype=str
             )
 
-            gp_frame_id = np.genfromtxt(
+            gp_slice_id = np.genfromtxt(
                 gp_file, skip_header=skip_header, usecols=(4), dtype=int
             )
             weight = np.genfromtxt(
@@ -79,13 +79,13 @@ class Contours:
             data_set = data_set[valid_contour_index, :]
             contour_type = contour_type[valid_contour_index]
             file_time_frames = file_time_frames[valid_contour_index]
-            gp_frame_id = gp_frame_id[valid_contour_index]
+            gp_slice_id = gp_slice_id[valid_contour_index]
 
         # read metadata file
-        used_frame_id, index = np.unique(gp_frame_id, return_index=True)
+        used_slice_id, index = np.unique(gp_slice_id, return_index=True)
         corresponding_time = file_time_frames[index]
-        frames_uid = np.genfromtxt(metadata, usecols=(0), dtype=str)
-        frames_id = np.genfromtxt(metadata, usecols=(2), dtype=int)
+        slices_uid = np.genfromtxt(metadata, usecols=(0), dtype=str)
+        slices_id = np.genfromtxt(metadata, usecols=(2), dtype=int)
 
         try:
             position = np.genfromtxt(metadata, usecols=(6, 7, 8), dtype=float)
@@ -105,19 +105,19 @@ class Contours:
             new_point = Point()
             new_point.coordinates = point
             new_point.weight = weight[index]
-            new_point.sop_instance_uid = frames_uid[frames_id == gp_frame_id[index]][0]
+            new_point.sop_instance_uid = slices_uid[slices_id == gp_slice_id[index]][0]
             new_point.time_frame = file_time_frames[index]
             self.add_point(contour_type[index], new_point)
 
         # increment contours points which don't need sampling
-        for index, frame_id in enumerate(frames_id):
-            if frame_id in used_frame_id:
-                time_frame = corresponding_time[frame_id == used_frame_id][0]
-                new_frame = Frame(
-                    frame_id, position[index], orientation[index], pixel_spacing[index]
+        for index, slice_id in enumerate(slices_id):
+            if slice_id in used_slice_id:
+                time_frame = corresponding_time[slice_id == used_slice_id][0]
+                new_slice = Slice(
+                    slice_id, position[index], orientation[index], pixel_spacing[index]
                 )
-                new_frame.time_frame = time_frame
-                self.add_frame(frames_uid[index], new_frame)
+                new_slice.time_frame = time_frame
+                self.add_slice(slices_uid[index], new_slice)
 
     def merge_contours(self, new_contour):
         for new_c in new_contour.list_contour_types():
@@ -127,28 +127,28 @@ class Contours:
                 self.points.update({new_c: new_contour.points[new_c]})
             self.nb_points = self.nb_points + len(new_contour.points[new_c])
 
-        for new_frame in new_contour.list_frame_uids():
-            if not (new_frame in self.list_frame_uids()):
-                self.frame.update({new_frame: new_contour.frame[new_frame]})
-                self.nb_frames = self.nb_frames + 1
+        for new_slice in new_contour.list_slice_uids():
+            if not (new_slice in self.list_slice_uids()):
+                self.slice.update({new_slice: new_contour.slice[new_slice]})
+                self.nb_slices = self.nb_slices + 1
         self._compute_slices()
         self._compute_time_frames()
         return self
 
-    def get_frame_points(self, contour, frame_uids=None):
+    def get_slice_points(self, contour, slice_uids=None):
         """
         returns the points associated with a list of frame uids amd a
-        contour type. If frame_uids is not defined, it returns the contour
+        contour type. If slice_uids is not defined, it returns the contour
         for all existing frames
         Args:
             contour: string, type of contour
-            frame_uids:
+            slice_uids:
 
         Returns:
             list_of_index: list of ints corresponding to the points index,
                             as found in self.points[contour]
             list_of_points: list of points objects corresponding to the
-                        frames with sop_instance_uid ='frame_uids' and
+                        frames with sop_instance_uid ='slice_uids' and
                         contour_type ='contour'
 
         """
@@ -158,15 +158,15 @@ class Contours:
         if contour not in self.list_contour_types():
             return list_of_index, list_of_points
 
-        if frame_uids == None:
-            frame_uids = []
-        if not isinstance(frame_uids, list):
-            frame_uids = [frame_uids]
-        if len(frame_uids) == 0:
-            frame_uids = self.list_frame_uids()
+        if slice_uids == None:
+            slice_uids = []
+        if not isinstance(slice_uids, list):
+            slice_uids = [slice_uids]
+        if len(slice_uids) == 0:
+            slice_uids = self.list_slice_uids()
 
         for point_index, point in enumerate(self.points[contour]):
-            if point.sop_instance_uid in frame_uids:
+            if point.sop_instance_uid in slice_uids:
                 list_of_index.append(point_index)
                 list_of_points.append(point)
 
@@ -237,23 +237,23 @@ class Contours:
             except:
                 ValueError("Invalid list of indexes")
 
-    def get_frame_pixels(self, contour, frame_uid):
+    def get_slice_pixels(self, contour, slice_uid):
         index_list = []
         pixel_list = []
         if contour not in self.list_contour_types():
             return index_list, pixel_list
 
         for point_index, point in enumerate(self.points[contour]):
-            if point.sop_instance_uid == frame_uid:
+            if point.sop_instance_uid == slice_uid:
                 index_list.append(point_index)
                 pixel_list.append(point.pixel)
 
         return index_list, np.reshape(pixel_list, (len(pixel_list), 2))
 
-    def get_frame_points_coordinates(self, contour, frame_uids):
+    def get_slice_points_coordinates(self, contour, slice_uids):
         """
         input:
-            frame_uid:  the frame unique ID number
+            slice_uid:  the frame unique ID number
         output:
             index_list: a list on ints giving the index of
                         points corresponding to the frame
@@ -266,7 +266,7 @@ class Contours:
         if contour not in self.list_contour_types():
             return index_list, coordinates_list
 
-        index_list, frame_points = self.get_frame_points(contour, frame_uids)
+        index_list, frame_points = self.get_slice_points(contour, slice_uids)
         coordinates_list = [x.coordinates for x in frame_points]
 
         return index_list, np.reshape(coordinates_list, (len(coordinates_list), 3))
@@ -289,9 +289,9 @@ class Contours:
 
         return np.unique(existing_uids)
 
-    def add_frame(self, frame_uid, new_frame):
-        self.frame.update({frame_uid: new_frame})
-        self.nb_frames += 1
+    def add_slice(self, slice_uid, new_slice):
+        self.slice.update({slice_uid: new_slice})
+        self.nb_slices += 1
         # set int id using the trigger time # will be used to select
         # points at different time frames
         self._compute_slices()
@@ -326,50 +326,50 @@ class Contours:
                     for index, point in enumerate(contour_points):
                         point.weight = weights[index]
 
-    def list_frame_uids(self):
-        return list(self.frame.keys())
+    def list_slice_uids(self):
+        return list(self.slice.keys())
 
-    def get_frame_position(self, frame_uid):
-        if frame_uid in self.frame.keys():
-            return self.frame[frame_uid].position
+    def get_slice_position(self, slice_uid):
+        if slice_uid in self.slice.keys():
+            return self.slice[slice_uid].position
         else:
             return None
 
-    def get_subpixel_resolution(self, frame_uid):
-        if frame_uid in self.frame.keys():
-            return self.frame[frame_uid].subpixel_resolution
+    def get_subpixel_resolution(self, slice_uid):
+        if slice_uid in self.slice.keys():
+            return self.slice[slice_uid].subpixel_resolution
         else:
             return None
 
-    def get_frame_orientation(self, frame_uid):
-        if frame_uid in self.frame.keys():
-            return self.frame[frame_uid].orientation
+    def get_slice_orientation(self, slice_uid):
+        if slice_uid in self.slice.keys():
+            return self.slice[slice_uid].orientation
         else:
             return None
 
-    def get_frame_pixel_spacing(self, frame_uid):
-        if frame_uid in self.frame.keys():
-            return self.frame[frame_uid].pixel_spacing
+    def get_slice_pixel_spacing(self, slice_uid):
+        if slice_uid in self.slice.keys():
+            return self.slice[slice_uid].pixel_spacing
         else:
             return None
 
     def list_contour_types(self):
         return list(self.points.keys())
 
-    def list_frame_uids_at_timeframe(self, timeframe):
+    def list_slice_uids_at_timeframe(self, timeframe):
         if np.isscalar(timeframe):
             timeframe = [timeframe]
         if not isinstance(timeframe, list):
             timeframe = list(timeframe)
 
-        frame_uids = []
+        slice_uids = []
         for frame in timeframe:
             if frame in self._time_uid_map.keys():
-                frame_uids = frame_uids + list(self._time_uid_map[frame])
+                slice_uids = slice_uids + list(self._time_uid_map[frame])
 
-        return frame_uids
+        return slice_uids
 
-    def list_frame_uids_at_slice(self, spaceframe):
+    def list_slice_uids_at_slice(self, spaceframe):
         if spaceframe in self._space_uid_map:
             return list(self._space_uid_map[spaceframe])
         else:
@@ -387,9 +387,9 @@ class Contours:
             if contour not in self.list_contour_types():
                 return index_lst, point_lst
 
-            for frame_uid in self.list_frame_uids_at_timeframe(time):
-                local_index_lst, local_point_lst = self.get_frame_points(
-                    contour, frame_uid
+            for slice_uid in self.list_slice_uids_at_timeframe(time):
+                local_index_lst, local_point_lst = self.get_slice_points(
+                    contour, slice_uid
                 )
                 point_lst = point_lst + local_point_lst
                 index_lst = index_lst + local_index_lst
@@ -402,8 +402,8 @@ class Contours:
         if contour not in self.list_contour_types():
             return
 
-        for frame_uid in self.list_frame_uids_at_timeframe(spaceframe):
-            local_index_lst, local_point_lst = self.get_frame_points(contour, frame_uid)
+        for slice_uid in self.list_slice_uids_at_timeframe(spaceframe):
+            local_index_lst, local_point_lst = self.get_slice_points(contour, slice_uid)
             point_lst = point_lst + local_point_lst
             index_lst = index_lst + local_index_lst
 
@@ -451,8 +451,8 @@ class Contours:
         frame_orientation and frame_position into 9
         parameters."""
         position_pairs = []
-        for frame_uid in self.list_frame_uids():
-            position_pairs.append(self.frame[frame_uid].trigger_time)
+        for slice_uid in self.list_slice_uids():
+            position_pairs.append(self.slice[slice_uid].trigger_time)
 
         return sorted(np.unique(position_pairs))
 
@@ -467,12 +467,12 @@ class Contours:
         self._time_uid_map = {}
 
         # group time frames using the trigger time
-        for frame_uid in self.list_frame_uids():
-            frame_number = self.frame[frame_uid].time_frame
+        for slice_uid in self.list_slice_uids():
+            frame_number = self.slice[slice_uid].time_frame
             if frame_number in self._time_uid_map.keys():
-                self._time_uid_map[int(frame_number)].append(frame_uid)
+                self._time_uid_map[int(frame_number)].append(slice_uid)
             else:
-                self._time_uid_map.update({int(frame_number): [frame_uid]})
+                self._time_uid_map.update({int(frame_number): [slice_uid]})
 
     def _list_unique_slice_positions(self):
         """Returns a list of lists of scalars that determine the
@@ -482,10 +482,10 @@ class Contours:
         Each entry in the output list is a concatenation of
         frame_orientation and frame_position into 9 parameters."""
         position_pairs = []
-        for frame_uid in self.frame.keys():
+        for slice_uid in self.slice.keys():
             position_pairs.append(
-                list(self.frame[frame_uid].position)
-                + list(self.frame[frame_uid].orientation)
+                list(self.slice[slice_uid].position)
+                + list(self.slice[slice_uid].orientation)
             )
         # sorted by z pozition
         return sorted(np.unique(position_pairs, axis=0), key=lambda x: x[2])
@@ -493,31 +493,31 @@ class Contours:
     def _compute_slices(self):
         """Assign an integer frame number to each frame position to
         make them easier to refer to.  frame numbers correspond to the
-        indices of the output of `self.list_unique_frames()`."""
+        indices of the output of `self.list_unique_slices()`."""
         self._space_uid_map = {}
         unique_positions = self._list_unique_slice_positions()
-        for frame_uid in self.list_frame_uids():
+        for slice_uid in self.list_slice_uids():
             frame_position = np.concatenate(
-                (self.frame[frame_uid].position, self.frame[frame_uid].orientation)
+                (self.slice[slice_uid].position, self.slice[slice_uid].orientation)
             )
             slice = np.where((unique_positions == frame_position).all(axis=1))[0][0]
-            self.frame[frame_uid].slice = slice
+            self.slice[slice_uid].slice = slice
             if slice not in self._space_uid_map.keys():
-                self._space_uid_map.update({slice: [frame_uid]})
+                self._space_uid_map.update({slice: [slice_uid]})
             else:
-                self._space_uid_map[slice].append(frame_uid)
+                self._space_uid_map[slice].append(slice_uid)
 
     def _list_trigger_time(self):
         trigger_time = []
-        for frame_uid in self.list_frame_uids():
-            trigger_time.append(self.frame[frame_uid].trigger_time)
+        for slice_uid in self.list_slice_uids():
+            trigger_time.append(self.slice[slice_uid].trigger_time)
 
         return list(trigger_time)
 
     def _list_instance_number(self):
         image_ids = []
-        for frame_uid in self.list_frame_uids():
-            image_ids.append(self.frame[frame_uid].instance_number)
+        for slice_uid in self.list_slice_uids():
+            image_ids.append(self.slice[slice_uid].instance_number)
 
         return list(image_ids)
 
@@ -576,15 +576,15 @@ class Contours:
             for slice in self.list_slices():
                 # find the frames uids corresponding to the given
                 # space frame and time frame
-                valid_frames = [
+                valid_slices = [
                     x
-                    for x in self.list_frame_uids_at_slice(slice)
-                    if x in self.list_frame_uids_at_timeframe(time_frame)
+                    for x in self.list_slice_uids_at_slice(slice)
+                    if x in self.list_slice_uids_at_timeframe(time_frame)
                 ]
-                for frame in valid_frames:
+                for frame in valid_slices:
                     if self.log:
                         print("     Frame: {0}".format(frame))
-                    self.find_frame_septum(frame, tol=tol)
+                    self.find_slice_septum(frame, tol=tol)
 
     def clean_LAX_contour(self, time_frame=None):
         """
@@ -604,12 +604,12 @@ class Contours:
         lax_contours = ["LAX_RV_FREEWALL", "LAX_RV_ENDOCARDIAL", "LAX_LV_ENDOCARDIAL"]
 
         for time in time_frame:
-            frames = self.list_frame_uids_at_timeframe(time)
+            frames = self.list_slice_uids_at_timeframe(time)
             for index, contour in enumerate(lax_contours):
                 delete_index = []
                 for frame in frames:
-                    pc_index, contour_points = self.get_frame_points(contour, frame)
-                    _, extent_points = self.get_frame_points(
+                    pc_index, contour_points = self.get_slice_points(contour, frame)
+                    _, extent_points = self.get_slice_points(
                         valve_contours[index], frame
                     )
 
@@ -650,13 +650,13 @@ class Contours:
         lax_contours = ["LAX_RV_EPICARDIAL"]
 
         for time in time_frame:
-            frames = self.list_frame_uids_at_timeframe(time)
+            frames = self.list_slice_uids_at_timeframe(time)
             for index, contour in enumerate(lax_contours):
                 delete_index = []
                 for frame in frames:
-                    pc_index, contour_points = self.get_frame_points(contour, frame)
+                    pc_index, contour_points = self.get_slice_points(contour, frame)
 
-                    _, extent_points = self.get_frame_points(
+                    _, extent_points = self.get_slice_points(
                         valve_contours[index], frame
                     )
 
@@ -668,7 +668,7 @@ class Contours:
 
                 # self.delete_point(contour,delete_index)
 
-    def find_frame_septum(self, frame_uid, tol=None):
+    def find_slice_septum(self, slice_uid, tol=None):
         """This replaces find inserts. It takes the RV contour and works
         out whats septal and whats free wall.
         From this we can find the inserts by taking the angle between the
@@ -685,16 +685,16 @@ class Contours:
         rvfw_contours = ["SAX_RV_FREEWALL", "LAX_RV_FREEWALL"]
 
         if tol is None:
-            tol = min(self.get_frame_pixel_spacing(frame_uid))
+            tol = min(self.get_slice_pixel_spacing(slice_uid))
 
         index_to_delete = []
         for idx in range(len(lv_contours)):
-            lv_points_index, lv_points = self.get_frame_points(
-                lv_contours[idx], frame_uid
+            lv_points_index, lv_points = self.get_slice_points(
+                lv_contours[idx], slice_uid
             )
 
-            rv_points_index, rv_points = self.get_frame_points(
-                rv_contours[idx], frame_uid
+            rv_points_index, rv_points = self.get_slice_points(
+                rv_contours[idx], slice_uid
             )
 
             if len(lv_points_index) == 0:
@@ -787,28 +787,28 @@ class Contours:
             return
         if self.log:
             print("Computing Septum Inserts points")
-        for space_frame in self.list_slices():
+        for space_slice in self.list_slices():
             # find the frames uids corresponding to the given
             # space frame and time frame
             for time_frame in valid_time_frames:
-                valid_frames = [
+                valid_slices = [
                     x
-                    for x in self._space_uid_map[space_frame]
+                    for x in self._space_uid_map[space_slice]
                     if x in self._time_uid_map[time_frame]
                 ]
-                for frame in valid_frames:
+                for slice in valid_slices:
                     if self.log:
-                        print("     Frame: {0}".format(frame))
-                    self.find_frame_septum_insert(frame)
+                        print("     Frame: {0}".format(slice))
+                    self.find_slice_septum_insert(slice)
 
-    def find_frame_septum_insert(self, frame_uid):
+    def find_slice_septum_insert(self, slice_uid):
         # rv_fw_contour = ['SAX_RV_FREEWALL','LAX_RV_FREEWALL']
         # epi_contour = ['SAX_RV_EPICARDIAL','LAX_LV_EPICARDIAL']
 
-        _, septum_points = self.get_frame_points("SAX_RV_SEPTUM", frame_uid)
+        _, septum_points = self.get_slice_points("SAX_RV_SEPTUM", slice_uid)
         if len(septum_points) == 0:
-            _, septum_points = self.get_frame_points("LAX_RV_SEPTUM", frame_uid)
-            _, free_points = self.get_frame_points("LAX_RV_FREEWALL", frame_uid)
+            _, septum_points = self.get_slice_points("LAX_RV_SEPTUM", slice_uid)
+            _, free_points = self.get_slice_points("LAX_RV_FREEWALL", slice_uid)
             if len(septum_points) == 0:
                 return
 
@@ -894,7 +894,7 @@ class Contours:
         return points
 
     def convert_2D_to_3D_timeframe_contour(self, contour, timeframe=[]):
-        if len(self.frame) == 0:
+        if len(self.slice) == 0:
             ValueError("Metadata is missing. Load dicom metadata first")
 
         valid_time_frames = timeframe
@@ -906,16 +906,16 @@ class Contours:
         if self.log:
             print("     Contour: {0}".format(contour))
         changed_points_index = []
-        for frame in self.list_frame_uids_at_timeframe(valid_time_frames):
-            pixels_indx, pixels = self.get_frame_pixels(contour, frame)
+        for frame in self.list_slice_uids_at_timeframe(valid_time_frames):
+            pixels_indx, pixels = self.get_slice_pixels(contour, frame)
             if len(pixels_indx) == 0:
                 continue
             if self.log:
                 print("         Frame {0}".format(frame))
 
-            image_position = self.get_frame_position(frame)
-            image_orientation = self.get_frame_orientation(frame)
-            pixel_spacing = self.get_frame_pixel_spacing(frame)
+            image_position = self.get_slice_position(frame)
+            image_orientation = self.get_slice_orientation(frame)
+            pixel_spacing = self.get_slice_pixel_spacing(frame)
             subpixel_res = self.get_subpixel_resolution(frame)
             points_coordinates = self.from_2d_to_3d(
                 pixels, image_orientation, image_position, pixel_spacing, subpixel_res
@@ -1025,26 +1025,26 @@ class Contours:
             # LA atrial slices
             # points should already be ordered (file read-in order)
 
-            for space_frame in self.list_slices():
-                valid_frames = [
+            for space_slice in self.list_slices():
+                valid_slices = [
                     x
-                    for x in self._space_uid_map[space_frame]
+                    for x in self._space_uid_map[space_slice]
                     if x in self._time_uid_map[phase]
                 ]
-                for frame in valid_frames:
+                for frame in valid_slices:
                     if self.log:
                         print("     Frame: {0}".format(frame))
                     # check if there are some artria LAX points to be sure that the valves points
                     # are selected in a 4CH. 2CH or 3CH view
-                    la_points = self.get_frame_points(contours_to_use[0], frame)
-                    ra_points = self.get_frame_points(contours_to_use[1], frame)
+                    la_points = self.get_slice_points(contours_to_use[0], frame)
+                    ra_points = self.get_slice_points(contours_to_use[1], frame)
                     if len(la_points[0]) > 0 or len(ra_points[0]) > 0:
-                        self.find_frame_valve_landmarks(frame, contours_to_use)
+                        self.find_slice_valve_landmarks(frame, contours_to_use)
 
-    def find_frame_valve_landmarks(self, frame_uid, contours_to_use):
+    def find_slice_valve_landmarks(self, slice_uid, contours_to_use):
         # select just the rv epicadium contour
         for contour_type in contours_to_use:
-            _, mitral_points = self.get_frame_points(contour_type, frame_uid)
+            _, mitral_points = self.get_slice_points(contour_type, slice_uid)
 
             if len(mitral_points) > 3:
                 mitral_points = mitral_points[-3:]
@@ -1066,13 +1066,13 @@ class Contours:
             for index in points_index:
                 new_point = mitral_points[index].deep_copy_point()
                 if contour_type == contours_to_use[0]:
-                    #          _, la_points = self.get_frame_points(
-                    #              "LAX_LV_ENDOCARDIAL", frame_uid)
+                    #          _, la_points = self.get_slice_points(
+                    #              "LAX_LV_ENDOCARDIAL", slice_uid)
                     #          if len(la_points)>0:
                     self.add_point("MITRAL_VALVE", new_point)
                 if contour_type == contours_to_use[1]:
-                    # _, la_rv_points = self.get_frame_points(
-                    # "LAX_RV_ENDOCARDIAL", frame_uid)
+                    # _, la_rv_points = self.get_slice_points(
+                    # "LAX_RV_ENDOCARDIAL", slice_uid)
                     # check if the same frame have also LA RV points
                     # to avoid la ra contours without points on tricuspid
                     # valve
@@ -1125,8 +1125,8 @@ class Contours:
             )
 
             # Select unique frames
-            space_frames_uid = [x.sop_instance_uid for x in extent_points]
-            space_frames_uid = np.unique(space_frames_uid)
+            space_slices_uid = [x.sop_instance_uid for x in extent_points]
+            space_slices_uid = np.unique(space_slices_uid)
             # LA atrial slices
             # points should already be ordered (file read-in order)
             all_extent_points = []
@@ -1134,17 +1134,17 @@ class Contours:
             # we are searching for the centroid of LALA contour
             # the apex will be the farthest LVExtent point from the LALA
             # contour.
-            for frame_uid in space_frames_uid:
-                lala_index, lala_coordinates = self.get_frame_points_coordinates(
-                    contours_to_use[1], frame_uid
+            for slice_uid in space_slices_uid:
+                lala_index, lala_coordinates = self.get_slice_points_coordinates(
+                    contours_to_use[1], slice_uid
                 )
-                lara_index, lara_coordinates = self.get_frame_points_coordinates(
-                    contours_to_use[2], frame_uid
+                lara_index, lara_coordinates = self.get_slice_points_coordinates(
+                    contours_to_use[2], slice_uid
                 )
 
                 if len(lala_coordinates) > 0:
-                    _, extent_points = self.get_frame_points(
-                        contours_to_use[0], frame_uid
+                    _, extent_points = self.get_slice_points(
+                        contours_to_use[0], slice_uid
                     )
 
                     all_extent_points = all_extent_points + list(extent_points)
@@ -1172,43 +1172,43 @@ class Contours:
             time_frame = self.list_time_frames()
 
         for phase in time_frame:
-            frames_uids = self.list_frame_uids_at_timeframe(phase)
-            positions = np.array([self.get_frame_position(x) for x in frames_uids])
+            slices_uids = self.list_slice_uids_at_timeframe(phase)
+            positions = np.array([self.get_slice_position(x) for x in slices_uids])
             sorted_position_index = np.argsort(positions[:, 2])
-            frame1_uid = frames_uids[sorted_position_index[0]]
-            frame2_uid = frames_uids[sorted_position_index[1]]
-            _, frame1_points = self.get_frame_points_coordinates(
+            frame1_uid = slices_uids[sorted_position_index[0]]
+            frame2_uid = slices_uids[sorted_position_index[1]]
+            _, frame1_points = self.get_slice_points_coordinates(
                 "SAX_LV_ENDOCARDIAL", frame1_uid
             )
-            _, frame2_points = self.get_frame_points_coordinates(
+            _, frame2_points = self.get_slice_points_coordinates(
                 "SAX_LV_ENDOCARDIAL", frame2_uid
             )
             # some frames dont have points for the LV_ENDO contour
             i = 0
             while frame1_points.shape[0] == 0:
                 i = i + 1
-                frame1_uid = frames_uids[sorted_position_index[i]]
-                frame2_uid = frames_uids[sorted_position_index[i + 1]]
-                _, frame1_points = self.get_frame_points_coordinates(
+                frame1_uid = slices_uids[sorted_position_index[i]]
+                frame2_uid = slices_uids[sorted_position_index[i + 1]]
+                _, frame1_points = self.get_slice_points_coordinates(
                     "SAX_LV_ENDOCARDIAL", frame1_uid
                 )
 
             centroid1 = np.mean(frame1_points, axis=0)
 
-            frame1_position = self.get_frame_position(frame1_uid)
-            frame2_position = self.get_frame_position(frame2_uid)
+            frame1_position = self.get_slice_position(frame1_uid)
+            frame2_position = self.get_slice_position(frame2_uid)
             new_position = 2 * frame1_position - frame2_position
             new_point = Point()
-            new_frame = copy.deepcopy(self.frame[frame1_uid])
+            new_slice = copy.deepcopy(self.slice[frame1_uid])
 
-            new_frame.image_id = len(self.frame) + 1
-            new_frame.position = new_position
+            new_slice.image_id = len(self.slice) + 1
+            new_slice.position = new_position
 
             new_point.coordinates = centroid1 - (frame2_position - frame1_position)
             new_point.sop_instance_uid = "apex_virtual_frame_{0}".format(phase)
 
             self.add_point("APEX_POINT", new_point)
-            self.add_frame("apex_virtual_frame_{0}".format(phase), new_frame)
+            self.add_slice("apex_virtual_frame_{0}".format(phase), new_slice)
 
     def find_pulmonary_valve_landmarks(self, timeframe):
         time_frame = 0  # laxLVextnedPoints only drawn at ED
@@ -1223,17 +1223,17 @@ class Contours:
             print("\033[2;37;45m Pulmonary valve could not be found \n")
             return
 
-        frames_uid = self.list_frame_uids_at_timeframe(time_frame)
-        contour_frames = self.list_sop_instance_uid(contour_to_use)
+        slices_uid = self.list_slice_uids_at_timeframe(time_frame)
+        contour_slices = self.list_sop_instance_uid(contour_to_use)
 
-        valid_frames = [x for x in contour_frames if x in frames_uid]
-        if len(valid_frames) == 0:
+        valid_slices = [x for x in contour_slices if x in slices_uid]
+        if len(valid_slices) == 0:
             print("\033[2;37;45m  Pulmonary valve could not be found \n")
             return
         max_distance = 10000
 
-        for frame in valid_frames:
-            points_index, frame_points = self.get_frame_points(contour_to_use, frame)
+        for frame in valid_slices:
+            points_index, frame_points = self.get_slice_points(contour_to_use, frame)
             distance = np.array(
                 [
                     np.linalg.norm(x.coordinates - y.coordinates)
@@ -1244,14 +1244,14 @@ class Contours:
             if max(distance) < max_distance:  # maximal distance is the
                 # diameter of the valve, upper the frame is smaller is the
                 # diameter. Here we are selecting the upper frame of points
-                pulmonary_frame_uid = frame
+                pulmonary_slice_uid = frame
                 max_distance = max(distance)
 
         if max_distance > 30:
             return
 
-        indx, pulmonary_points = self.get_frame_points(
-            contour_to_use, pulmonary_frame_uid
+        indx, pulmonary_points = self.get_slice_points(
+            contour_to_use, pulmonary_slice_uid
         )
         for point in pulmonary_points:
             new_point = point.deep_copy_point()

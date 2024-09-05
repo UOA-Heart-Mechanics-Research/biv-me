@@ -9,7 +9,8 @@ import os
 from . import fitting_tools as tools
 import re
 from .surface_enum import *
-from .Frame import *
+from bivme.fitting import surface_enum
+from bivme.fitting.Slice import Slice
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from loguru import logger
@@ -85,7 +86,7 @@ class GPDataSet(object):
         self.slice_number = np.empty((1))
         self.weights = np.empty((1))
         self.number_of_slice = 0
-        self.frames = {}
+        self.slices = {}
 
         # strings
         self.case = case
@@ -93,7 +94,6 @@ class GPDataSet(object):
         # scalars
         self.time_frame = time_frame_number
         if contour_filename is not None:
-            #self.read_contour_file(contour_filename, time_frame_number, sampling)
             self.read_contour_file(contour_filename, sampling)
             self.success = self.initialize_landmarks()
 
@@ -316,7 +316,7 @@ class GPDataSet(object):
 
         return np.asarray(rv_epi), np.array(rv_epi_contour), np.array(rv_epi_slice)
 
-    def read_dicom_metadata(self, name):
+    def read_dicom_metadata(self, name: str) -> None:
         """This function reads the 'name' file containing dicom info
         (see example SliceInfo.txt).
         Input:
@@ -339,55 +339,56 @@ class GPDataSet(object):
                 lines.append(re.split("\s+", line))
 
         try:
-            index_imPos = (
+            index_im_position = (
                 np.where(["ImagePositionPatient" in x for x in lines[0]])[0][0] + 1
             )
-            index_imOr = (
+            index_im_orientation = (
                 np.where(["ImageOrientationPatient" in x for x in lines[0]])[0][0] + 1
             )
-            
             index_image_id = (
-                np.where(["frameID" in x for x in lines[0]])[0][0] + 1
+                np.where([("sliceID" in x) or ("frameID" in x) for x in lines[0]])[0][0] + 1
             )
+
+            # keeping frameID here for backward compatibility
             index_pixel_spacing = (
                 np.where(["PixelSpacing" in x for x in lines[0]])[0][0] + 1
             )
         except:
-            index_imPos = 5
-            index_imOr = 9
+            index_im_position = 5
+            index_im_orientation = 9
             index_pixel_spacing = 16
             index_image_id = 3
         # lines = lines[1:]
 
         self.contoured_slices = np.unique(self.slice_number)
 
-        frames_to_use = [int(line[index_image_id]) -1 for line in lines]
+        slices_to_use = [int(line[index_image_id]) -1 for line in lines]
         all_positions = []
-        for i in frames_to_use:
-            frame_id = int(lines[i][index_image_id])
-            position = np.array(lines[i][index_imPos : index_imPos + 3]).astype(float)
+        for i in slices_to_use:
+            slice_id = int(lines[i][index_image_id])
+            position = np.array(lines[i][index_im_position : index_im_position + 3]).astype(float)
             all_positions.append(position)
-            orientation = np.array(lines[i][index_imOr : index_imOr + 6]).astype(float)
+            orientation = np.array(lines[i][index_im_orientation : index_im_orientation + 6]).astype(float)
 
             spacing = np.array(
                 lines[i][index_pixel_spacing : index_pixel_spacing + 2]
             ).astype(float)
 
-            new_frame = Frame(
-                frame_id,
+            new_slice = Slice(
+                slice_id,
                 [float(x) for x in position],
                 [float(x) for x in orientation],
                 [float(x) for x in spacing],
             )
-            # as only one timeframe is used here (ED or ES) the frame number
-            # can be used as an unique frame id
-            self.frames.update({frame_id: new_frame})
+            # as only one timeframe is used here (ED or ES) the slice number
+            # can be used as a unique slice id
+            self.slices.update({slice_id: new_slice})
 
         unique_positions = sorted(np.unique(all_positions, axis=0), key=lambda x: -x[0])
-        for frame_uid in self.frames.keys():
-            frame_position = np.array(self.frames[frame_uid].position)
-            slice = np.where((unique_positions == frame_position).all(axis=1))[0][0]
-            self.frames[frame_uid].slice = slice
+        for slice_uid in self.slices.keys():
+            slice_position = np.array(self.slices[slice_uid].position)
+            slice = np.where((unique_positions == slice_position).all(axis=1))[0][0]
+            self.slices[slice_uid].slice = slice
 
     def add_data_points(self, points, contour_type, slice_number, weights):
         """
@@ -525,8 +526,8 @@ class GPDataSet(object):
             # select just the last slice of the associated contour
             slice_nb = self.slice_number[self.contour_type == contour_type][0]
 
-            v1 = self.frames[slice_nb].orientation[0:3]
-            v2 = self.frames[slice_nb].orientation[3:6]
+            v1 = self.slices[slice_nb].orientation[0:3]
+            v2 = self.slices[slice_nb].orientation[3:6]
             normal = np.cross(v1, v2)
 
             index_valid_pair = np.argmax(distance)
@@ -743,18 +744,18 @@ class GPDataSet(object):
 
         stopping_criterion = 5
         # The stopping_criterion is the residual translation
-        # read the slice number corresponding to each frame
-        translation = np.zeros((len(self.frames.keys()), 2))  # 2D translation
-        position = np.zeros((len(self.frames.keys()), 3))
+        # read the slice number corresponding to each slice
+        translation = np.zeros((len(self.slices.keys()), 2))  # 2D translation
+        position = np.zeros((len(self.slices.keys()), 3))
         iteration_num = 1
 
         while stopping_criterion > 1 and iteration_num < 50:
             # print('iteration',iteration_num )
             nb_translations = 0
-            np_frames = np.unique(self.slice_number)
+            np_slices = np.unique(self.slice_number)
 
             int_t = []
-            for index, id in enumerate(np_frames):
+            for index, id in enumerate(np_slices):
                 t = self._get_slice_shift_sinclaire(id, iteration_num, fix_lax)
 
                 if not (t is None):
@@ -762,7 +763,7 @@ class GPDataSet(object):
                     int_t.append(np.linalg.norm(t))
 
                     translation[index, :] = translation[index, :] + t
-                    position[index, :] = self.frames[id].position
+                    position[index, :] = self.slices[id].position
                     # the translation is done in 2D
                     point_2_translate = self.points_coordinates[
                         self.slice_number == id, :
@@ -1055,8 +1056,8 @@ class GPDataSet(object):
                 P = []
                 if np.linalg.norm(lv_epi[o + 1] - lv_epi[o - 1]) < 10:
                     P = tools.LineIntersection(
-                        self.frames[slice_number].position,
-                        self.frames[slice_number].orientation,
+                        self.slices[slice_number].position,
+                        self.slices[slice_number].orientation,
                         lv_epi[o, :],
                         lv_epi[o + 1, :],
                     )
@@ -1083,21 +1084,19 @@ class GPDataSet(object):
             Output:
                 T: affine matrix
         """
-        T = self.frames[slice_num].get_affine_matrix(scaling=scaling)
+        T = self.slices[slice_num].get_affine_matrix(scaling=scaling)
 
         return T
 
-    def apply_slice_shift(self, frames_translation, position, frame_uids=None):
+    def apply_slice_shift(self, slices_translation, position, slice_uids=None):
         """This function applies 2D translations from breath-hold
         misregistration correction to the DataSet .
 
             Input:
                 translation: list of translations to apply at each corresponding
-                            frame (output from LVLAXSAXSliceShifting),
-                            the tramslation index corresponds to the frame slice
-                            not to the frame id!!!!
-                frame_uids: list of frame uid to apply translation,
-                            if frames are specified the frame idex should coincide
+                            slice (output from LVLAXSAXSliceShifting)
+                slice_uids: list of slice uid to apply translation,
+                            if slices are specified the slice idex should coincide
                             with translation index
             Output:
                 None. The Dataset 'self.DataSet' is translated in the function itself.
@@ -1106,36 +1105,36 @@ class GPDataSet(object):
         # As the changes are done on the DataSet itself without using the model
         # this is a method of GPDataSet class
 
-        # the loop should be done on a frame, the frames have always the same
+        # the loop should be done on a slice, the slices have always the same
         #  patient position
-        if frame_uids is None:
-            frame_uids = list(self.frames.keys())
-        if not isinstance(frame_uids, list):
-            frame_uids = [frame_uids]
+        if slice_uids is None:
+            slice_uids = list(self.slices.keys())
+        if not isinstance(slice_uids, list):
+            slice_uids = [slice_uids]
 
-        # read the frame slice number corresponding to the frame ids
-        frame_slice_nb = []
-        for uid in frame_uids:
-            frame_slice_nb.append(self.frames[uid].slice)
-        for index, translation in enumerate(frames_translation):
-            for frame in self.frames.values():
+        # read the slice number corresponding to the slice ids
+        slice_slice_nb = []
+        for uid in slice_uids:
+            slice_slice_nb.append(self.slices[uid].slice)
+        for index, translation in enumerate(slices_translation):
+            for slice in self.slices.values():
 
                 # needed to replace np.all by np.allclose as taking the average slice position when doing slice shifting was not meeting the ==
-                if not (np.allclose(frame.position, position[index])) or (frame.image_id not in self.contoured_slices):
+                if not (np.allclose(slice.position, position[index])) or (slice.image_id not in self.contoured_slices):
                     continue
 
-                frame_uid = frame.image_id
-                frame_points = self.points_coordinates[
-                    (self.slice_number == frame_uid), :
+                slice_uid = slice.image_id
+                slice_points = self.points_coordinates[
+                    (self.slice_number == slice_uid), :
                 ]
-                if len(frame_points) > 0:
+                if len(slice_points) > 0:
                     # Get 2D points
                     transformation = self.get_affine_matrix_from_metadata(
-                        frame_uid, scaling=False
+                        slice_uid, scaling=False
                     )
                     # the translation is done in 2D
                     P2D_LV = tools.apply_affine_to_points(
-                        np.linalg.inv(transformation), frame_points
+                        np.linalg.inv(transformation), slice_points
                     )[:, :2]
 
                 P2D_LV = P2D_LV + translation
@@ -1145,7 +1144,7 @@ class GPDataSet(object):
                 pts_LV[:, 0:2] = P2D_LV
 
                 P3_LV = tools.apply_affine_to_points(transformation, pts_LV)
-                indexes = np.where((self.slice_number == frame_uid))
+                indexes = np.where((self.slice_number == slice_uid))
 
                 self.points_coordinates[indexes, :] = P3_LV
 
@@ -1162,41 +1161,41 @@ class GPDataSet(object):
                Input: biventricular model
                Output: 2D Translations, position (3D)"""
 
-        translation = np.zeros((len(self.frames.keys()), 2))  # 2D translation
-        position = np.zeros((len(self.frames.keys()), 3))
-        visited_frames = []
+        translation = np.zeros((len(self.slices.keys()), 2))  # 2D translation
+        position = np.zeros((len(self.slices.keys()), 3))
+        visited_slices = []
         # Calculate intersection
         # -----------------------
-        np_frames = np.unique(self.slice_number)
+        np_slices = np.unique(self.slice_number)
 
-        for index, id in enumerate(np_frames):
+        for index, id in enumerate(np_slices):
             # this loop will search to compute, first a displacement based on
             # the distance between the centroid of the edocardial points
-            # corresponding to the frame, and the centroid of the intersection
-            # points bw endocardial surface(model) and the frame plane.
+            # corresponding to the slice, and the centroid of the intersection
+            # points bw endocardial surface(model) and the slice plane.
             # if there are no intersection points. The centroid will be
-            # aligned with the centroid of the closest frame
-            active_frame = id
-            frames_subset = list(self.frames.keys())
+            # aligned with the centroid of the closest slice
+            active_slice = id
+            slices_subset = list(self.slices.keys())
 
-            while id not in visited_frames or len(frames_subset) == 0:
+            while id not in visited_slices or len(slices_subset) == 0:
                 # Get all the points on the slice i
                 # ----------------------------------
                 lv_edo_points = self.points_coordinates[
                     (self.contour_type == ContourType.SAX_LV_ENDOCARDIAL)
-                    & (self.slice_number == active_frame),
+                    & (self.slice_number == active_slice),
                     :,
                 ]
                 # Check if there is an endocardial contour for the slice i.
                 # -----------------------------------------------------------
                 if len(lv_edo_points) == 0:
-                    visited_frames.append(id)
+                    visited_slices.append(id)
                     continue
 
                 # Get the transformation from 2D to 3D
                 # ----------------------------------------
                 transformation = self.get_affine_matrix_from_metadata(
-                    active_frame, scaling=False
+                    active_slice, scaling=False
                 )
                 P2_LV = tools.apply_affine_to_points(
                     np.linalg.inv(transformation), lv_edo_points
@@ -1204,7 +1203,7 @@ class GPDataSet(object):
                 # Give the intersection of the LV_ENDOCARDIAL with the slices
                 # -----------------------------------------------
                 intersection_surface = model.get_intersection_with_dicom_image(
-                    self.frames[active_frame]
+                    self.slices[active_slice]
                 )
 
                 # If intersection
@@ -1221,27 +1220,27 @@ class GPDataSet(object):
                     centroid_LV_Data = P2_LV.mean(axis=0)
                     displacement = centroid_model - centroid_LV_Data
                     translation[index, :] = translation[index, :] + displacement
-                    position[index, :] = self.frames[active_frame].position
-                    visited_frames.append(id)
+                    position[index, :] = self.slices[active_slice].position
+                    visited_slices.append(id)
 
                     # Get all points slice
-                    frame_points = self.points_coordinates[(self.slice_number == id), :]
+                    slice_points = self.points_coordinates[(self.slice_number == id), :]
                     points_2D = tools.apply_affine_to_points(
-                        np.linalg.inv(transformation), frame_points
+                        np.linalg.inv(transformation), slice_points
                     )[:, :2]
                     points_2D = points_2D + displacement
 
                     # Back to 3D
-                    frame_points = np.zeros((len(points_2D), 3))
-                    frame_points[:, :2] = points_2D
-                    frame_points = tools.apply_affine_to_points(
-                        transformation, frame_points
+                    slice_points = np.zeros((len(points_2D), 3))
+                    slice_points[:, :2] = points_2D
+                    slice_points = tools.apply_affine_to_points(
+                        transformation, slice_points
                     )
                     indexes = np.where(self.slice_number == id)
-                    self.points_coordinates[indexes] = frame_points
+                    self.points_coordinates[indexes] = slice_points
                 else:
-                    frames_subset.remove(id)
-                    active_frame = self.get_frame_neighbour(id, frames_subset)
+                    slices_subset.remove(id)
+                    active_slice = self.get_slice_neighbour(id, slices_subset)
 
         return translation, position
 
@@ -1267,23 +1266,23 @@ class GPDataSet(object):
             )
             return [], []
         tol = 5  # The stoping_criterion is the residual translation
-        # read the slice number corresponding to each frame
-        translation = np.zeros((len(self.frames.keys()), 2))  # 2D translation
-        position = np.zeros((len(self.frames.keys()), 3))
+        # read the slice number corresponding to each slice
+        translation = np.zeros((len(self.slices.keys()), 2))  # 2D translation
+        position = np.zeros((len(self.slices.keys()), 3))
         iteration_num = 1
 
         while tol > 1 and iteration_num < 100:
             nb_translations = 0
-            nb_frames = np.unique(self.slice_number)
+            nb_slices = np.unique(self.slice_number)
             int_t = []
-            for index, id in enumerate(nb_frames):
+            for index, id in enumerate(nb_slices):
                 t = self.get_slice_shift_combined(id, model, fix_LA)
                 if t is not None:
                     nb_translations += 1
                     int_t.append(np.linalg.norm(t))
 
                     translation[index, :] = translation[index, :] + t
-                    position[index, :] = self.frames[id].position
+                    position[index, :] = self.slices[id].position
                     # the translation is done in 2D
                     point_2_translate = self.points_coordinates[
                         self.slice_number == id, :
@@ -1405,7 +1404,7 @@ class GPDataSet(object):
                 # Compute intersection with model
                 model_intersection_lv = model_intersection_lv + list(
                     model.get_intersection_with_dicom_image(
-                        self.frames[slice_number], [associated_surface[c_indx]]
+                        self.slices[slice_number], [associated_surface[c_indx]]
                     )
                 )
 
@@ -1477,17 +1476,17 @@ class GPDataSet(object):
 
         return t
 
-    def get_frame_neighbour(self, frame_id, frame_subset=[]):
-        if not isinstance(frame_subset, list):
-            frame_subset = [frame_subset]
-        if len(frame_subset) == 0:
-            frame_subset = self.frames.keys()
+    def get_slice_neighbour(self, slice_id, slice_subset=[]):
+        if not isinstance(slice_subset, list):
+            slice_subset = [slice_subset]
+        if len(slice_subset) == 0:
+            slice_subset = self.slices.keys()
 
-        pos_z = self.frames[frame_id].position[2]
+        pos_z = self.slices[slice_id].position[2]
         distance = [
-            pos_z - self.frames[new_frame].position[2] for new_frame in frame_subset
+            pos_z - self.slices[new_slice].position[2] for new_slice in slice_subset
         ]
-        return frame_subset[np.argmin(distance)]
+        return slice_subset[np.argmin(distance)]
     
     def clean_MV_3D(self):
         """
@@ -1552,8 +1551,8 @@ class GPDataSet(object):
         ----------------------------------------------
         # Delete the points from the endocardial contours
         # between the two valve points
-        # If no time_frame difined, the points will be deleted for all
-        # existent time frames.
+        # If no time_slice difined, the points will be deleted for all
+        # existent time slices.
 
         """
 
