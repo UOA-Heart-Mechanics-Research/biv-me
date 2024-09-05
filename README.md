@@ -159,11 +159,32 @@ options:
 Results will be saved in {OUTPUT_PATH}/global_longitudinal_strain.csv
 
 ### Compute wall thickness
-The script for computing the wall thickness can be found in src/bivme/analysis
-```
-usage: 
+The script for computing the wall thickness can be found in src/bivme/analysis. Wall thickness is calculated on binary 3D images using pyezzi (https://pypi.org/project/pyezzi/) for both LV and RV separately. The septal wall is included in the LV calculation and excluded from the RV 
 
 ```
+usage: compute_wall_thickness.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_FOLDER] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-r VOXEL_RESOLUTION] [-s]
+
+Wall thickness calculation from 3D masks
+
+options:
+  -h, --help            show this help message and exit
+  -mdir MODEL_DIR, --model_dir MODEL_DIR
+                        path to biv models
+  -o OUTPUT_FOLDER, --output_folder OUTPUT_FOLDER
+                        output path
+  -b BIV_MODEL_FOLDER, --biv_model_folder BIV_MODEL_FOLDER
+                        folder containing subdivision matrices
+  -pat PATTERNS, --patterns PATTERNS
+                        folder patterns to include (default '*')
+  -r VOXEL_RESOLUTION, --voxel_resolution VOXEL_RESOLUTION
+                        Output precision
+  -s, --save_segmentation
+                        Boolean value indicating if we want the 3D masks to be saved
+
+
+```
+
+Results and segmentation masks will be saved in {OUTPUT_PATH}/wall_thickness. Wall thickness is saved at each vertex in the mesh
 
 **Step 4**
 

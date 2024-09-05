@@ -8,26 +8,30 @@ import pathlib
 
 from bivme import MODEL_RESOURCE_DIR
 from bivme.meshing.mesh import Mesh
-from bivme.meshing.mesh_io import export_to_obj
+from bivme.meshing.mesh_io import write_colored_vtk_surface
 
 from loguru import logger
 from rich.progress import Progress
 import fnmatch
 import pyvista as pv
-import matplotlib.pyplot as plt
+
 from pyezzi import compute_thickness
-from scipy.interpolate import NearestNDInterpolator
 import nibabel as nib
 from bivme.fitting.BiventricularModel import BiventricularModel
+import math
+from scipy.spatial import cKDTree
+from bivme.fitting.surface_enum import Surface
 
 # for printing while progress bar is progressing
 console = None
 debug = False
 
-from scipy.spatial import cKDTree
-from bivme.fitting.surface_enum import Surface
+if debug:
+    import matplotlib.pyplot as plt
 
-def find_wall_thickness(case_name: str, model_file: os.PathLike, output_folder: os.PathLike, biv_model_folder: os.PathLike, voxel_resolution: float, save_segmentation: bool = True) -> None:
+
+
+def find_wall_thickness(case_name: str, model_file: os.PathLike, output_folder: os.PathLike, biv_model_folder: os.PathLike = MODEL_RESOURCE_DIR, voxel_resolution: float = 1.0, save_segmentation: bool = True) -> None:
     """
         # Authors: cm
         # Date: 09/24
@@ -142,15 +146,6 @@ def find_wall_thickness(case_name: str, model_file: os.PathLike, output_folder: 
             masks[name] = np.array(mask)
 
             if debug:
-                fig, axes = plt.subplots(1, 3)
-                axes[0].imshow(masks[name].sum(0))
-                axes[0].set_title('Sum along X-axis')
-                axes[1].imshow(masks[name].sum(1))
-                axes[1].set_title('Sum along Y-axis')
-                axes[2].imshow(masks[name].sum(2))
-                axes[2].set_title('Sum along Z-axis')
-                plt.show()
-
                 pl = pv.Plotter(shape=(1, 1))
                 lv_voxels = pv.voxelize(lv_mesh, density=voxel_resolution, check_surface=False)
                 pl.add_mesh(lv_voxels, color='g', show_edges=True)
@@ -159,15 +154,20 @@ def find_wall_thickness(case_name: str, model_file: os.PathLike, output_folder: 
         labeled_image_lv = 2*(masks['lv_epi'] - masks['lv_endo']) + masks['lv_endo']
         labeled_image_rv = 2*(masks['rv_epi'] - masks['rv_endo']) + masks['rv_endo']
 
+        #labeled_image_lvrv = labeled_image_lv+labeled_image_rv
+
         if save_segmentation:
-            logger.info(f'Saving wall thickness image to {Path(output_folder / f"labeled_image_lvrv_{case_name}_{frame_name}.nii")}')
-            ni_img = nib.Nifti1Image((labeled_image_lv+labeled_image_rv).astype(np.int8), affine=np.eye(4))
-            nib.save(ni_img, output_folder / f"labeled_image_lvrv_{case_name}_{frame_name}.nii")
+            logger.info(f'Saving wall thickness image to {Path(output_folder / f"labeled_image_lv_{case_name}_{frame_name}.nii")}')
+            ni_img = nib.Nifti1Image(labeled_image_lv.astype(np.int8), affine=np.eye(4))
+            nib.save(ni_img, output_folder / f"labeled_image_lv_{case_name}_{frame_name}.nii")
+
+            logger.info(f'Saving wall thickness image to {Path(output_folder / f"labeled_image_rv_{case_name}_{frame_name}.nii")}')
+            ni_img = nib.Nifti1Image(labeled_image_rv.astype(np.int8), affine=np.eye(4))
+            nib.save(ni_img, output_folder / f"labeled_image_rv_{case_name}_{frame_name}.nii")
 
         lv_thickness = compute_thickness(labeled_image_lv)
         rv_thickness = compute_thickness(labeled_image_rv)
 
-        print(np.nanmax(lv_thickness[:]))
 
         if save_segmentation:
             ni_img = nib.Nifti1Image(lv_thickness.astype(np.float32), affine=np.eye(4))
@@ -180,58 +180,74 @@ def find_wall_thickness(case_name: str, model_file: os.PathLike, output_folder: 
             logger.info(
                 f'Saving wall thickness image to {Path(output_folder / f"rv_thickness_{case_name}_{frame_name}.nii")}')
 
-
-        wall_thickness = []
-
         labeled_image_lv = labeled_image_lv.reshape(ugrid.n_points, order='F')
+        labeled_image_rv = labeled_image_rv.reshape(ugrid.n_points, order='F')
         lv_thickness = lv_thickness.reshape(ugrid.n_points, order='F')
+        rv_thickness = rv_thickness.reshape(ugrid.n_points, order='F')
 
         idx_to_keep = np.where(labeled_image_lv == 2)[0] # only keep voxels belonging to the wall for fast processing
         lv_thickness = lv_thickness[idx_to_keep]
+        lv_tree = cKDTree(ugrid.points[idx_to_keep,:])
 
-        tree = cKDTree(ugrid.points[idx_to_keep,:])
+        idx_to_keep = np.where(labeled_image_rv == 2)[0] # only keep voxels belonging to the wall for fast processing
+        rv_thickness = rv_thickness[idx_to_keep]
+        rv_tree = cKDTree(ugrid.points[idx_to_keep, :])
 
-        for surface in [Surface.LV_ENDOCARDIAL]:
-            model_shape_index = biventricular_model.get_surface_vertex_start_end_index(surface)
-            for idx in range(model_shape_index[0], model_shape_index[1]+1):
-                vertex = vertices[idx, :]
-                _, indx = tree.query(vertex, k=1, p=2)
-                w_t = lv_thickness[indx]
-                wall_thickness.append(w_t)
+        meshes = {}
+        mesh_data = {}
+        mesh_data["LV_ENDOCARDIAL"] = Surface.LV_ENDOCARDIAL.value
+        meshes["LV_ENDOCARDIAL"] = mesh_data
 
-        print(np.nanmax(wall_thickness[:]))
-        from bivme.meshing.mesh_io import write_colored_vtk_surface
-        write_colored_vtk_surface('test_color_LV.vtk', vertices[0:1500, :], faces[0:3072,],
-                                  np.array([wall_thickness, wall_thickness, wall_thickness]).T)
+        mesh_data = {}
+        mesh_data["RV_SEPTUM"] = Surface.RV_SEPTUM.value
+        mesh_data["RV_FREEWALL"] = Surface.RV_FREEWALL.value
+        meshes["RV_ENDOCARDIAL"] = mesh_data
 
-        #wall_thickness = []
-        #labeled_image_rv = labeled_image_rv.reshape(ugrid.n_points, order='F')
-        #rv_thickness = rv_thickness.reshape(ugrid.n_points, order='F')
-        #idx_to_keep = np.where(labeled_image_rv == 2)[0] # only keep voxels belonging to the wall for fast processing
-        #rv_thickness = rv_thickness[idx_to_keep]
-#
-        #tree = cKDTree(ugrid.points[idx_to_keep,:])
-#
-        #for surface in [Surface.RV_FREEWALL]:
-        #    model_shape_index = biventricular_model.get_surface_vertex_start_end_index(surface)
-        #    for idx in range(model_shape_index[0], model_shape_index[1]+1):
-        #        vertex = vertices[idx, :]
-        #        _, indx = tree.query(vertex, k=1, p=2)
-        #        w_t = rv_thickness[indx]
-        #        wall_thickness.append(w_t)
+        for key, value in meshes.items():
+            mesh_vertices = np.array([]).reshape(0, 3)
+            faces_mapped = np.array([], dtype=np.int64).reshape(0, 3)
 
-        #from bivme.meshing.mesh_io import write_colored_vtk_surface
-        #write_colored_vtk_surface('test_color_RV.vtk', vertices[2165:3224, :], faces[4480:6752,] - 4480,
-        #                          np.array([wall_thickness, wall_thickness, wall_thickness]).T)
+            if key == 'LV_ENDOCARDIAL':
+               tree = lv_tree
+               wall_thickness = lv_thickness
+            elif key == 'RV_ENDOCARDIAL':
+               tree = rv_tree
+               wall_thickness = rv_thickness
+            else:
+                continue
 
+            thickness = []
+            offset = 0
+            for type in value:
+                start_fi = biventricular_model.surface_start_end[value[type]][0]
+                end_fi = biventricular_model.surface_start_end[value[type]][1] + 1
+                faces_et = biventricular_model.et_indices[start_fi:end_fi]
+                unique_inds = np.unique(faces_et.flatten())
+                mesh_vertices = np.vstack((mesh_vertices, vertices[unique_inds]))
 
+                for vertex in vertices[unique_inds]:
+                    _, indx = tree.query(vertex, k=1, p=2)
+                    w_t = wall_thickness[indx]
+                    if math.isnan(w_t):
+                        w_t = 0
+                    thickness.append(w_t)
 
-        assert False
+                # remap faces/indices to 0-indexing
+                mapping = {old_index: new_index for new_index, old_index in enumerate(unique_inds)}
+                faces_mapped = np.vstack((faces_mapped, np.vectorize(mapping.get)(faces_et) + offset))
+                offset += len(biventricular_model.et_pos[unique_inds])
+
+            output_vtk = Path(output_folder) / f'{case_name}_{frame_name:03}_wall_thickness_{key}.vtk'
+            write_colored_vtk_surface(output_vtk, mesh_vertices, faces_mapped,
+                                      np.array([thickness, [0]*len(thickness), [0]*len(thickness)]).T)
+
+            logger.success(f"{case_name}_{frame_name:03}.vtk successfully saved to {output_folder}")
+
 if __name__ == "__main__":
     biv_resource_folder = MODEL_RESOURCE_DIR
 
     # parse command-line argument
-    parser = argparse.ArgumentParser(description="LV & RV mass and volume calculation")
+    parser = argparse.ArgumentParser(description="Wall thickness calculation from 3D masks")
     parser.add_argument('-mdir', '--model_dir', type=Path, help='path to biv models')
     parser.add_argument('-o', '--output_folder', type=Path, help='output path', default="./")
     parser.add_argument("-b", '--biv_model_folder', default=biv_resource_folder,
@@ -250,6 +266,9 @@ if __name__ == "__main__":
 
     assert args.output_folder.exists(), \
         f"output_path does not exist."
+
+    output_folder = Path(args.output_folder) / "wall_thickness"
+    output_folder.mkdir(exist_ok=True)
 
     folders = [p.name for p in Path(args.model_dir).glob(args.patterns) if os.path.isdir(p)]
     logger.info(f"Found {len(folders)} model folders.")
@@ -270,10 +289,10 @@ if __name__ == "__main__":
                 console = progress
 
                 for biv_model_file in models:
-                    find_wall_thickness(folder, biv_model_file, args.output_folder, biv_resource_folder, args.voxel_resolution, args.save_segmentation)
+                    find_wall_thickness(folder, biv_model_file, output_folder, biv_resource_folder, args.voxel_resolution, args.save_segmentation)
                     progress.advance(task)
 
-        logger.success(f"Done. Results are saved in {args.output_folder}")
+        logger.success(f"Done. Results are saved in {output_folder}")
     except KeyboardInterrupt:
         logger.info(f"Program interrupted by the user")
         sys.exit(0)
