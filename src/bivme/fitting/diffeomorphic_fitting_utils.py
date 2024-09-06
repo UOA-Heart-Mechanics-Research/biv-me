@@ -273,7 +273,7 @@ def generate_contraint_matrix(mesh):
         )
         constraints.append(Gz)
 
-    return np.asmatrix(constraints)
+    return np.asarray(constraints)
 
 
 def calc_smoothing_matrix_DAffine(model, e_weights, e_groups=None):
