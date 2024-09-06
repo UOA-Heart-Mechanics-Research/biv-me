@@ -526,9 +526,13 @@ if __name__ == "__main__":
                                             colorize=False, backtrace=True,
                                             diagnose=True)
 
-            if not config["output"]["overwrite"] and os.path.exists(os.path.join(config["output"]["output_directory"], os.path.basename(case))):
-                logger.info("Folder already exists for this case. Proceeding to next case")
-                continue
+            if not config["output"]["overwrite"]:
+                rule = re.compile(fnmatch.translate(f"{os.path.basename(case)}_model_frame*.txt"), re.IGNORECASE)
+                case_folder = os.path.join(config["output"]["output_directory"], os.path.basename(case))
+                cases = [name for name in os.listdir(Path(case_folder)) if rule.match(name)]
+                if len(cases) > 0:
+                    logger.info("Folder already exists for this case. Proceeding to next case")
+                    continue
 
             residuals = perform_fitting(case, config, out_dir=config["output"]["output_directory"], gp_suffix=config["input"]["gp_suffix"], si_suffix=config["input"]["si_suffix"],
                             frames_to_fit=[], output_format=config["output"]["mesh_format"], logger=logger)

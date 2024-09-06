@@ -14,8 +14,7 @@ from loguru import logger
 from rich.progress import Progress
 import fnmatch
 import pyvista as pv
-
-from pyezzi import compute_thickness
+from pyezzi.pyezzi.thickness import compute_thickness
 import nibabel as nib
 from bivme.fitting.BiventricularModel import BiventricularModel
 import math
@@ -28,8 +27,6 @@ debug = False
 
 if debug:
     import matplotlib.pyplot as plt
-
-
 
 def find_wall_thickness(case_name: str, model_file: os.PathLike, output_folder: os.PathLike, biv_model_folder: os.PathLike = MODEL_RESOURCE_DIR, voxel_resolution: float = 1.0, save_segmentation: bool = True) -> None:
     """
@@ -60,7 +57,6 @@ def find_wall_thickness(case_name: str, model_file: os.PathLike, output_folder: 
     if biventricular_model.control_mesh.shape[0] > 0:
         faces = biventricular_model.et_indices
         mat = np.loadtxt(material_file, dtype='str')
-
         et_thru_wall = np.loadtxt(thru_wall_file, delimiter='\t').astype(int)-1
 
         ## convert labels to integer corresponding to the sorted list of unique labels types
@@ -154,8 +150,6 @@ def find_wall_thickness(case_name: str, model_file: os.PathLike, output_folder: 
         labeled_image_lv = 2*(masks['lv_epi'] - masks['lv_endo']) + masks['lv_endo']
         labeled_image_rv = 2*(masks['rv_epi'] - masks['rv_endo']) + masks['rv_endo']
 
-        #labeled_image_lvrv = labeled_image_lv+labeled_image_rv
-
         if save_segmentation:
             logger.info(f'Saving wall thickness image to {Path(output_folder / f"labeled_image_lv_{case_name}_{frame_name}.nii")}')
             ni_img = nib.Nifti1Image(labeled_image_lv.astype(np.int8), affine=np.eye(4))
@@ -167,7 +161,6 @@ def find_wall_thickness(case_name: str, model_file: os.PathLike, output_folder: 
 
         lv_thickness = compute_thickness(labeled_image_lv)
         rv_thickness = compute_thickness(labeled_image_rv)
-
 
         if save_segmentation:
             ni_img = nib.Nifti1Image(lv_thickness.astype(np.float32), affine=np.eye(4))

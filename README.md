@@ -4,29 +4,11 @@ Biventricular model fitting framework
 -----------------------------------------------
 This is an import of the KCL BiV modelling code (originally called BiV_Modelling).
 
-Date: 01 December 2023
-
 -----------------------------------------------
 
 This code performs patient-specific biventricular mesh customization. 
 
-The process takes place in 2 steps:
-1. correction of breath-hold misregistration between short-axis slices, and 
-2. deformation of the subdivided template mesh to fit the manual contours while preserving 
-the topology of the mesh.
-
 Documentation: https://github.kcl.ac.uk/pages/YoungLab/BiV_Modelling/
-
-
-Contents 
------------------------------------------------
-- BiVFitting: contains the code that performs patient-specific biventricular mesh customization. 
-- model: contains .txt files required by the fitting modules
-- results: output folder
-- test_data: contains one subfolder for each patient. Each subfolder contains the GPFile and SliceInfoFile relative to one patient.
-- config_params: configuration of parameters for the fitting
-- perform_fit: script that contains the routine to perform the biventricular fitting
-- run_parallel: allows fitting using parallel CPUs. Each patient is assigned to one CPU.
 
 Installation ![Python versions](https://img.shields.io/badge/python-3.11-blue)
 -----------------------------------------------
@@ -83,6 +65,7 @@ options:
                         Config file containing fitting parameters
 
 ```
+An example of config file can be found in src/bivme/configs/config.toml. The gp_directory should contain one subfolder for each patient. Each subfolder should contain a set of GPFiles (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) and one SliceInfoFile.txt relative to one patient. See example in the example folder.
 
 ### Calculate volumes from biv-me models
 The script for the volume calculation can be found in src/bivme/analysis
@@ -96,13 +79,14 @@ usage: compute_volume.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_FILE] [-b BIV_MODEL_F
   -o OUTPUT_FILE, --output_file OUTPUT_FILE
                         output path
   -b BIV_MODEL_FOLDER, --biv_model_folder BIV_MODEL_FOLDER
-                        folder containing subdivision matrices
+                        folder containing subdivision matrices (default: src/model) 
   -pat PATTERNS, --patterns PATTERNS
                         folder patterns to include (default '*')
   -p PRECISION, --precision PRECISION
                         Output precision (default: 2)
 ```
-Results will be saved in {OUTPUT_PATH}/lvrv_volumes.csv
+
+Results will be saved in {OUTPUT_PATH}/lvrv_volumes.csv.
 
 ### Calculate strains from biv-me models
 The script for strain calculation can be found in src/bivme/analysis. Geometric strain is defined as the change in geometric arc length from ED to ES using a set of predefined points and calculated using the Cauchy strain formula.
@@ -159,7 +143,7 @@ options:
 Results will be saved in {OUTPUT_PATH}/global_longitudinal_strain.csv
 
 ### Compute wall thickness
-The script for computing the wall thickness can be found in src/bivme/analysis. Wall thickness is calculated on binary 3D images using pyezzi (https://pypi.org/project/pyezzi/) for both LV and RV separately. The septal wall is included in the LV calculation and excluded from the RV 
+The script for computing the wall thickness can be found in src/bivme/analysis. Wall thickness is calculated on binary 3D images using [pyezzi](https://pypi.org/project/pyezzi/) for both LV and RV separately. The septal wall is included in the LV calculation and excluded from the RV 
 
 ```
 usage: compute_wall_thickness.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_FOLDER] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-r VOXEL_RESOLUTION] [-s]
@@ -181,16 +165,9 @@ options:
   -s, --save_segmentation
                         Boolean value indicating if we want the 3D masks to be saved
 
-
 ```
 
-Results and segmentation masks will be saved in {OUTPUT_PATH}/wall_thickness. Wall thickness is saved at each vertex in the mesh
-
-**Step 4**
-
-After changing the script perform_fit.py according to your needs, there are two options to perform the model fitting. The first option is to fit the list of inout patients sequentially, by running perform_fit.py. 
-
-To speed up the fitting, you may want to process different cases in parallel CPUs. To perform the fitting in parallel, you can use run_parallel.py. The relative paths at the bottom of this script need to be changed first, then the script can be lauched to generate the fitted models.
+Results and segmentation masks will be saved in {OUTPUT_PATH}/wall_thickness. Wall thickness is saved at each vertex in the mesh and can be visualised in paraview as vertex color.
 
 Credits
 ------------------------------------
