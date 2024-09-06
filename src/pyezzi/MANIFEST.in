@@ -1,0 +1,5 @@
+include pyezzi/*.pyx
+include example/epi.tif
+include example/wall.tif
+include example/basic.ipynb
+include example/detailed.ipynb

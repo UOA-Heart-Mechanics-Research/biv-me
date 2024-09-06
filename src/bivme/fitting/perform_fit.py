@@ -518,23 +518,31 @@ if __name__ == "__main__":
             logger.error(f'argument output_meshes invalid. {mesh} given. Allowed values are "LV_ENDOCARDIAL", "RV_ENDOCARDIAL", "EPICARDIAL"')
             sys.exit(0)
 
-    for case in case_dirs:
-        logger.info(f"Processing {os.path.basename(case)}")
-        if config["output"]["generate_log_file"]:
-            logger_id = logger.add(f'{config["output"]["output_directory"]}/{os.path.basename(case)}/log_file_{datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.log', level=log_level, format=log_format,
-                                        colorize=False, backtrace=True,
-                                        diagnose=True)
+    try:
+        for case in case_dirs:
+            logger.info(f"Processing {os.path.basename(case)}")
+            if config["output"]["generate_log_file"]:
+                logger_id = logger.add(f'{config["output"]["output_directory"]}/{os.path.basename(case)}/log_file_{datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.log', level=log_level, format=log_format,
+                                            colorize=False, backtrace=True,
+                                            diagnose=True)
 
-        if not config["output"]["overwrite"] and os.path.exists(os.path.join(config["output"]["output_directory"], os.path.basename(case))):
-            logger.info("Folder already exists for this case. Proceeding to next case")
-            continue
+            if not config["output"]["overwrite"]:
+                rule = re.compile(fnmatch.translate(f"{os.path.basename(case)}_model_frame*.txt"), re.IGNORECASE)
+                case_folder = os.path.join(config["output"]["output_directory"], os.path.basename(case))
+                cases = [name for name in os.listdir(Path(case_folder)) if rule.match(name)]
+                if len(cases) > 0:
+                    logger.info("Folder already exists for this case. Proceeding to next case")
+                    continue
 
-        residuals = perform_fitting(case, config, out_dir=config["output"]["output_directory"], gp_suffix=config["input"]["gp_suffix"], si_suffix=config["input"]["si_suffix"],
-                        frames_to_fit=[], output_format=config["output"]["mesh_format"], logger=logger)
-        logger.info(f"Average residuals: {residuals} for case {os.path.basename(case)}")
-        if config["output"]["generate_log_file"]:
-            logger.remove(logger_id)
+            residuals = perform_fitting(case, config, out_dir=config["output"]["output_directory"], gp_suffix=config["input"]["gp_suffix"], si_suffix=config["input"]["si_suffix"],
+                            frames_to_fit=[], output_format=config["output"]["mesh_format"], logger=logger)
+            logger.info(f"Average residuals: {residuals} for case {os.path.basename(case)}")
+            if config["output"]["generate_log_file"]:
+                logger.remove(logger_id)
 
-    logger.info(f"Total cases processed: {len(case_dirs)}")
-    logger.info(f"Total time: {time.time() - start_time}")
-    logger.success(f'Done. Results are saved in {config["output"]["output_directory"]}')
+        logger.info(f"Total cases processed: {len(case_dirs)}")
+        logger.info(f"Total time: {time.time() - start_time}")
+        logger.success(f'Done. Results are saved in {config["output"]["output_directory"]}')
+    except KeyboardInterrupt:
+        logger.info(f"Program interrupted by the user")
+        sys.exit(0)

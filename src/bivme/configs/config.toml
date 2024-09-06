@@ -66,11 +66,11 @@ generate_log_file = true
 # Decide whether or not to save the logs. If true, a .log file will be generated
 # Default: true
 
-export_control_mesh = true
+export_control_mesh = false
 # Decide whether or not to save the coarse mesh. If true, the coarse mesh will be generated (format: mesh_format)
 # Default: false
 
-mesh_format = ".obj"
+mesh_format = ".vtk"
 # Allowed values:
 # * ".obj" : write the mesh as a wavefront .obj file - compatible with most computer graphics/mesh visualisation software
 # * ".vtk" : write the mesh as to vk format
