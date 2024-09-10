@@ -109,6 +109,7 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
         if config["breathhold_correction"]["shifting"] == "derived_from_ed":
             my_logger.info("Shift measured only at ED frame")
             filename = Path(folder) / f"GPFile_{gp_suffix}{frame_name[ed_frame]:03}.txt"
+
             if not filename.exists():
                 my_logger.error(f"Cannot find {filename} file! Skipping this model")
                 return -1
@@ -159,7 +160,7 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                     time_frame_number=num,
                 )
 
-                if num == ed_frame:
+                if frame == frames_to_fit[ed_frame]:
                     ed_dataset = deepcopy(dataset)
                 if not dataset.success:
                     continue
@@ -181,6 +182,7 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                 file.write("Average shift \n")
                 file.write(str(updated_slice_position))
                 file.close()
+
         elif config["breathhold_correction"]["shifting"] == "none":
             my_logger.info("No correction applied")
             filename = Path(folder) / f"GPFile_{gp_suffix}{frame_name[ed_frame]:03}.txt"

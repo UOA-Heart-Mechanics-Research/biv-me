@@ -336,7 +336,7 @@ class GPDataSet(object):
         lines = []
         with open(name, "rt") as in_file:
             for line in in_file:
-                lines.append(re.split("\s+", line))
+                lines.append(re.split(r'\s+', line))
 
         try:
             index_im_position = (
