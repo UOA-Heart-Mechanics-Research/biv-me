@@ -718,7 +718,7 @@ class GPDataSet(object):
 
         return contourPlots
 
-    def sinclaire_slice_shifting(self, my_logger : logger, fix_lax : bool=False):
+    def sinclair_slice_shifting(self, my_logger : logger, fix_lax : bool=False):
         """This method does a breath-hold misregistration correction be default for both LAX
         and SAX using Sinclair, Matthew, et al. "Fully automated segmentation-based
         respiratory motion correction of multiplanar cardiac magnetic resonance images
@@ -755,15 +755,16 @@ class GPDataSet(object):
             np_slices = np.unique(self.slice_number)
 
             int_t = []
-            for index, id in enumerate(np_slices):
-                t = self._get_slice_shift_sinclaire(id, iteration_num, fix_lax)
 
+            for index, id in enumerate(self.slices.keys()):
+                t = self._get_slice_shift_sinclair(id, iteration_num, fix_lax)
+                position[index, :] = self.slices[id].position # there should always be a non-zerosposition
                 if not (t is None):
                     nb_translations += 1
                     int_t.append(np.linalg.norm(t))
 
                     translation[index, :] = translation[index, :] + t
-                    position[index, :] = self.slices[id].position
+
                     # the translation is done in 2D
                     point_2_translate = self.points_coordinates[
                         self.slice_number == id, :
@@ -878,7 +879,7 @@ class GPDataSet(object):
         return redundant_slices, valid_index
 
     # @profile
-    def _get_slice_shift_sinclaire(self, slice_number, iter, fix_LAX=False):
+    def _get_slice_shift_sinclair(self, slice_number, iter, fix_LAX=False):
         """
         computes translation of slice #slice_number minimizing the
         distance between it's corresponding contour points  and the

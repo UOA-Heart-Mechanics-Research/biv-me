@@ -122,7 +122,7 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
             )
             if not ed_dataset.success:
                 return -1
-            result_at_ed = ed_dataset.sinclaire_slice_shifting(my_logger)
+            result_at_ed = ed_dataset.sinclair_slice_shifting(my_logger)
             _, _ = ed_dataset.get_unintersected_slices()
 
             ##TODO remove basal slice (maybe looking at the distance between the contours centroid and the projection of the line mitral centroid/apex)
@@ -163,7 +163,7 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                     ed_dataset = deepcopy(dataset)
                 if not dataset.success:
                     continue
-                result_at_t = dataset.sinclaire_slice_shifting(my_logger)
+                result_at_t = dataset.sinclair_slice_shifting(my_logger)
 
                 shift_to_apply += result_at_t[0]
                 updated_slice_position += result_at_t[1]
@@ -239,7 +239,7 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
 
                 if config["breathhold_correction"]["shifting"] != "none":
                     data_set.apply_slice_shift(shift_to_apply, updated_slice_position)
-                data_set.get_unintersected_slices()
+                    data_set.get_unintersected_slices()
 
                 # Generates RV epicardial point if they have not been contoured
                 if sum(data_set.contour_type == (ContourType.SAX_RV_EPICARDIAL)) == 0 and sum(data_set.contour_type == ContourType.LAX_RV_EPICARDIAL) == 0:
