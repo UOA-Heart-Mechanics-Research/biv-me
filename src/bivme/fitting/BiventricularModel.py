@@ -280,14 +280,16 @@ class BiventricularModel:
                           ).values.astype(int) - 1
         """ 11760x3 array[int] of elements connectivity (n1,n2,n3) for each face."""
 
+        material_file = control_mesh_dir / 'ETIndicesMaterials.txt'
+        assert material_file.exists(), \
+            f"Missing {et_index_file}"
+
+        self.material = np.loadtxt(material_file, dtype='str')
+
         self.collision_detection = collision_detection
-        #if collision_detection:
-        #    #model = Mesh('biv-mesh')
-        #    #model.set_nodes(et_pos)
-        #    #model.set_elements(et_indices)
-        #    faces = self.et_indices
-        #    faces = np.pad(faces, ((0, 0), (1, 0)), 'constant', constant_values=3)
-        #    self.pv_mesh = pv.PolyData(self.et_pos, faces)
+
+        if collision_detection:
+            self.reference_collision = set(self.detect_collision())
 
         et_index_thru_wall_file = control_mesh_dir / "epi_to_septum_ETindices.txt"
         assert et_index_thru_wall_file.exists(), \
@@ -1037,7 +1039,7 @@ class BiventricularModel:
         self.control_mesh = new_control_mesh
         self.et_pos = np.linalg.multi_dot([self.matrix, self.control_mesh])
 
-    def detect_collision(self):
+    def detect_collision(self, debug: bool = False) -> list:
         ##TODO Initialise pv meshes is collision detection set to on
 
         from bivme.meshing.mesh import Mesh
@@ -1045,13 +1047,23 @@ class BiventricularModel:
         model.set_nodes(self.et_pos)
         model.set_elements(self.et_indices)
 
+        ## convert labels to integer corresponding to the sorted list of unique labels types
+        unique_material = np.unique(self.material[:,1])
+
+        materials = np.zeros(self.material.shape)
+        for index, m in enumerate(unique_material):
+            face_index = self.material[:, 1] == m
+            materials[face_index, 0] = self.material[face_index, 0].astype(int)
+            materials[face_index, 1] = [index] * np.sum(face_index)
+
+        model.set_materials(materials[:, 0], materials[:, 1])
         # components list, used to get the correct mesh components:
         # ['0 AORTA_VALVE' '1 AORTA_VALVE_CUT' '2 LV_ENDOCARDIAL' '3 LV_EPICARDIAL'
         # ' 4 MITRAL_VALVE' '5 MITRAL_VALVE_CUT' '6 PULMONARY_VALVE' '7 PULMONARY_VALVE_CUT'
         # '8 RV_EPICARDIAL' '9 RV_FREEWALL' '10 RV_SEPTUM' '11 TRICUSPID_VALVE'
         # '12 TRICUSPID_VALVE_CUT', '13' THRU WALL]
 
-        rv_fw = model.get_mesh_component([9, 10], reindex_nodes=False)
+        rv_fw = model.get_mesh_component([9], reindex_nodes=False)
         rv_septum = model.get_mesh_component([10], reindex_nodes=False)
 
         rv_fw_faces = rv_fw.elements
@@ -1061,10 +1073,27 @@ class BiventricularModel:
         rvfw_mesh = pv.PolyData(rv_fw.nodes, rv_fw_et)
         rvs_mesh = pv.PolyData(rv_septum.nodes, rv_septum_et)
 
-        col, n_contacts = rvs_mesh.collision(rvfw_mesh)  
+        collision, n_contacts = rvs_mesh.collision(rvfw_mesh, contact_mode=0, cell_tolerance=0)  
 
-        print(col)  
+        scalars = np.zeros(collision.n_cells, dtype=bool)
+        scalars[collision.field_data['ContactCells']] = True
 
+        if debug:
+            pl = pv.Plotter()
+            _ = pl.add_mesh(
+                collision,
+                scalars=scalars,
+                show_scalar_bar=False,
+                cmap='bwr',)
+
+            _ = pl.add_mesh(
+                rvfw_mesh,
+                style='wireframe',
+                color='k',
+                show_edges=True,)
+            pl.show()
+
+        return set(collision.field_data['ContactCells'])
 
     def plot_surface(
         self, face_color_lv: str="rgb(0,127,0)", face_color_rv : str="rgb(0,127,127)", face_color_epi : str="rgb(127,0,0)", surface: str="all"
