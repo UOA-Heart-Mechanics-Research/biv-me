@@ -43,38 +43,12 @@ contour_map = {
    # : ContourType.SAX_RV_EPICARDIAL
    # : ContourType.SAX_LV_EPICARDIAL
 
-
-
-contours_to_plot = [
-    ContourType.LAX_RV_ENDOCARDIAL,
-    ContourType.SAX_RV_FREEWALL,
-    ContourType.LAX_RV_FREEWALL,
-    ContourType.SAX_RV_SEPTUM,
-    ContourType.LAX_RV_SEPTUM,
-    ContourType.SAX_LV_ENDOCARDIAL,
-    ContourType.SAX_LV_EPICARDIAL,
-    ContourType.RV_INSERT,
-    ContourType.APEX_POINT,
-    ContourType.MITRAL_VALVE,
-    ContourType.TRICUSPID_VALVE,
-    ContourType.AORTA_VALVE,
-    ContourType.PULMONARY_VALVE,
-    ContourType.SAX_RV_EPICARDIAL,
-    ContourType.LAX_RV_EPICARDIAL,
-    ContourType.LAX_LV_ENDOCARDIAL,
-    ContourType.LAX_LV_EPICARDIAL,
-    ContourType.LAX_RV_EPICARDIAL,
-]
-
 def fix_intersection(case_name: str, config: dict, model_file: os.PathLike, output_folder: os.PathLike, biv_model_folder: os.PathLike = MODEL_RESOURCE_DIR, output_format: str =".vtk", gp_suffix: str ="") -> None:
     """
         # Authors: cm
         # Date: 09/24
     """
 
-    ##TODO 
-    # Step 1 load meshes
-    # see if intersect - if so, use fitted mesh as GPFile and do the iterative process till it intersect
     reference_biventricular_model = BiventricularModel(biv_model_folder, collision_detection = True)
 
     fitted_model = deepcopy(reference_biventricular_model)
@@ -87,8 +61,6 @@ def fix_intersection(case_name: str, config: dict, model_file: os.PathLike, outp
         
         logger.warning(f"Intersections detected for case {os.path.basename(os.path.normpath(model_file))}")        
         logger.info(f"Refitting of {str(case_name)}")
-
-
 
         # create a separate output folder for each patient
         output_folder = Path(output_folder) / os.path.basename(case_name)
@@ -103,13 +75,12 @@ def fix_intersection(case_name: str, config: dict, model_file: os.PathLike, outp
         weights = []
         for surface, contours in contour_map.items():
             start, end = fitted_model.get_surface_vertex_start_end_index(surface)
-#
             for idx in range(start, end):
                 points.append(fitted_model.et_pos[idx,:])
                 slices.append(0)
                 contour_types.append(contours)
                 weights.append(1.0)
-#
+
         gp_dataset.points_coordinates = np.array(points)
         gp_dataset.slice_number = np.array(slices)
         gp_dataset.contour_type = np.array(contour_types)
@@ -122,8 +93,6 @@ def fix_intersection(case_name: str, config: dict, model_file: os.PathLike, outp
         gp_dataset.tricuspid_centroid = fitted_model.et_pos[fitted_model.get_surface_vertex_start_end_index(Surface.TRICUSPID_VALVE)[1],:]
 
         reference_biventricular_model.update_pose_and_scale(gp_dataset)
-
-        contour_plots = gp_dataset.plot_dataset(contours_to_plot)
 
         # Perform linear fit
         solve_least_squares_problem(reference_biventricular_model, config["fitting_weights"]["guide_points"], gp_dataset, logger, collision_detection=True, model_prior = fitted_model)
@@ -138,23 +107,6 @@ def fix_intersection(case_name: str, config: dict, model_file: os.PathLike, outp
             logger, 
             collision_detection=True, 
             model_prior = fitted_model
-        )
-
-        # Plot final results
-        model = reference_biventricular_model.plot_surface(
-            "rgb(0,127,0)", "rgb(0,127,127)", "rgb(127,0,0)", "all"
-        )
-
-        data = contour_plots + model
-
-        output_folder_html = Path(output_folder, f"html")
-        output_folder_html.mkdir(exist_ok=True)
-        plot(
-            go.Figure(data),
-            filename=os.path.join(
-                output_folder_html, f"{model_file.stem}_refitted.html"
-            ),
-            auto_open=False,
         )
 
         # save results in .txt format, one file for each frame
@@ -306,10 +258,9 @@ def fix_intersection(case_name: str, config: dict, model_file: os.PathLike, outp
 if __name__ == "__main__":
     biv_resource_folder = MODEL_RESOURCE_DIR
 
-    # parse command-line argument
     parser = argparse.ArgumentParser(description="Removes intersection between free wall and septum if presents")
     parser.add_argument('-config', '--config_file', type=str,
-                        help='Config file containing fitting parameters')
+                        help='Config file containing fitting parameters (the one used for fitting).')
     args = parser.parse_args()
 
     # Load config  - the config needs to be the same as the one used for fitting!
@@ -356,7 +307,6 @@ if __name__ == "__main__":
     output_folder.mkdir(parents=True, exist_ok=True)
     shutil.copy(args.config_file, output_folder)
 
-
     case_list = os.listdir(config["output"]["output_directory"])
     folders = [Path(config["output"]["output_directory"], case).as_posix() for case in case_list]
 
@@ -364,20 +314,19 @@ if __name__ == "__main__":
 
     try:
         for i, folder in enumerate(folders):
+            if os.path.isdir(folder):
+                rule = re.compile(fnmatch.translate("*model_frame*.txt"), re.IGNORECASE)
+                models = [folder / Path(name) for name in os.listdir(Path(folder)) if rule.match(name)]
+                models = sorted(models)
 
-            ##TODO check if fodler is a fodler (and not a file)
-            rule = re.compile(fnmatch.translate("*model_frame*.txt"), re.IGNORECASE)
-            models = [folder / Path(name) for name in os.listdir(Path(folder)) if rule.match(name)]
-            models = sorted(models)
+                logger.info(f"Processing {str(folder)} ({i+1}/{len(folders)})")
+                with Progress(transient=True) as progress:
+                    task = progress.add_task("Checking for intersection...", total=len(models))
+                    console = progress
 
-            logger.info(f"Processing {str(folder)} ({i+1}/{len(folders)})")
-            with Progress(transient=True) as progress:
-                task = progress.add_task("Checking for intersection...", total=len(models))
-                console = progress
-
-                for biv_model_file in models:
-                    fix_intersection(folder, config, biv_model_file, output_folder, biv_resource_folder, output_format = config["output"]["mesh_format"], gp_suffix=config["input"]["gp_suffix"])
-                    progress.advance(task)
+                    for biv_model_file in models:
+                        fix_intersection(folder, config, biv_model_file, output_folder, biv_resource_folder, output_format = config["output"]["mesh_format"], gp_suffix=config["input"]["gp_suffix"])
+                        progress.advance(task)
 
         logger.success(f"Done. Results are saved in {output_folder}")
     except KeyboardInterrupt:
