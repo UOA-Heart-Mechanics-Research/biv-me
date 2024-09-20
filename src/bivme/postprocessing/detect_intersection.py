@@ -7,7 +7,10 @@ from pathlib import Path
 import re
 import fnmatch
 from copy import deepcopy
+from plotly.offline import plot
+import plotly.graph_objs as go
 
+from bivme.meshing.mesh_io import write_vtk_surface, export_to_obj
 from bivme import MODEL_RESOURCE_DIR
 from bivme.meshing.mesh import Mesh
 from bivme.fitting.BiventricularModel import BiventricularModel
@@ -18,8 +21,13 @@ import shutil
 from bivme.fitting.surface_enum import Surface
 from bivme.fitting.surface_enum import ContourType
 from bivme.fitting.GPDataSet import GPDataSet
+import pandas as pd 
 
 biv_model_folder = MODEL_RESOURCE_DIR
+from bivme.fitting.diffeomorphic_fitting_utils import (
+    solve_least_squares_problem,
+    solve_convex_problem,
+)
 
 # mapping 
 contour_map = {
@@ -35,9 +43,30 @@ contour_map = {
    # : ContourType.SAX_RV_EPICARDIAL
    # : ContourType.SAX_LV_EPICARDIAL
 
-#import pymeshfix
 
-def fix_intersection(case_name: str, config: dict, model_file: os.PathLike, output_folder: os.PathLike, biv_model_folder: os.PathLike = MODEL_RESOURCE_DIR) -> None:
+
+contours_to_plot = [
+    ContourType.LAX_RV_ENDOCARDIAL,
+    ContourType.SAX_RV_FREEWALL,
+    ContourType.LAX_RV_FREEWALL,
+    ContourType.SAX_RV_SEPTUM,
+    ContourType.LAX_RV_SEPTUM,
+    ContourType.SAX_LV_ENDOCARDIAL,
+    ContourType.SAX_LV_EPICARDIAL,
+    ContourType.RV_INSERT,
+    ContourType.APEX_POINT,
+    ContourType.MITRAL_VALVE,
+    ContourType.TRICUSPID_VALVE,
+    ContourType.AORTA_VALVE,
+    ContourType.PULMONARY_VALVE,
+    ContourType.SAX_RV_EPICARDIAL,
+    ContourType.LAX_RV_EPICARDIAL,
+    ContourType.LAX_LV_ENDOCARDIAL,
+    ContourType.LAX_LV_EPICARDIAL,
+    ContourType.LAX_RV_EPICARDIAL,
+]
+
+def fix_intersection(case_name: str, config: dict, model_file: os.PathLike, output_folder: os.PathLike, biv_model_folder: os.PathLike = MODEL_RESOURCE_DIR, output_format: str =".vtk", gp_suffix: str ="") -> None:
     """
         # Authors: cm
         # Date: 09/24
@@ -48,19 +77,24 @@ def fix_intersection(case_name: str, config: dict, model_file: os.PathLike, outp
     # see if intersect - if so, use fitted mesh as GPFile and do the iterative process till it intersect
     reference_biventricular_model = BiventricularModel(biv_model_folder, collision_detection = True)
 
-    biventricular_model = deepcopy(reference_biventricular_model)
-    biventricular_model.control_mesh = np.loadtxt(model_file, delimiter=',', skiprows=1, usecols=[0, 1, 2]).astype(float)
-    biventricular_model.update_control_mesh(biventricular_model.control_mesh)
-    current_collision = biventricular_model.detect_collision()
-    inter = current_collision.difference(biventricular_model.reference_collision) 
+    fitted_model = deepcopy(reference_biventricular_model)
+    fitted_model.control_mesh = np.loadtxt(model_file, delimiter=',', skiprows=1, usecols=[0, 1, 2]).astype(float)
+    fitted_model.update_control_mesh(fitted_model.control_mesh)
+    current_collision = fitted_model.detect_collision()
+    inter = current_collision.difference(fitted_model.reference_collision) 
 
     if bool(inter):
+        
+        logger.warning(f"Intersections detected for case {os.path.basename(os.path.normpath(model_file))}")        
+        logger.info(f"Refitting of {str(case_name)}")
 
-        
-        logger.info(f"Intersections detected for case {os.path.basename(os.path.normpath(model_file))}")
-        
+
+
+        # create a separate output folder for each patient
+        output_folder = Path(output_folder) / os.path.basename(case_name)
+        Path(output_folder).mkdir(parents=True, exist_ok=True)
+
         # initialise GP dataset from fitted model
-
         gp_dataset = GPDataSet()
 
         points = []
@@ -68,103 +102,72 @@ def fix_intersection(case_name: str, config: dict, model_file: os.PathLike, outp
         contour_types = []
         weights = []
         for surface, contours in contour_map.items():
-            start, end = biventricular_model.get_surface_vertex_start_end_index(surface)
-
-            #for idx in range(start, end+1)
-            
-
-            points.append([biventricular_model.et_pos[idx,:] for idx in range(start, end+1)])
-            slices.append([0 for idx in range(start, end+1)])
-            contour_types.append([contours for idx in range(start, end+1)])
-            weights.append([1.0 for idx in range(start, end+1)])
-
-            print(points)
-            assert False
-        #biventricular_model = BiventricularModel(biv_model_folder, collision_detection = True)
-
-        logger.info(f"Refitting of {str(case)}")
+            start, end = fitted_model.get_surface_vertex_start_end_index(surface)
+#
+            for idx in range(start, end):
+                points.append(fitted_model.et_pos[idx,:])
+                slices.append(0)
+                contour_types.append(contours)
+                weights.append(1.0)
+#
+        gp_dataset.points_coordinates = np.array(points)
+        gp_dataset.slice_number = np.array(slices)
+        gp_dataset.contour_type = np.array(contour_types)
+        gp_dataset.weights = np.array(weights)
 
         residuals = 0
 
-        num = int(num)  # frame number
+        gp_dataset.apex = fitted_model.et_pos[fitted_model.APEX_INDEX,]
+        gp_dataset.mitral_centroid = fitted_model.et_pos[fitted_model.get_surface_vertex_start_end_index(Surface.MITRAL_VALVE)[1],:]
+        gp_dataset.tricuspid_centroid = fitted_model.et_pos[fitted_model.get_surface_vertex_start_end_index(Surface.TRICUSPID_VALVE)[1],:]
 
-        model_file = Path(
-            output_folder, f"refit_{os.path.basename(os.path.normpath(model_file))}"
-        )
-        model_file.touch(exist_ok=True)
+        reference_biventricular_model.update_pose_and_scale(gp_dataset)
 
-        data_set = GPDataSet(
-            str(filename), str(filename_info), case, sampling=config["gp_processing"]["sampling"], time_frame_number=num
-        )
-
-        biventricular_model.update_pose_and_scale(data_set)
-
-        if not data_set.success:
-            logger.error(f"Cannot initialize GPDataSet! Skipping this frame")
-            return
-
-        try:
-            _ = data_set.create_valve_phantom_points(config["gp_processing"]["num_of_phantom_points_mv"], ContourType.MITRAL_VALVE)
-        except:
-            logger.warning('Error in creating mitral phantom points')
-
-        try:
-            _ = data_set.create_valve_phantom_points(config["gp_processing"]["num_of_phantom_points_tv"], ContourType.TRICUSPID_VALVE)
-        except:
-            logger.warning('Error in creating tricuspid phantom points')
-
-        try:
-            _ = data_set.create_valve_phantom_points(config["gp_processing"]["num_of_phantom_points_pv"], ContourType.PULMONARY_VALVE)
-        except:
-            logger.warning('Error in creating pulmonary phantom points')
-
-        try:
-            _ = data_set.create_valve_phantom_points(config["gp_processing"]["num_of_phantom_points_av"], ContourType.AORTA_VALVE)
-        except:
-            logger.warning('Error in creating aorta phantom points')
-
-        contour_plots = data_set.plot_dataset(contours_to_plot)
+        contour_plots = gp_dataset.plot_dataset(contours_to_plot)
 
         # Perform linear fit
-        solve_least_squares_problem(biventricular_model, config["fitting_weights"]["guide_points"], data_set, logger)
-#
+        solve_least_squares_problem(reference_biventricular_model, config["fitting_weights"]["guide_points"], gp_dataset, logger, collision_detection=True, model_prior = fitted_model)
+        
         ## Perform diffeomorphic fit
         residuals += solve_convex_problem(
-            biventricular_model,
-            data_set,
+            reference_biventricular_model,
+            gp_dataset,
             config["fitting_weights"]["guide_points"],
             config["fitting_weights"]["convex_problem"],
             config["fitting_weights"]["transmural"],
-            logger,
-        ) / len(sorted(frames_to_fit))
+            logger, 
+            collision_detection=True, 
+            model_prior = fitted_model
+        )
 
         # Plot final results
-        model = biventricular_model.plot_surface(
+        model = reference_biventricular_model.plot_surface(
             "rgb(0,127,0)", "rgb(0,127,127)", "rgb(127,0,0)", "all"
         )
 
         data = contour_plots + model
 
-        output_folder_html = Path(output_folder, f"html{gp_suffix}")
+        output_folder_html = Path(output_folder, f"html")
         output_folder_html.mkdir(exist_ok=True)
         plot(
             go.Figure(data),
             filename=os.path.join(
-                output_folder_html, f"{case}_fitted_model_frame_{num:03}.html"
+                output_folder_html, f"{model_file.stem}_refitted.html"
             ),
             auto_open=False,
         )
 
         # save results in .txt format, one file for each frame
         model_data = {
-            "x": biventricular_model.control_mesh[:, 0],
-            "y": biventricular_model.control_mesh[:, 1],
-            "z": biventricular_model.control_mesh[:, 2],
-            "Frame": [num] * len(biventricular_model.control_mesh[:, 2]),
+            "x": reference_biventricular_model.control_mesh[:, 0],
+            "y": reference_biventricular_model.control_mesh[:, 1],
+            "z": reference_biventricular_model.control_mesh[:, 2],
+            "Frame": [-1] * len(reference_biventricular_model.control_mesh[:, 2]),
         }
 
         model_data_frame = pd.DataFrame(data=model_data)
-        with open(model_file, "w") as file:
+
+        with open(Path(output_folder) / model_file.name, "w") as file:
             file.write(
                 model_data_frame.to_csv(
                     header=True, index=False, sep=",", lineterminator="\n"
@@ -221,34 +224,34 @@ def fix_intersection(case_name: str, config: dict, model_file: os.PathLike, outp
 
             offset = 0
             for type in value:
-                start_fi = biventricular_model.surface_start_end[value[type]][0]
-                end_fi = biventricular_model.surface_start_end[value[type]][1] + 1
-                faces_et = biventricular_model.et_indices[start_fi:end_fi]
+                start_fi = reference_biventricular_model.surface_start_end[value[type]][0]
+                end_fi = reference_biventricular_model.surface_start_end[value[type]][1] + 1
+                faces_et = reference_biventricular_model.et_indices[start_fi:end_fi]
                 unique_inds = np.unique(faces_et.flatten())
-                vertices = np.vstack((vertices, biventricular_model.et_pos[unique_inds]))
+                vertices = np.vstack((vertices, reference_biventricular_model.et_pos[unique_inds]))
 
                 # remap faces/indices to 0-indexing
                 mapping = {old_index: new_index for new_index, old_index in enumerate(unique_inds)}
                 faces_mapped = np.vstack((faces_mapped, np.vectorize(mapping.get)(faces_et) + offset))
-                offset += len(biventricular_model.et_pos[unique_inds])
+                offset += len(reference_biventricular_model.et_pos[unique_inds])
 
             if output_format == ".vtk":
                 output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
                 output_folder_vtk.mkdir(exist_ok=True)
                 mesh_path = Path(
-                    output_folder_vtk, f"{case}_{key}_{num:03}.vtk"
+                    output_folder_vtk, f"{model_file.stem}_{key}.vtk"
                 )
                 write_vtk_surface(str(mesh_path), vertices, faces_mapped)
-                logger.success(f"{case}_{key}_{num:03}.vtk successfully saved to {output_folder_vtk}")
+                logger.success(f"{model_file.stem}_{key}.vtk successfully saved to {output_folder_vtk}")
 
             elif output_format == ".obj":
                 output_folder_obj = Path(output_folder, f"obj{gp_suffix}")
                 output_folder_obj.mkdir(exist_ok=True)
                 mesh_path = Path(
-                    output_folder_obj, f"{case}_{key}_{num:03}.obj"
+                    output_folder_obj, f"{model_file.stem}_{key}.obj"
                 )
                 export_to_obj(mesh_path, vertices, faces_mapped)
-                logger.success(f"{case}_{key}_{num:03}.obj successfully saved to {output_folder_obj}")
+                logger.success(f"{model_file.stem}_{key}.obj successfully saved to {output_folder_obj}")
             else:
                 logger.error('argument format must be .obj or .vtk')
                 return -1
@@ -261,40 +264,39 @@ def fix_intersection(case_name: str, config: dict, model_file: os.PathLike, outp
 
                 offset = 0
                 for type in value:
-                    start_fi = biventricular_model.control_mesh_start_end[value[type]][0]
-                    end_fi = biventricular_model.control_mesh_start_end[value[type]][1] + 1
-                    faces_et = biventricular_model.et_indices_control_mesh[start_fi:end_fi]
+                    start_fi = reference_biventricular_model.control_mesh_start_end[value[type]][0]
+                    end_fi = reference_biventricular_model.control_mesh_start_end[value[type]][1] + 1
+                    faces_et = reference_biventricular_model.et_indices_control_mesh[start_fi:end_fi]
                     unique_inds = np.unique(faces_et.flatten())
-                    vertices = np.vstack((vertices, biventricular_model.control_mesh[unique_inds]))
+                    vertices = np.vstack((vertices, reference_biventricular_model.control_mesh[unique_inds]))
 
                     # remap faces/indices to 0-indexing
                     mapping = {old_index: new_index for new_index, old_index in enumerate(unique_inds)}
                     faces_mapped = np.vstack((faces_mapped, np.vectorize(mapping.get)(faces_et) + offset))
-                    offset += len(biventricular_model.control_mesh[unique_inds])
+                    offset += len(reference_biventricular_model.control_mesh[unique_inds])
 
                 if output_format == ".vtk":
                     output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
                     output_folder_vtk.mkdir(exist_ok=True)
                     mesh_path = Path(
-                        output_folder_vtk, f"{case}_{key}_{num:03}_control_mesh.vtk"
+                        output_folder_vtk, f"{model_file.stem}_{key}_control_mesh.vtk"
                     )
                     write_vtk_surface(str(mesh_path), vertices, faces_mapped)
-                    logger.success(f"{case}_{key}_{num:03}_control_mesh.vtk successfully saved to {output_folder_vtk}")
+                    logger.success(f"{model_file.stem}_{key}_control_mesh.vtk successfully saved to {output_folder_vtk}")
 
                 elif output_format == ".obj":
                     output_folder_obj = Path(output_folder, f"obj{gp_suffix}")
                     output_folder_obj.mkdir(exist_ok=True)
                     mesh_path = Path(
-                        output_folder_obj, f"{case}_{key}_{num:03}_control_mesh.obj"
+                        output_folder_obj, f"{model_file.stem}_{key}_control_mesh.obj"
                     )
                     export_to_obj(mesh_path, vertices, faces_mapped)
-                    logger.success(f"{case}_{key}_{num:03}_control_mesh.obj successfully saved to {output_folder_obj}")
+                    logger.success(f"{model_file.stem}_{key}_control_mesh.obj successfully saved to {output_folder_obj}")
                 else:
                     logger.error('argument format must be .obj or .vtk')
                     return -1
 
         return residuals
-        print(model_file)
 
     else:
         logger.success(f"No intersection detected for {case_name} - moving on")
@@ -363,6 +365,7 @@ if __name__ == "__main__":
     try:
         for i, folder in enumerate(folders):
 
+            ##TODO check if fodler is a fodler (and not a file)
             rule = re.compile(fnmatch.translate("*model_frame*.txt"), re.IGNORECASE)
             models = [folder / Path(name) for name in os.listdir(Path(folder)) if rule.match(name)]
             models = sorted(models)
@@ -373,7 +376,7 @@ if __name__ == "__main__":
                 console = progress
 
                 for biv_model_file in models:
-                    fix_intersection(folder, config, biv_model_file, output_folder, biv_resource_folder)
+                    fix_intersection(folder, config, biv_model_file, output_folder, biv_resource_folder, output_format = config["output"]["mesh_format"], gp_suffix=config["input"]["gp_suffix"])
                     progress.advance(task)
 
         logger.success(f"Done. Results are saved in {output_folder}")

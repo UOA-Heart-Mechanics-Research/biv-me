@@ -10,9 +10,10 @@ from bivme.fitting import BiventricularModel
 from bivme.fitting import GPDataSet
 import numpy as np
 from loguru import logger
+from copy import deepcopy
 
 def solve_convex_problem(
-    biv_model: BiventricularModel, data_set: GPDataSet, weight_gp: float, low_smoothing_weight: float, transmural_weight: float, my_logger: logger
+    biv_model: BiventricularModel, data_set: GPDataSet, weight_gp: float, low_smoothing_weight: float, transmural_weight: float, my_logger: logger, collision_detection = False, model_prior : BiventricularModel = None
 ) -> float:
     """This function performs the proper diffeomorphic fit.
     Parameters
@@ -28,15 +29,23 @@ def solve_convex_problem(
     --------
         None
     """
-    start_time = time.time()
-    [
-        data_points_index,
-        w_out,
-        distance_prior,
-        projected_points_basis_coeff,
-    ] = biv_model.compute_data_xi(weight_gp, data_set)
 
-    data_points = data_set.points_coordinates[data_points_index]
+
+    start_time = time.time()
+
+    if collision_detection:
+        data_points = model_prior.et_pos
+        projected_points_basis_coeff = biv_model.basis_matrix
+        w_out = weight_gp * np.ones((biv_model.et_pos.shape[0], 1))
+    else:
+        [
+            data_points_index,
+            w_out,
+            _,
+            projected_points_basis_coeff,
+        ] = biv_model.compute_data_xi(weight_gp, data_set)
+
+        data_points = data_set.points_coordinates[data_points_index]
     prior_position = np.dot(projected_points_basis_coeff, biv_model.control_mesh)
     w = w_out * np.identity(len(prior_position))
     WPG = np.dot(w, projected_points_basis_coeff)
@@ -126,17 +135,40 @@ def solve_convex_problem(
             # leading to a negative jacobian. If it happens, we stop.
             break
         else:
-            prev_displacement[:, 0] = prev_displacement[:, 0] + sx
-            prev_displacement[:, 1] = prev_displacement[:, 1] + sy
-            prev_displacement[:, 2] = prev_displacement[:, 2] + sz
-            biv_model.update_control_mesh(biv_model.control_mesh + displacement)
 
-            prior_position = np.dot(
-                projected_points_basis_coeff, biv_model.control_mesh
-            )
-            step_err = np.linalg.norm(data_points - prior_position, axis=1)
-            step_err = np.sqrt(np.sum(step_err) / len(prior_position))
-            iteration = iteration + 1
+
+            if collision_detection:
+                updated_model = deepcopy(biv_model)
+                updated_model.update_control_mesh(np.add(biv_model.control_mesh, displacement))
+                current_collision = updated_model.detect_collision()
+                inter = current_collision.difference(updated_model.reference_collision) 
+                if bool(inter):
+                    break
+                else:
+                    prev_displacement[:, 0] = prev_displacement[:, 0] + sx
+                    prev_displacement[:, 1] = prev_displacement[:, 1] + sy
+                    prev_displacement[:, 2] = prev_displacement[:, 2] + sz
+                    biv_model.update_control_mesh(biv_model.control_mesh + displacement)
+
+                    prior_position = np.dot(
+                        projected_points_basis_coeff, biv_model.control_mesh
+                    )
+                    step_err = np.linalg.norm(data_points - prior_position, axis=1)
+                    step_err = np.sqrt(np.sum(step_err) / len(prior_position))
+                    iteration = iteration + 1
+
+            else:
+                prev_displacement[:, 0] = prev_displacement[:, 0] + sx
+                prev_displacement[:, 1] = prev_displacement[:, 1] + sy
+                prev_displacement[:, 2] = prev_displacement[:, 2] + sz
+                biv_model.update_control_mesh(biv_model.control_mesh + displacement)
+
+                prior_position = np.dot(
+                    projected_points_basis_coeff, biv_model.control_mesh
+                )
+                step_err = np.linalg.norm(data_points - prior_position, axis=1)
+                step_err = np.sqrt(np.sum(step_err) / len(prior_position))
+                iteration = iteration + 1
 
     residuals = step_err
 
@@ -158,7 +190,6 @@ def fit_least_squares_model(biv_model: BiventricularModel, weight_gp: float, dat
 
     w_pg = np.linalg.multi_dot([w, projected_points_basis_coeff])
     GTPTWTWPG = np.linalg.multi_dot([w_pg.T, w_pg])
-    # np.linalg.multi_dot faster than np.dot
 
     A = GTPTWTWPG + smoothing_factor * (
         biv_model.gtstsg_x + biv_model.gtstsg_y + 0.001 * biv_model.gtstsg_z
@@ -175,8 +206,35 @@ def fit_least_squares_model(biv_model: BiventricularModel, weight_gp: float, dat
     err = np.sqrt(np.sum(err) / len(prior_position))
     return solf, err
 
+def fit_least_squares_model_with_prior(biv_model: BiventricularModel, weight_gp: float, prior_model: BiventricularModel, smoothing_factor: float) -> [np.ndarray, float]:
 
-def solve_least_squares_problem(biv_model, weight_gp, data_set, my_logger):
+    projected_points_basis_coeff = biv_model.basis_matrix
+    data_points_position = prior_model.et_pos
+    weights = weight_gp * np.ones((biv_model.et_pos.shape[0], 1))
+
+    prior_position = np.linalg.multi_dot(
+        [projected_points_basis_coeff, biv_model.control_mesh]
+    )
+    w = weights * np.identity(len(prior_position))
+
+    w_pg = np.linalg.multi_dot([w, projected_points_basis_coeff])
+    GTPTWTWPG = np.linalg.multi_dot([w_pg.T, w_pg])
+
+    A = GTPTWTWPG + smoothing_factor * (
+        biv_model.gtstsg_x + biv_model.gtstsg_y + 0.001 * biv_model.gtstsg_z
+    )
+
+    wd = np.linalg.multi_dot([w, data_points_position - prior_position])
+    rhs = np.linalg.multi_dot([w_pg.T, wd])
+
+    solf = np.linalg.solve(
+        A.T.dot(A), A.T.dot(rhs)
+    )  # solve the Moore-Penrose pseudo inversee
+    err = np.linalg.norm(data_points_position - prior_position, axis=1)
+    err = np.sqrt(np.sum(err) / len(prior_position))
+    return solf, err
+
+def solve_least_squares_problem(biv_model : BiventricularModel, weight_gp: float, data_set : GPDataSet, my_logger, collision_detection : bool = False, model_prior : BiventricularModel = None):
     """This function performs a series of LLS fits. At each iteration the
     least squares optimisation is performed and the determinant of the
     Jacobian matrix is calculated.
@@ -198,8 +256,11 @@ def solve_least_squares_problem(biv_model, weight_gp, data_set, my_logger):
     min_jacobian = 0.1
 
     while (isdiffeo == 1) & (high_weight > weight_gp * 1e2) & (iteration < 50):
-        # print('high_weight', high_weight) ####to LOG
-        displacement, err = fit_least_squares_model(biv_model, weight_gp, data_set, high_weight)
+
+        if collision_detection:
+            displacement, err = fit_least_squares_model_with_prior(biv_model, weight_gp, model_prior, high_weight)
+        else:
+            displacement, err = fit_least_squares_model(biv_model, weight_gp, data_set, high_weight)
 
         my_logger.info(f"     Iteration {iteration} Weight {high_weight}	 ICF error {err}")
 
@@ -207,12 +268,36 @@ def solve_least_squares_problem(biv_model, weight_gp, data_set, my_logger):
             np.add(biv_model.control_mesh, displacement), min_jacobian
         )
         if isdiffeo == 1:
-            biv_model.update_control_mesh(np.add(biv_model.control_mesh, displacement))
-            high_weight = (
-                high_weight / factor
-            )  # we divide weight by 'factor' and start again...
+            if collision_detection:
+                updated_model = deepcopy(biv_model)
+                updated_model.update_control_mesh(np.add(biv_model.control_mesh, displacement))
+                current_collision = updated_model.detect_collision()
+                inter = current_collision.difference(updated_model.reference_collision) 
+                if bool(inter):
+                    return high_weight
+                else:
+                    biv_model.update_control_mesh(np.add(biv_model.control_mesh, displacement))
+
+                    with open(f'test_{iteration}.obj', 'w') as f:
+                        f.write("# OBJ file\n")
+                        for v in biv_model.et_pos:
+                            f.write("v %.4f %.4f %.4f\n" % (v[0], v[1], v[2]))
+                        for p in biv_model.et_indices[:6751,]:
+                            f.write("f")
+                            for i in p:
+                                f.write(" %d" % (i + 1))
+                            f.write("\n")
+
+                    high_weight = (
+                        high_weight / factor
+                    )  # we divide weight by 'factor' and start again...
+            else:
+                biv_model.update_control_mesh(np.add(biv_model.control_mesh, displacement))
+                high_weight = (
+                    high_weight / factor
+                )  # we divide weight by 'factor' and start again...
         else:
-            # If Isdiffeo ==1, the model is not updated.
+            # If Isdiffeo !=1, the model is not updated.
             # We divide factor by 2 and try again.
             if factor > 1:
                 factor = factor / 2
