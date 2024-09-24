@@ -11,6 +11,7 @@ from bivme.fitting import GPDataSet
 import numpy as np
 from loguru import logger
 from copy import deepcopy
+from .surface_enum import Surface
 
 def solve_convex_problem(
     biv_model: BiventricularModel, data_set: GPDataSet, weight_gp: float, low_smoothing_weight: float, transmural_weight: float, my_logger: logger, collision_detection = False, model_prior : BiventricularModel = None
@@ -29,7 +30,6 @@ def solve_convex_problem(
     --------
         None
     """
-
 
     start_time = time.time()
 
@@ -55,9 +55,6 @@ def solve_convex_problem(
     )
     Wd = np.dot(w, data_points - prior_position)
 
-    # print('low_smoothing_weight', low_smoothing_weight) ####to LOG
-
-    # rhs = np.dot(WPG.T, Wd)
     previous_step_err = 0
     tol = 1e-6
     iteration = 0
@@ -68,7 +65,8 @@ def solve_convex_problem(
     step_err = np.sqrt(np.sum(step_err) / len(prior_position))
 
     residuals = -1
-    while abs(step_err - previous_step_err) > tol and iteration < 10:
+    collision_iteration = 1
+    while abs(step_err - previous_step_err) > tol and iteration < 10 and collision_iteration < 3:
         my_logger.info(f"     Iteration {iteration + 1} Smoothing weight {low_smoothing_weight}	 ECF error {step_err}")
 
         previous_step_err = step_err
@@ -85,9 +83,9 @@ def solve_convex_problem(
             tc="d",
         )
 
-        linConstraints = matrix(generate_contraint_matrix(biv_model), tc="d")
-        linConstraintNeg = -linConstraints
-        G = matrix(np.vstack((linConstraints, linConstraintNeg)))
+        linear_constraints = matrix(generate_contraint_matrix(biv_model), tc="d")
+        linear_constraints_neg = -linear_constraints
+        G = matrix(np.vstack((linear_constraints, linear_constraints_neg)))
         size = 2 * (3 * len(biv_model.mbder_dx))
         bound = 1 / 3
         h = matrix([bound] * size)
@@ -135,15 +133,20 @@ def solve_convex_problem(
             # leading to a negative jacobian. If it happens, we stop.
             break
         else:
-
-
             if collision_detection:
                 updated_model = deepcopy(biv_model)
                 updated_model.update_control_mesh(np.add(biv_model.control_mesh, displacement))
                 current_collision = updated_model.detect_collision()
                 inter = current_collision.difference(updated_model.reference_collision) 
                 if bool(inter):
-                    break
+                    for surface in [Surface.RV_SEPTUM, Surface.RV_FREEWALL, Surface.RV_INSERT]:
+                        surface_index = biv_model.get_surface_vertex_start_end_index(surface)
+                        model_prior.et_pos[surface_index[0] : surface_index[1] + 1, :] = biv_model.et_pos[surface_index[0] : surface_index[1] + 1, :]
+                    collision_iteration += 1
+                    data_points = model_prior.et_pos
+                    Wd = np.dot(w, data_points - prior_position)
+                    step_err = -1
+
                 else:
                     prev_displacement[:, 0] = prev_displacement[:, 0] + sx
                     prev_displacement[:, 1] = prev_displacement[:, 1] + sy
@@ -254,8 +257,9 @@ def solve_least_squares_problem(biv_model : BiventricularModel, weight_gp: float
     iteration = 1
     factor = 5
     min_jacobian = 0.1
+    collision_iteration = 1
 
-    while (isdiffeo == 1) & (high_weight > weight_gp * 1e2) & (iteration < 50):
+    while (isdiffeo == 1) & (high_weight > weight_gp * 1e2) & (iteration < 50) & (collision_iteration < 3):
 
         if collision_detection:
             displacement, err = fit_least_squares_model_with_prior(biv_model, weight_gp, model_prior, high_weight)
@@ -274,20 +278,17 @@ def solve_least_squares_problem(biv_model : BiventricularModel, weight_gp: float
                 current_collision = updated_model.detect_collision()
                 inter = current_collision.difference(updated_model.reference_collision) 
                 if bool(inter):
-                    return high_weight
+                    # if there is a collision detected, we update the prior to the current RV shape and keep doing the fitting to get a closer LV shape to the original
+                    # update prior
+                    my_logger.info(f"Intersection detected. Fixing the RV")
+                    for surface in [Surface.RV_SEPTUM, Surface.RV_FREEWALL, Surface.RV_INSERT]:
+                        surface_index = biv_model.get_surface_vertex_start_end_index(surface)
+                        model_prior.et_pos[surface_index[0]:surface_index[1] + 1, :] = biv_model.et_pos[surface_index[0]:surface_index[1]+1, :]
+
+                    collision_iteration += 1
+
                 else:
                     biv_model.update_control_mesh(np.add(biv_model.control_mesh, displacement))
-
-                    with open(f'test_{iteration}.obj', 'w') as f:
-                        f.write("# OBJ file\n")
-                        for v in biv_model.et_pos:
-                            f.write("v %.4f %.4f %.4f\n" % (v[0], v[1], v[2]))
-                        for p in biv_model.et_indices[:6751,]:
-                            f.write("f")
-                            for i in p:
-                                f.write(" %d" % (i + 1))
-                            f.write("\n")
-
                     high_weight = (
                         high_weight / factor
                     )  # we divide weight by 'factor' and start again...
@@ -303,7 +304,7 @@ def solve_least_squares_problem(biv_model : BiventricularModel, weight_gp: float
                 factor = factor / 2
                 high_weight = high_weight * factor
                 isdiffeo = 1
-        iteration = iteration + 1
+        iteration += 1
 
     my_logger.success(f"End of the explicitely constrained fit. Time taken: {time.time() - start_time}")
 
