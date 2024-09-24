@@ -93,10 +93,8 @@ def fix_intersection(case_name: str, config: dict, model_file: os.PathLike, outp
         gp_dataset.tricuspid_centroid = fitted_model.et_pos[fitted_model.get_surface_vertex_start_end_index(Surface.TRICUSPID_VALVE)[1],:]
 
         reference_biventricular_model.update_pose_and_scale(gp_dataset)
-
-        # Perform linear fit
         solve_least_squares_problem(reference_biventricular_model, config["fitting_weights"]["guide_points"], gp_dataset, logger, collision_detection=True, model_prior = fitted_model)
-        
+  
         ## Perform diffeomorphic fit
         residuals += solve_convex_problem(
             reference_biventricular_model,
