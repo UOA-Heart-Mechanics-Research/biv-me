@@ -169,6 +169,24 @@ options:
 
 Results and segmentation masks will be saved in {OUTPUT_PATH}/wall_thickness. Wall thickness is saved at each vertex in the mesh and can be visualised in paraview as vertex color.
 
+### Remove intersection from biv-me models (experimental feature)
+Diffeomorphic constraints are on the myocardium only. It can happend that the RV septum and RVFW intersect if the contours are too close. This script re-fit the models, using an extra collision detection step. An inital fit of the model is required as this will be used as guide points.
+
+The script for the mesh fitting can be found in src/bivme/postprocessing
+```
+usage: detect_intersection.py [-h] [-config CONFIG_FILE]
+
+Biv-me
+
+options:
+  -h, --help            show this help message and exit
+  -config CONFIG_FILE, --config_file CONFIG_FILE
+                        Config file containing fitting parameters
+
+```
+
+The config file should be the one used to fit the original models. Refitted models will be saved in config["output"]["output_directory"]/corrected_models.
+
 Credits
 ------------------------------------
 Based on work by: Laura Dal Toso, Anna Mira, Liandong Lee, Richard Burns, Charlene Mauger
