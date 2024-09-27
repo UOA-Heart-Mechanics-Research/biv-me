@@ -1,3 +1,4 @@
+
 import os, sys
 import numpy as np
 import time
@@ -11,13 +12,12 @@ import tomli
 import shutil
 import re
 import fnmatch
-from bivme.fitting.BiventricularModel import BiventricularModel
+
 from bivme.fitting.GPDataSet import GPDataSet
 from bivme.fitting.surface_enum import ContourType
 
 from loguru import logger
 from rich.progress import Progress
-from bivme import MODEL_RESOURCE_DIR
 
 # This list of contours_to _plot was taken from Liandong Lee
 contours_to_plot = [
@@ -49,10 +49,9 @@ contours_to_plot = [
     ContourType.EXCLUDED,
 ]
 
-def generate_html(folder: str,  out_dir: str ="./results/", gp_suffix: str ="", si_suffix: str ="", frames_to_fit: list[int]=[], my_logger: logger = logger, model_path = None) -> None:
+def generate_html(folder: str,  out_dir: str ="./results/", gp_suffix: str ="", si_suffix: str ="", frames_to_fit: list[int]=[], my_logger: logger = logger) -> None:
 
     # extract the patient name from the folder name
-
     case = os.path.basename(os.path.normpath(folder))
     my_logger.info(f"case: {case}")
 
@@ -66,6 +65,7 @@ def generate_html(folder: str,  out_dir: str ="./results/", gp_suffix: str ="", 
     frame_name = [re.search(r'GPFile_*(\d+)\.txt', str(file), re.IGNORECASE)[1] for file in time_frame]
     frame_name = sorted(frame_name)
 
+
     if len(frames_to_fit) == 0:
         frames_to_fit = np.unique(
             frame_name
@@ -76,7 +76,7 @@ def generate_html(folder: str,  out_dir: str ="./results/", gp_suffix: str ="", 
     Path(output_folder).mkdir(parents=True, exist_ok=True)
 
     with Progress(transient=True) as progress:
-        
+
         task = progress.add_task(f"Processing {len(frames_to_fit)} frames", total=len(frames_to_fit))
         console = progress
 
@@ -101,28 +101,10 @@ def generate_html(folder: str,  out_dir: str ="./results/", gp_suffix: str ="", 
                 continue
 
             contour_plots = data_set.plot_dataset(contours_to_plot)
-
-            if model_path is not None:
-
-                rule = re.compile(fnmatch.translate(f"*model_*frame*{num:03}.txt"), re.IGNORECASE)
-                path_to_model = [Path(model_path) / name for name in os.listdir(model_path) if
-                          rule.match(name)]
-
-
-                biventricular_model = BiventricularModel(MODEL_RESOURCE_DIR)
-                control_points = np.loadtxt(path_to_model[0], delimiter=',', skiprows=1, usecols=[0, 1, 2]).astype(float)
-                biventricular_model.update_control_mesh(control_points)
-
-                model = biventricular_model.plot_surface(
-                    "rgb(0,127,0)", "rgb(0,127,127)", "rgb(127,0,0)", "all"
-                )
-                data = contour_plots + model
-            else:
-                data = contour_plots
             output_folder_html = Path(output_folder, f"html{gp_suffix}")
             output_folder_html.mkdir(exist_ok=True)
             plot(
-                go.Figure(data),
+                go.Figure(contour_plots),
                 filename=os.path.join(
                     output_folder_html, f"{case}_gp_dataset_frame_{num:03}.html"
                 ),
@@ -138,8 +120,6 @@ if __name__ == "__main__":
                         help='Define the directory containing guidepoint files', default="./../../../example/guidepoints")
     parser.add_argument('--gp_suffix', type =str, default = '', help='guidepoints to use if we do not want to fit all the models in the input folder')
     parser.add_argument('--si_suffix', type =str, default = '', help='Define slice info to use if multiple SliceInfo.txt file are available')
-    parser.add_argument('-mdir', '--model_directory', type=Path,
-                        help='Define the directory containing the model files')
 
     args = parser.parse_args()
 
@@ -147,9 +127,8 @@ if __name__ == "__main__":
     output_folder = Path(args.output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
 
-    if args.model_directory is not None:
-        assert Path(args.model_directory).exists(), \
-            f'model_directory does not exist. Cannot find {args.model_directory}!'
+    assert Path(args.gp_directory).exists(), \
+        f'gp_directory does not exist. Cannot find {args.gp_directory}!'
 
     # set list of cases to process
     case_list = os.listdir(args.gp_directory)
@@ -162,12 +141,8 @@ if __name__ == "__main__":
     try:
         for case in case_dirs:
             logger.info(f"Processing {os.path.basename(case)}")
-
-            if args.model_directory is not None:
-                args.model_directory = Path(args.model_directory) / os.path.basename(case)
-
             generate_html(case, out_dir=output_folder, gp_suffix=args.gp_suffix, si_suffix=args.si_suffix,
-                            frames_to_fit=[], my_logger=logger, model_path = args.model_directory)
+                            frames_to_fit=[], my_logger=logger)
 
         logger.info(f"Total cases processed: {len(case_dirs)}")
         logger.info(f"Total time: {time.time() - start_time}")
