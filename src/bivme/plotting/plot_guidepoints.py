@@ -23,6 +23,13 @@ from bivme import MODEL_RESOURCE_DIR
 contours_to_plot = [
     ContourType.LAX_RA,
     ContourType.LAX_LA,
+    ContourType.SAX_RA,
+    ContourType.SAX_LA,
+    ContourType.SAX_LAA,
+    ContourType.SAX_LPV,
+    ContourType.SAX_RPV,
+    ContourType.SAX_SVC,
+    ContourType.SAX_IVC,
     ContourType.LAX_RV_ENDOCARDIAL,
     ContourType.SAX_RV_FREEWALL,
     ContourType.LAX_RV_FREEWALL,

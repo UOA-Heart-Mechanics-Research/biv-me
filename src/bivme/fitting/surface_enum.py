@@ -58,6 +58,13 @@ class ContourType(Enum):
     LAX_RV_EXTENT = "LAX_RV_EXTENT"
     LAX_LV_EXTENT = "LAX_LV_EXTENT"
     LAX_LA_EXTENT = "LAX_LA_EXTENT"
+    SAX_RA = "SAX_RA"
+    SAX_LA = "SAX_LA"
+    SAX_LAA = "SAX_LAA"
+    SAX_LPV = "SAX_LPV"
+    SAX_RPV = "SAX_RPV"
+    SAX_SVC = "SAX_SVC"
+    SAX_IVC = "SAX_IVC"
     EXCLUDED = "EXCLUDED"
 
 SURFACE_CONTOUR_MAP = {
