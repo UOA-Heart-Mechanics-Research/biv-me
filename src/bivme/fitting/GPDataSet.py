@@ -22,6 +22,8 @@ SAMPLED_CONTOUR_TYPES = [
     ContourType.SAX_LV_EPICARDIAL,
     ContourType.LAX_LA,
     ContourType.LAX_RA,
+    ContourType.SAX_LA,
+    ContourType.SAX_RA,
     ContourType.SAX_RV_ENDOCARDIAL,
     ContourType.LAX_RV_ENDOCARDIAL,
     ContourType.SAX_RV_EPICARDIAL,
@@ -31,7 +33,12 @@ SAMPLED_CONTOUR_TYPES = [
     ContourType.SAX_RV_SEPTUM,
     ContourType.LAX_RV_SEPTUM,
     ContourType.SAX_RV_OUTLET,
-    ContourType.EXCLUDED
+    ContourType.EXCLUDED,
+    ContourType.SAX_LAA,
+    ContourType.SAX_LPV,
+    ContourType.SAX_RPV,
+    ContourType.SAX_SVC,
+    ContourType.SAX_IVC,
 ]
 UNSAMPLED_CONTOUR_TYPES = [
     ContourType.MITRAL_VALVE,
@@ -636,6 +643,13 @@ class GPDataSet(object):
                 ContourType.SAX_LV_ENDOCARDIAL,
                 ContourType.LAX_LV_ENDOCARDIAL,
                 ContourType.EXCLUDED,
+                ContourType.SAX_LA,
+                ContourType.SAX_RA,
+                ContourType.SAX_LAA,
+                ContourType.SAX_LPV,
+                ContourType.SAX_RPV,
+                ContourType.SAX_SVC,
+                ContourType.SAX_IVC,
             ]
         )
         lines_color_map = np.array(
@@ -660,6 +674,14 @@ class GPDataSet(object):
                 "rgb(85,107,47)",
                 "rgb(50,205,50)",
                 "rgb(128,128,128)",
+                "rgb(246,132,9)",
+                "rgb(132,114,0)",
+                "rgb(114,246,255)",
+                "rgb(158,193,255)",
+                "rgb(114,97,123)",
+                "rgb(158,0,0)",
+                "rgb(0,79,255)",
+
             ]
         )
         # points types
