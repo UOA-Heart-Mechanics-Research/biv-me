@@ -291,9 +291,9 @@ class BiventricularModel:
         if collision_detection:
             self.reference_collision = set(self.detect_collision())
 
-        et_index_thru_wall_file = control_mesh_dir / "epi_to_septum_ETindices.txt"
+        et_index_thru_wall_file = control_mesh_dir / "thru_wall_et_indices.txt"
         assert et_index_thru_wall_file.exists(), \
-            f"Missing {et_index_file} for myocardial mass calculation"
+            f"Missing {et_index_thru_wall_file} for myocardial mass calculation"
 
         et_index_file = control_mesh_dir / "ETIndices_control_mesh.txt"
         assert et_index_file.exists(), \
