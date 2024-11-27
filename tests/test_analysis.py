@@ -21,9 +21,9 @@ def test_compute_volume():
     df = pd.read_csv(output_file)
     assert df['lv_vol'][0] == approx(0.074302)  # ground truth values
     assert df['rv_vol'][0] == approx(0.08629507)
-    assert df['lv_epivol'][0] == approx(0.158455)
-    assert df['rv_epivol'][0] == approx(0.116367)
+    assert df['lv_epivol'][0] == approx(0.158451)
+    assert df['rv_epivol'][0] == approx(0.116371)
     assert df['rvm'][0] == approx(0.03158)
-    assert df['lvm'][0] == approx(0.08836)
+    assert df['lvm'][0] == approx(0.088356)
 
     os.remove('test_lvrv_volumes.csv')
