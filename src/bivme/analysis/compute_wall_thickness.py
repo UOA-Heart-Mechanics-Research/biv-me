@@ -20,6 +20,7 @@ from bivme.fitting.BiventricularModel import BiventricularModel
 import math
 from scipy.spatial import cKDTree
 from bivme.fitting.surface_enum import Surface
+import scipy.io
 
 # for printing while progress bar is progressing
 console = None
@@ -41,10 +42,6 @@ def find_wall_thickness(case_name: str, model_file: os.PathLike, output_folder: 
 
     # read GP file
     biventricular_model.control_mesh = np.loadtxt(model_file, delimiter=',', skiprows=1, usecols=[0, 1, 2]).astype(float)
-
-    subdivision_matrix_file = biv_model_folder / "subdivision_matrix.txt"
-    assert subdivision_matrix_file.exists(), \
-        f"biv_model_folder does not exist. Cannot find {subdivision_matrix_file} file!"
 
     material_file = biv_model_folder / 'ETIndicesMaterials.txt'
     assert material_file.exists(), \

@@ -18,6 +18,7 @@ import fnmatch
 from rich.progress import Progress
 from bivme.meshing.mesh import Mesh
 from bivme import MODEL_RESOURCE_DIR
+import scipy.io
 
 def calculate_longitudinal_strain(case_name: str, model_file: os.PathLike, biv_model_folder: os.PathLike, precision: int) -> dict:
     """
@@ -40,7 +41,7 @@ def calculate_longitudinal_strain(case_name: str, model_file: os.PathLike, biv_m
         k: np.NaN for k in ['lv_gls_2ch', 'lv_gls_4ch', 'rvs_gls_4ch', 'rvfw_gls_4ch']
     }
 
-    subdivision_matrix_file = biv_model_folder / "subdivision_matrix.txt"
+    subdivision_matrix_file = biv_model_folder / "subdivision_matrix_sparse.mat"
     assert subdivision_matrix_file.exists(), \
         f"biv_model_folder does not exist. Cannot find {subdivision_matrix_file} file!"
 
@@ -52,7 +53,7 @@ def calculate_longitudinal_strain(case_name: str, model_file: os.PathLike, biv_m
 
     if control_points.shape[0] > 0:
 
-        subdivision_matrix = (np.loadtxt(subdivision_matrix_file)).astype(float)
+        subdivision_matrix = scipy.io.loadmat(subdivision_matrix_file)['S'].toarray()
 
         vertices = np.dot(subdivision_matrix, control_points)
 

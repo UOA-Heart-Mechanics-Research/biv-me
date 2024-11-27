@@ -24,6 +24,7 @@ from bivme.meshing.mesh_io import export_to_obj
 from loguru import logger
 from rich.progress import Progress
 import fnmatch
+import scipy.io
 
 # for printing while progress bar is progressing
 console = None
@@ -54,7 +55,7 @@ def find_volume(case_name: str, model_file: os.PathLike, output_file: os.PathLik
         k: '' for k in ['lv_vol', 'rv_vol', 'lv_epivol', 'rv_epivol', 'lv_mass', 'rv_mass']
     }
 
-    subdivision_matrix_file = biv_model_folder / "subdivision_matrix.txt"
+    subdivision_matrix_file = biv_model_folder / "subdivision_matrix_sparse.mat"
     assert subdivision_matrix_file.exists(), \
         f"biv_model_folder does not exist. Cannot find {subdivision_matrix_file} file!"
 
@@ -71,7 +72,7 @@ def find_volume(case_name: str, model_file: os.PathLike, output_file: os.PathLik
         f"biv_model_folder does not exist. Cannot find {thru_wall_file} file!"
 
     if control_points.shape[0] > 0:
-        subdivision_matrix = (np.loadtxt(subdivision_matrix_file)).astype(float)
+        subdivision_matrix = scipy.io.loadmat(subdivision_matrix_file)['S'].toarray()
         faces = np.loadtxt(elements_file).astype(int)-1
         mat = np.loadtxt(material_file, dtype='str')
 
