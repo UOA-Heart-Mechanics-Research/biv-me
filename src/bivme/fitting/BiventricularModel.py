@@ -16,6 +16,7 @@ from collections import OrderedDict
 from nltk import flatten
 from loguru import logger
 import pyvista as pv
+import scipy.io
 
 ##Author : Charlène Mauger, University of Auckland, c.mauger@auckland.ac.nz
 class BiventricularModel:
@@ -254,15 +255,11 @@ class BiventricularModel:
         """ `numNodes`X3 array[float] of x,y,z coordinates of control mesh.
         """
 
-        subdivision_matrix_file = control_mesh_dir / "subdivision_matrix.txt"
+        subdivision_matrix_file = control_mesh_dir / "subdivision_matrix_sparse.mat"
         assert subdivision_matrix_file.exists(), \
             f"Missing {subdivision_matrix_file}!"
 
-        self.matrix = (
-            pd.read_table(
-                subdivision_matrix_file, sep=r'\s+', header=None, engine="c"
-            )
-        ).values.astype(float)
+        self.matrix = scipy.io.loadmat(subdivision_matrix_file)['S'].toarray()
         """Subdivision matrix (`numNodes`x`numSurfaceNodes`).
         """
 
@@ -283,7 +280,6 @@ class BiventricularModel:
         material_file = control_mesh_dir / 'ETIndicesMaterials.txt'
         assert material_file.exists(), \
             f"Missing {et_index_file}"
-
         self.material = np.loadtxt(material_file, dtype='str')
 
         self.collision_detection = collision_detection
@@ -318,31 +314,25 @@ class BiventricularModel:
                                       )
                                   ).values.astype(int) - 1
 
-        gtstsg_x_file = control_mesh_dir / "GTSTG_x.txt"
+        gtstsg_x_file = control_mesh_dir / "GTSTG_x_sparse.mat"
         assert gtstsg_x_file.exists(), \
             f"Missing {gtstsg_x_file}"
-        self.gtstsg_x = (
-            pd.read_table(gtstsg_x_file, sep=r'\s+', header=None, engine="c")
-        ).values.astype(float)
+        self.gtstsg_x = scipy.io.loadmat(gtstsg_x_file)['S'].toarray()
         """`numNodes`x`numNodes` Regularization/Smoothing matrix along Xi1 (
         circumferential direction)        
         """
 
-        gtstsg_y_file = control_mesh_dir / "GTSTG_y.txt"
+        gtstsg_y_file = control_mesh_dir / "GTSTG_y_sparse.mat"
         assert gtstsg_y_file.exists(), \
             f"Missing {gtstsg_y_file}"
-        self.gtstsg_y = (
-            pd.read_table(gtstsg_y_file, sep=r'\s+', header=None, engine="c")
-        ).values.astype(float)
+        self.gtstsg_y = scipy.io.loadmat(gtstsg_y_file)['S'].toarray()
         """`numNodes`x`numNodes` Regularization/Smoothing matrix along
                                             Xi2 (longitudinal) direction"""
 
-        gtstsg_z_file = control_mesh_dir / "GTSTG_z.txt"
+        gtstsg_z_file = control_mesh_dir / "GTSTG_z_sparse.mat"
         assert gtstsg_z_file.exists(), \
             f"Missing {gtstsg_z_file}"
-        self.gtstsg_z = (
-            pd.read_table(gtstsg_z_file, sep=r'\s+', header=None, engine="c")
-        ).values.astype(float)
+        self.gtstsg_z = scipy.io.loadmat(gtstsg_z_file)['S'].toarray()
         """`numNodes`x`numNodes` Regularization/Smoothing matrix along
                                                     Xi3 (transmural) direction"""
 
@@ -358,79 +348,64 @@ class BiventricularModel:
         Used for surface evaluation 
         """
 
-        mbder_x_file = control_mesh_dir / "mBder_x.txt"
+        mbder_x_file = control_mesh_dir / "mBder_x_sparse.mat"
         assert mbder_x_file.exists(), \
             f"Missing {mbder_x_file}"
-        self.mbder_dx = (
-            pd.read_table(mbder_x_file, sep=r'\s+', header=None, engine="c")
-        ).values.astype(float)
+        self.mbder_dx = scipy.io.loadmat(mbder_x_file)['S'].toarray()
+
+
         """`numSurfaceNodes`x`numNodes` Matrix containing  weights used to 
         calculate gradients of the displacement field at Gauss point locations.
         """
 
-        mbder_y_file = control_mesh_dir / "mBder_y.txt"
+        mbder_y_file = control_mesh_dir / "mBder_y_sparse.mat"
         assert mbder_y_file.exists(), \
             f"Missing {mbder_y_file}"
-        self.mbder_dy = (
-            pd.read_table(mbder_y_file, sep=r'\s+', header=None, engine="c")
-        ).values.astype(float)
+        self.mbder_dy = scipy.io.loadmat(mbder_y_file)['S'].toarray()
         """`numSurfaceNodes`x`numNodes` Matrix containing  weights used to 
         calculate gradients of the displacement field at Gauss point locations.
         """
 
-        mbder_z_file = control_mesh_dir / "mBder_z.txt"
+        mbder_z_file = control_mesh_dir / "mBder_z_sparse.mat"
         assert mbder_z_file.exists(), \
             f"Missing {mbder_z_file}"
-        self.mbder_dz = (
-            pd.read_table(mbder_z_file, sep=r'\s+', header=None, engine="c")
-        ).values.astype(float)
+        self.mbder_dz = scipy.io.loadmat(mbder_z_file)['S'].toarray()
         """`numSurfaceNodes`x`numNodes` Matrix containing  weights used to 
         calculate gradients of the displacement field at Gauss point locations.
         """
 
-        jac_11_file = control_mesh_dir / "J11.txt"
+        jac_11_file = control_mesh_dir / "J11_sparse.mat"
         assert jac_11_file.exists(), \
             f"Missing {jac11_file}"
-        self.jac_11 = (
-            pd.read_table(jac_11_file, sep=r'\s+', header=None, engine="c")
-        ).values.astype(float)
+        self.jac_11 = scipy.io.loadmat(jac_11_file)['S'].toarray()
         """11968 x `numNodes` matrix containing weights used to calculate 
         Jacobians  along Xi1 at Gauss point location.
         Each matrix element is a linear combination of the 388 control points.
         """
 
-        jac_12_file = control_mesh_dir / "J12.txt"
+        jac_12_file = control_mesh_dir / "J12_sparse.mat"
         assert jac_12_file.exists(), \
             f"Missing {jac_12_file}"
-        self.jac_12 = (
-            pd.read_table(jac_12_file, sep=r'\s+', header=None, engine="c")
-        ).values.astype(float)
+        self.jac_12 = scipy.io.loadmat(jac_12_file)['S'].toarray()
         """11968 x `numNodes` matrix containing weights used to calculate 
         Jacobians  along Xi2 at Gauss point location.
         Each matrix element is a linear combination of the 388 control points.
         """
 
-        jac_13_file = control_mesh_dir / "J13.txt"
+        jac_13_file = control_mesh_dir / "J13_sparse.mat"
         assert jac_13_file.exists(), \
             f"Missing {jac_13_file}"
-        self.jac_13 = (
-            pd.read_table(jac_13_file, sep=r'\s+', header=None, engine="c")
-        ).values.astype(float)
+        self.jac_13 = scipy.io.loadmat(jac_13_file)['S'].toarray()
         """11968 x `numNodes` matrix containing weights used to calculate 
         Jacobians along Xi3 direction at Gauss point location.
         Each matrix element is a linear combination of the 388 control points.
         """
 
-        basic_matrix_file = control_mesh_dir / "basis_matrix.txt"
+        basic_matrix_file = control_mesh_dir / "basis_matrix_sparse.mat"
         assert basic_matrix_file.exists(), \
             f"Missing {basic_matrix_file}"
-        self.basis_matrix = (
-            pd.read_table(
-                basic_matrix_file, sep=r'\s+', header=None, engine="c"
-            )
-        ).values.astype(
-            float
-        )  #
+        self.basis_matrix = scipy.io.loadmat(basic_matrix_file)['S'].toarray()
+
         """`numSurfaceNodes`x`numNodes` array[float]  basis  functions used 
         to evaluate surface at surface point locations
         """
@@ -531,14 +506,10 @@ class BiventricularModel:
          `patch_coordinates for details`
         """
 
-        local_matrix_file = control_mesh_dir / "local_matrix.txt"
+        local_matrix_file = control_mesh_dir / "local_matrix_sparse.mat"
         assert local_matrix_file.exists(), \
             f"Missing {local_matrix_file}"
-        self.local_matrix = (
-            pd.read_table(
-                local_matrix_file, sep=r'\s+', header=None, engine="c"
-            )
-        ).values
+        self.local_matrix = scipy.io.loadmat(local_matrix_file)['S'].toarray()
 
     def get_nodes(self) -> np.ndarray:
         """
