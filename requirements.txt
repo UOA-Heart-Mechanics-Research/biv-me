@@ -6,7 +6,7 @@ scipy==1.13.1
 moviepy==1.0.3
 cvxopt==1.3.2
 nltk==3.8.1
-numpy==2.1.1
+numpy==1.26.4
 numpy-stl==3.1.1
 rich==13.7.1
 loguru==0.7.2

@@ -8,13 +8,12 @@ from Cython.Distutils import build_ext
 import numpy as np
 
 here = path.abspath(path.dirname(__file__))
-
 with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 extensions = cythonize(
     list(Extension(
-        f"src/pyezzi/pyezzi.{f}",
+        f"pyezzi.{f}",
         [f"src/pyezzi/pyezzi/{f}.pyx"],
         extra_compile_args=['-fopenmp', '-O3'],
         extra_link_args=['-fopenmp']
