@@ -1,6 +1,8 @@
 
 Biventricular model fitting framework
 
+[![Tests](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/tests.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/tests.yml)
+
 -----------------------------------------------
 This is an import of the KCL BiV modelling code (originally called BiV_Modelling).
 
@@ -8,7 +10,6 @@ This is an import of the KCL BiV modelling code (originally called BiV_Modelling
 
 This code performs patient-specific biventricular mesh customization. 
 
-Documentation: https://github.kcl.ac.uk/pages/YoungLab/BiV_Modelling/
 
 Installation ![Python versions](https://img.shields.io/badge/python-3.11-blue)
 -----------------------------------------------
@@ -24,6 +25,12 @@ conda activate bivme311
 Install the bivme package
 ```
 pip install -e .
+```
+
+Install pyezzi (for wall thickness calculation)
+```
+cd src/pyezzi
+python setup.py build_ext --inplace
 ```
 
 Notation
