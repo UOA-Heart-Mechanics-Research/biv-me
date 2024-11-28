@@ -47,7 +47,7 @@ def find_wall_thickness(case_name: str, model_file: os.PathLike, output_folder: 
     assert material_file.exists(), \
         f"biv_model_folder does not exist. Cannot find {material_file} file!"
 
-    thru_wall_file = biv_model_folder / 'epi_to_septum_ETindices.txt'
+    thru_wall_file = biv_model_folder / 'thru_wall_et_indices.txt'
     assert thru_wall_file.exists(), \
         f"biv_model_folder does not exist. Cannot find {thru_wall_file} file!"
 
