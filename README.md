@@ -29,8 +29,7 @@ pip install -e .
 
 Install pyezzi (for wall thickness calculation)
 ```
-cd src/pyezzi
-python setup.py build_ext --inplace
+python src/pyezzi/setup.py build_ext --inplace
 ```
 
 Notation
