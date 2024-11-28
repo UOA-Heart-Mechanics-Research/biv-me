@@ -5,7 +5,8 @@ log = logging.getLogger(__name__)
 
 import numpy as np
 
-from scipy.ndimage.morphology import binary_dilation
+from scipy.ndimage import binary_dilation
+
 from heapq import heappush, heappop
 
 UNVISITED = 0
@@ -13,7 +14,6 @@ VISITED = 1
 SOLVED = 2
 
 CUBE = np.ones((3, 3, 3), bool)
-
 
 def ordered_traversal(gradients,
                       wall,
@@ -70,7 +70,7 @@ def Lx(border,
     max_i, max_j, max_k = np.array(wall.shape) - 1
     hi, hj, hk = spacing
 
-    flat_table = np.zeros_like(wall, np.int)
+    flat_table = np.zeros_like(wall, np.int_)
     flat_table[wall] = np.arange(len(wall_i))
 
     status_flat = np.zeros(len(wall_i), np.uint8)

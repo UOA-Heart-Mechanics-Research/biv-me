@@ -233,6 +233,7 @@ def find_wall_thickness(case_name: str, model_file: os.PathLike, output_folder: 
 
             logger.success(f"{case_name}_{frame_name:03}.vtk successfully saved to {output_folder}")
 
+
 if __name__ == "__main__":
     biv_resource_folder = MODEL_RESOURCE_DIR
 
@@ -245,7 +246,7 @@ if __name__ == "__main__":
                                  f" (default: {biv_resource_folder})")
     parser.add_argument("-pat", '--patterns', default="*",
                         help="folder patterns to include (default '*')")
-    parser.add_argument("-r", '--voxel_resolution',  type=int, default=1,
+    parser.add_argument("-r", '--voxel_resolution',  type=float, default=1,
                         help="Output precision")
     parser.add_argument("-s", '--save_segmentation', action="store_true",
                         help="Boolean value indicating if we want the 3D masks to be saved")
@@ -263,9 +264,6 @@ if __name__ == "__main__":
     folders = [p.name for p in Path(args.model_dir).glob(args.patterns) if os.path.isdir(p)]
     logger.info(f"Found {len(folders)} model folders.")
 
-    # For pyezzi compatibility
-    np.int = np.int_
-
     try:
         for i, folder in enumerate(folders):
             ## TODO: recursive param with walk() filtering
@@ -273,13 +271,16 @@ if __name__ == "__main__":
             models = [args.model_dir / folder / Path(name) for name in os.listdir(args.model_dir / folder) if rule.match(name)]
             models = sorted(models)
 
+            participant_output = Path(output_folder) / folder
+            participant_output.mkdir(exist_ok=True)
+
             logger.info(f"Processing {str(args.model_dir / folder)} ({i+1}/{len(folders)})")
             with Progress(transient=True) as progress:
                 task = progress.add_task("Calculating wall thickness", total=len(models))
                 console = progress
 
                 for biv_model_file in models:
-                    find_wall_thickness(folder, biv_model_file, output_folder, biv_resource_folder, args.voxel_resolution, args.save_segmentation)
+                    find_wall_thickness(folder, biv_model_file, participant_output, biv_resource_folder, args.voxel_resolution, args.save_segmentation)
                     progress.advance(task)
 
         logger.success(f"Done. Results are saved in {output_folder}")

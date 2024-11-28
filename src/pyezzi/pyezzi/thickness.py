@@ -99,9 +99,9 @@ class ThicknessSolver:
         init[np.logical_not(self.epi)] = 1
         log.info("Solving Laplacian...")
         laplace_grid, iterations, max_error = laplace_solver(
-            self.wall_idx_i.astype(np.int),
-            self.wall_idx_j.astype(np.int),
-            self.wall_idx_k.astype(np.int),
+            self.wall_idx_i.astype(np.int_),
+            self.wall_idx_j.astype(np.int_),
+            self.wall_idx_k.astype(np.int_),
             init,
             self.laplace_tolerance,
             self.laplace_max_iter,
@@ -179,9 +179,9 @@ class ThicknessSolver:
 
         log.info("Computing L0 and L1...")
         iterations, max_error = self._yezzi_solver(
-            self.partial_wall_idx_i.astype(np.int),
-            self.partial_wall_idx_j.astype(np.int),
-            self.partial_wall_idx_k.astype(np.int),
+            self.partial_wall_idx_i.astype(np.int_),
+            self.partial_wall_idx_j.astype(np.int_),
+            self.partial_wall_idx_k.astype(np.int_),
             self._gradients,
             self.yezzi_tolerance,
             self.yezzi_max_iter,
