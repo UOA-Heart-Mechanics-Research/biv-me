@@ -74,7 +74,7 @@ mesh_format = "none"
 # Allowed values:
 # * ".obj" : write the mesh as a wavefront .obj file - compatible with most computer graphics/mesh visualisation software
 # * ".vtk" : write the mesh as to vk format
-# * "none" : no mesh are written. Only the .txt files containing the fitted model control meshes are written.
+# * "none" : Only the .txt files containing the fitted model control meshes are written.
 # Default: ".vtk"
 
 closed_mesh = false
