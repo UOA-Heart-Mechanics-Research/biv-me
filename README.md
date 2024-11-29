@@ -1,16 +1,17 @@
+<div align="center">
 
-Biventricular model fitting framework
+# Biventricular model fitting framework
+
+</div>
 
 [![Tests](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/tests.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/tests.yml)
 
------------------------------------------------
 This is an import of the KCL BiV modelling code (originally called BiV_Modelling).
 
------------------------------------------------
+This code performs patient-specific biventricular mesh customization.
 
-This code performs patient-specific biventricular mesh customization. 
+## Installation ![Python versions](https://img.shields.io/badge/python-3.11-blue)
 
-Installation ![Python versions](https://img.shields.io/badge/python-3.11-blue)
 -----------------------------------------------
 The easiest way to get this repo setup is to use the provided conda environment (python 3.11).
 The conda environment named biv311 can be created and activated with
@@ -31,30 +32,8 @@ Install pyezzi
 python src/pyezzi/setup.py build_ext --inplace
 ```
 
-Notation
------------------------------------------------
-If you wish to contribute to this project, we ask you to follow the naming conventions below :
-- **Variable**: use lowercase word. A variable that use multiple words should be separated with an underscore (snake case)
-```sitename``` should be written as ```site_name```
-- **Function and Method**: function/method names should follow the PEP 8 naming conventions ```def MyFunction()``` should be written as ```def my_function()```
-- **Constant**: constant names should be written in uppercase letters with underscores separating words ```MYCONSTANT = 3.1416``` should be written ```MY_CONSTANT = 3.1416```
-- **Class**; class names should follow the CamelCase convention: ```class myclass:``` should be written as ```class MyClass:```
-- **Package and Module** : Avoid using underscores or hyphens in package names to maintain consistency with the Python standard library and third-party packages. ```my_package_name_with_underscores = ...``` should be written ```mypackage = ...```
-- **Type variable**: follow the convention of using CamelCase with a leading capital letter: ```def my_function(items: dict[int, str]):``` should be written as ```def my_function(items: Dict[int, str]):```
-- **Exception** exception names should have the suffix “Error.”: ```class MyCustomException:``` should be ```class MyCustomExceptionError:```
-- Stick to ASCII characters to ensure smooth collaboration and consistent code execution: avoid for example ```ç = 42```. Instead prefer ```count = 42```
-- Use type hints for code readability and prevent type-related errors.
-```
-def greet(name):
-    return "Hello, " + name
-```
-should be
-```
-def greet(name: str) -> str:
-    return "Hello, " + name
-```
+## Usage
 
-Usage
 -----------------------------------------------
 
 ### Fit a Biv-me model to GP files
@@ -180,6 +159,31 @@ options:
 ```
 
 The config file should be the one used to fit the original models. Refitted models will be saved in config["output"]["output_directory"]/corrected_models.
+
+
+Contribution - Notation
+-----------------------------------------------
+If you wish to contribute to this project, we ask you to follow the naming conventions below :
+- **Variable**: use lowercase word. A variable that use multiple words should be separated with an underscore (snake case)
+```sitename``` should be written as ```site_name```
+- **Function and Method**: function/method names should follow the PEP 8 naming conventions ```def MyFunction()``` should be written as ```def my_function()```
+- **Constant**: constant names should be written in uppercase letters with underscores separating words ```MYCONSTANT = 3.1416``` should be written ```MY_CONSTANT = 3.1416```
+- **Class**; class names should follow the CamelCase convention: ```class myclass:``` should be written as ```class MyClass:```
+- **Package and Module** : Avoid using underscores or hyphens in package names to maintain consistency with the Python standard library and third-party packages. ```my_package_name_with_underscores = ...``` should be written ```mypackage = ...```
+- **Type variable**: follow the convention of using CamelCase with a leading capital letter: ```def my_function(items: dict[int, str]):``` should be written as ```def my_function(items: Dict[int, str]):```
+- **Exception** exception names should have the suffix “Error.”: ```class MyCustomException:``` should be ```class MyCustomExceptionError:```
+- Stick to ASCII characters to ensure smooth collaboration and consistent code execution: avoid for example ```ç = 42```. Instead prefer ```count = 42```
+- Use type hints for code readability and prevent type-related errors.
+```
+def greet(name):
+    return "Hello, " + name
+```
+should be
+```
+def greet(name: str) -> str:
+    return "Hello, " + name
+```
+
 
 Credits
 ------------------------------------
