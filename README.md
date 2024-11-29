@@ -10,7 +10,6 @@ This is an import of the KCL BiV modelling code (originally called BiV_Modelling
 
 This code performs patient-specific biventricular mesh customization. 
 
-
 Installation ![Python versions](https://img.shields.io/badge/python-3.11-blue)
 -----------------------------------------------
 The easiest way to get this repo setup is to use the provided conda environment (python 3.11).
@@ -27,7 +26,7 @@ Install the bivme package
 pip install -e .
 ```
 
-Install pyezzi (for wall thickness calculation)
+Install pyezzi
 ```
 python src/pyezzi/setup.py build_ext --inplace
 ```
@@ -157,10 +156,12 @@ The following command generate 2 .vtk files (one for the LV chamber and the othe
 python compute_wall_thickness.py -mdir path/to/my/fitted/model/directory -o path/to/my/output/folder
 ```
 
-Adding the `-s` flag to the above command will also generate 4 extra nifti files per model: 2 3D mask with background=0, cavity=1, and wall=2 (`labeled_image_lv*.nii` and `labeled_image_lv*.nii`) and 2 3D mask containing thickness values at each voxel (`lv_thickness*.nii` and `rv_thickness*.nii`).
+Adding the `-s` flag to the above command will also generate 4 extra nifti files per model: 2 3D masks with background=0, cavity=1, and wall=2 (`labeled_image_lv*.nii` and `labeled_image_lv*.nii`) and 2 3D mask containing thickness values at each voxel (`lv_thickness*.nii` and `rv_thickness*.nii`).
 ```
 python compute_wall_thickness.py -mdir path/to/my/fitted/model/directory -o path/to/my/output/folder -s
 ```
+
+![Wall_thickness](images/WallThickness.png)
 
 ### Remove intersection from biv-me models (experimental feature)
 Diffeomorphic constraints are on the myocardium only. It can happend that the RV septum and RVFW intersect if the contours are too close. This script re-fit the models, using an extra collision detection step. An inital fit of the model is required as this will be used as guide points.

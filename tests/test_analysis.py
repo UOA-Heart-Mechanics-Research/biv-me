@@ -34,23 +34,28 @@ def test_compute_volume():
 def test_compute_wall_thickness():
     biv_model_file = TEST_RESOURCE_DIR / 'template' / 'template_model_frame_001.txt'
 
-    output_folder = TEST_RESOURCE_DIR / "wall_thickness_output" / 'template'
+    output_folder = TEST_RESOURCE_DIR / "wall_thickness_output"
     output_folder.mkdir(exist_ok=True)
-    find_wall_thickness('template', biv_model_file, output_folder, MODEL_RESOURCE_DIR, 0.1, False)
 
-    case_list = os.listdir(Path(output_folder))
+    output_folder_patient = output_folder / 'template'
+    output_folder_patient.mkdir(exist_ok=True)
+
+    find_wall_thickness('template', biv_model_file, output_folder_patient, MODEL_RESOURCE_DIR, 0.1, False)
+
+    case_list = os.listdir(Path(output_folder_patient))
     case_dirs = [case for case in case_list]
 
     assert len(case_dirs) == 2
 
-    shutil.rmtree(output_folder)
+    shutil.rmtree(output_folder_patient)
 
-    output_folder.mkdir(exist_ok=True)
-    find_wall_thickness('template', biv_model_file, output_folder, MODEL_RESOURCE_DIR, 0.1, True)
+    output_folder_patient.mkdir(exist_ok=True)
+    find_wall_thickness('template', biv_model_file, output_folder_patient, MODEL_RESOURCE_DIR, 0.1, True)
 
-    case_list = os.listdir(Path(output_folder))
+    case_list = os.listdir(Path(output_folder_patient))
     case_dirs = [case for case in case_list]
 
     assert len(case_dirs) == 6
 
+    shutil.rmtree(output_folder_patient)
     shutil.rmtree(output_folder)
