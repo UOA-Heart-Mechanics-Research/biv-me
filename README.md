@@ -4,7 +4,12 @@
 
 </div>
 
-[![Tests](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/tests.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/tests.yml)
+
+Platform | CI Status
+---------|:---------
+OSX      | [![OSX Build Status](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/macos.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/macos.yml)
+Linux    | [![Linux Build Status](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/linux.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/linux.yml)
+Windows  | [![Windows Build status](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/windows.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/windows.yml)
 
 This is an import of the KCL BiV modelling code (originally called BiV_Modelling).
 
