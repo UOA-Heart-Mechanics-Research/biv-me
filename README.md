@@ -1,16 +1,22 @@
+<div align="center">
 
-Biventricular model fitting framework
+# Biventricular model fitting framework
 
------------------------------------------------
+</div>
+
+
+Platform | CI Status
+---------|:---------
+OSX      | [![OSX Build Status](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/macos.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/macos.yml)
+Linux    | [![Linux Build Status](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/linux.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/linux.yml)
+Windows  | [![Windows Build status](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/windows.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/windows.yml)
+
 This is an import of the KCL BiV modelling code (originally called BiV_Modelling).
 
------------------------------------------------
+This code performs patient-specific biventricular mesh customization.
 
-This code performs patient-specific biventricular mesh customization. 
+## Installation ![Python versions](https://img.shields.io/badge/python-3.11-blue)
 
-Documentation: https://github.kcl.ac.uk/pages/YoungLab/BiV_Modelling/
-
-Installation ![Python versions](https://img.shields.io/badge/python-3.11-blue)
 -----------------------------------------------
 The easiest way to get this repo setup is to use the provided conda environment (python 3.11).
 The conda environment named biv311 can be created and activated with
@@ -26,30 +32,13 @@ Install the bivme package
 pip install -e .
 ```
 
-Notation
------------------------------------------------
-If you wish to contribute to this project, we ask you to follow the naming conventions below :
-- **Variable**: use lowercase word. A variable that use multiple words should be separated with an underscore (snake case)
-```sitename``` should be written as ```site_name```
-- **Function and Method**: function/method names should follow the PEP 8 naming conventions ```def MyFunction()``` should be written as ```def my_function()```
-- **Constant**: constant names should be written in uppercase letters with underscores separating words ```MYCONSTANT = 3.1416``` should be written ```MY_CONSTANT = 3.1416```
-- **Class**; class names should follow the CamelCase convention: ```class myclass:``` should be written as ```class MyClass:```
-- **Package and Module** : Avoid using underscores or hyphens in package names to maintain consistency with the Python standard library and third-party packages. ```my_package_name_with_underscores = ...``` should be written ```mypackage = ...```
-- **Type variable**: follow the convention of using CamelCase with a leading capital letter: ```def my_function(items: dict[int, str]):``` should be written as ```def my_function(items: Dict[int, str]):```
-- **Exception** exception names should have the suffix “Error.”: ```class MyCustomException:``` should be ```class MyCustomExceptionError:```
-- Stick to ASCII characters to ensure smooth collaboration and consistent code execution: avoid for example ```ç = 42```. Instead prefer ```count = 42```
-- Use type hints for code readability and prevent type-related errors.
+Install pyezzi
 ```
-def greet(name):
-    return "Hello, " + name
-```
-should be
-```
-def greet(name: str) -> str:
-    return "Hello, " + name
+python src/pyezzi/setup.py build_ext --inplace
 ```
 
-Usage
+## Usage
+
 -----------------------------------------------
 
 ### Fit a Biv-me model to GP files
@@ -145,29 +134,18 @@ Results will be saved in {OUTPUT_PATH}/global_longitudinal_strain.csv
 ### Compute wall thickness
 The script for computing the wall thickness can be found in src/bivme/analysis. Wall thickness is calculated on binary 3D images using [pyezzi](https://pypi.org/project/pyezzi/) for both LV and RV separately. The septal wall is included in the LV calculation and excluded from the RV 
 
-```
-usage: compute_wall_thickness.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_FOLDER] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-r VOXEL_RESOLUTION] [-s]
-
-Wall thickness calculation from 3D masks
-
-options:
-  -h, --help            show this help message and exit
-  -mdir MODEL_DIR, --model_dir MODEL_DIR
-                        path to biv models
-  -o OUTPUT_FOLDER, --output_folder OUTPUT_FOLDER
-                        output path
-  -b BIV_MODEL_FOLDER, --biv_model_folder BIV_MODEL_FOLDER
-                        folder containing subdivision matrices
-  -pat PATTERNS, --patterns PATTERNS
-                        folder patterns to include (default '*')
-  -r VOXEL_RESOLUTION, --voxel_resolution VOXEL_RESOLUTION
-                        Output precision
-  -s, --save_segmentation
-                        Boolean value indicating if we want the 3D masks to be saved
+The following command generate 2 .vtk files (one for the LV chamber and the other for the RV chamber) per input model in `path/to/my/fitted/model/directory/wall_thickness`. Each case will have its own subfolder. Wall thickness is sampled and saved at the location of each vertex and can be visualised in Paraview as vertex color.
 
 ```
+python compute_wall_thickness.py -mdir path/to/my/fitted/model/directory -o path/to/my/output/folder
+```
 
-Results and segmentation masks will be saved in {OUTPUT_PATH}/wall_thickness. Wall thickness is saved at each vertex in the mesh and can be visualised in paraview as vertex color.
+Adding the `-s` flag to the above command will also generate 4 extra nifti files per model: 2 3D masks with background=0, cavity=1, and wall=2 (`labeled_image_lv*.nii` and `labeled_image_lv*.nii`) and 2 3D mask containing thickness values at each voxel (`lv_thickness*.nii` and `rv_thickness*.nii`).
+```
+python compute_wall_thickness.py -mdir path/to/my/fitted/model/directory -o path/to/my/output/folder -s
+```
+
+![Wall_thickness](images/WallThickness.png)
 
 ### Remove intersection from biv-me models (experimental feature)
 Diffeomorphic constraints are on the myocardium only. It can happend that the RV septum and RVFW intersect if the contours are too close. This script re-fit the models, using an extra collision detection step. An inital fit of the model is required as this will be used as guide points.
@@ -186,6 +164,31 @@ options:
 ```
 
 The config file should be the one used to fit the original models. Refitted models will be saved in config["output"]["output_directory"]/corrected_models.
+
+
+Contribution - Notation
+-----------------------------------------------
+If you wish to contribute to this project, we ask you to follow the naming conventions below :
+- **Variable**: use lowercase word. A variable that use multiple words should be separated with an underscore (snake case)
+```sitename``` should be written as ```site_name```
+- **Function and Method**: function/method names should follow the PEP 8 naming conventions ```def MyFunction()``` should be written as ```def my_function()```
+- **Constant**: constant names should be written in uppercase letters with underscores separating words ```MYCONSTANT = 3.1416``` should be written ```MY_CONSTANT = 3.1416```
+- **Class**; class names should follow the CamelCase convention: ```class myclass:``` should be written as ```class MyClass:```
+- **Package and Module** : Avoid using underscores or hyphens in package names to maintain consistency with the Python standard library and third-party packages. ```my_package_name_with_underscores = ...``` should be written ```mypackage = ...```
+- **Type variable**: follow the convention of using CamelCase with a leading capital letter: ```def my_function(items: dict[int, str]):``` should be written as ```def my_function(items: Dict[int, str]):```
+- **Exception** exception names should have the suffix “Error.”: ```class MyCustomException:``` should be ```class MyCustomExceptionError:```
+- Stick to ASCII characters to ensure smooth collaboration and consistent code execution: avoid for example ```ç = 42```. Instead prefer ```count = 42```
+- Use type hints for code readability and prevent type-related errors.
+```
+def greet(name):
+    return "Hello, " + name
+```
+should be
+```
+def greet(name: str) -> str:
+    return "Hello, " + name
+```
+
 
 Credits
 ------------------------------------

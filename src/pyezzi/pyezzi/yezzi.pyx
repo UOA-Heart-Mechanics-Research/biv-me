@@ -5,7 +5,7 @@ from cython.parallel import prange
 from libc.math cimport fabs
 
 ctypedef np.float64_t DTYPE_FLOAT
-ctypedef np.int_t DTYPE_INT
+ctypedef np.int64_t DTYPE_INT
 # ctypedef Py_ssize_t DTYPE_INT
 
 # dirty fix to get rid of annoying warnings
