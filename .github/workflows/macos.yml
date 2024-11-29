@@ -1,15 +1,6 @@
 name: Tests
 
-on:
-  push:
-    branches:
-      - "45-error-with-pyezzi-since-numpy-update"
-  pull_request:
-    branches:
-      - "main"
-    paths:
-      - ".github/workflows/tests.yml"
-  workflow_dispatch:
+on: pull_request
 
 jobs:
   test:
