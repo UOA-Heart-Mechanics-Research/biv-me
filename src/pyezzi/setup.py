@@ -13,11 +13,12 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 extensions = cythonize(
     list(Extension(
-        f"pyezzi.{f}",
+        f"pyezzi.pyezzi.{f}",
         [f"src/pyezzi/pyezzi/{f}.pyx"],
         extra_compile_args=['-fopenmp', '-O3'],
         extra_link_args=['-fopenmp']
-    ) for f in ('laplace', 'yezzi')))
+    ) for f in ('laplace', 'yezzi')),
+        compiler_directives={'language_level' : "3"})
 
 cmdclass = {"build_ext": build_ext}
 
