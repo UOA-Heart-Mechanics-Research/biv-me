@@ -332,127 +332,128 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                         )
                     )
 
-                meshes = {}
-                for surface in Surface:
-                    mesh_data = {}
-                    if surface.name in config["output"]["output_meshes"]:
-                        mesh_data[surface.name] = surface.value
-                        if surface.name == "LV_ENDOCARDIAL" and config["output"]["closed_mesh"] == True:
-                            mesh_data["MITRAL_VALVE"] = Surface.MITRAL_VALVE.value
-                            mesh_data["AORTA_VALVE"] = Surface.AORTA_VALVE.value
-                        if surface.name == "EPICARDIAL" and config["output"]["closed_mesh"] == True:
+                if output_format != "none":
+                    meshes = {}
+                    for surface in Surface:
+                        mesh_data = {}
+                        if surface.name in config["output"]["output_meshes"]:
+                            mesh_data[surface.name] = surface.value
+                            if surface.name == "LV_ENDOCARDIAL" and config["output"]["closed_mesh"] == True:
+                                mesh_data["MITRAL_VALVE"] = Surface.MITRAL_VALVE.value
+                                mesh_data["AORTA_VALVE"] = Surface.AORTA_VALVE.value
+                            if surface.name == "EPICARDIAL" and config["output"]["closed_mesh"] == True:
+                                mesh_data["PULMONARY_VALVE"] = Surface.PULMONARY_VALVE.value
+                                mesh_data["TRICUSPID_VALVE"] = Surface.TRICUSPID_VALVE.value
+                                mesh_data["MITRAL_VALVE"] = Surface.MITRAL_VALVE.value
+                                mesh_data["AORTA_VALVE"] = Surface.AORTA_VALVE.value
+                            meshes[surface.name] = mesh_data
+
+                    if "RV_ENDOCARDIAL" in config["output"]["output_meshes"]:
+                        mesh_data["RV_SEPTUM"] = Surface.RV_SEPTUM.value
+                        mesh_data["RV_FREEWALL"] = Surface.RV_FREEWALL.value
+                        if config["output"]["closed_mesh"]:
                             mesh_data["PULMONARY_VALVE"] = Surface.PULMONARY_VALVE.value
                             mesh_data["TRICUSPID_VALVE"] = Surface.TRICUSPID_VALVE.value
-                            mesh_data["MITRAL_VALVE"] = Surface.MITRAL_VALVE.value
-                            mesh_data["AORTA_VALVE"] = Surface.AORTA_VALVE.value
-                        meshes[surface.name] = mesh_data
+                        meshes["RV_ENDOCARDIAL"] = mesh_data
 
-                if "RV_ENDOCARDIAL" in config["output"]["output_meshes"]:
-                    mesh_data["RV_SEPTUM"] = Surface.RV_SEPTUM.value
-                    mesh_data["RV_FREEWALL"] = Surface.RV_FREEWALL.value
-                    if config["output"]["closed_mesh"]:
-                        mesh_data["PULMONARY_VALVE"] = Surface.PULMONARY_VALVE.value
-                        mesh_data["TRICUSPID_VALVE"] = Surface.TRICUSPID_VALVE.value
-                    meshes["RV_ENDOCARDIAL"] = mesh_data
+                    ##TODO remove duplicated code here - not sure how yet
+                    if config["output"]["export_control_mesh"]:
+                        control_mesh_meshes = {}
+                        for surface in ControlMesh:
+                            control_mesh_mesh_data = {}
+                            if surface.name in config["output"]["output_meshes"]:
+                                control_mesh_mesh_data[surface.name] = surface.value
+                                if surface.name == "LV_ENDOCARDIAL" and config["output"]["closed_mesh"] == True:
+                                    control_mesh_mesh_data["MITRAL_VALVE"] = ControlMesh.MITRAL_VALVE.value
+                                    control_mesh_mesh_data["AORTA_VALVE"] = ControlMesh.AORTA_VALVE.value
+                                if surface.name == "EPICARDIAL" and config["output"]["closed_mesh"] == True:
+                                    control_mesh_mesh_data["PULMONARY_VALVE"] = ControlMesh.PULMONARY_VALVE.value
+                                    control_mesh_mesh_data["TRICUSPID_VALVE"] = ControlMesh.TRICUSPID_VALVE.value
+                                    control_mesh_mesh_data["MITRAL_VALVE"] = ControlMesh.MITRAL_VALVE.value
+                                    control_mesh_mesh_data["AORTA_VALVE"] = ControlMesh.AORTA_VALVE.value
+                                if surface.name == "RV_ENDOCARDIAL" and config["output"]["closed_mesh"] == True:
+                                    control_mesh_mesh_data["PULMONARY_VALVE"] = ControlMesh.PULMONARY_VALVE.value
+                                    control_mesh_mesh_data["TRICUSPID_VALVE"] = ControlMesh.TRICUSPID_VALVE.value
 
-                ##TODO remove duplicated code here - not sure how yet
-                if config["output"]["export_control_mesh"]:
-                    control_mesh_meshes = {}
-                    for surface in ControlMesh:
-                        control_mesh_mesh_data = {}
-                        if surface.name in config["output"]["output_meshes"]:
-                            control_mesh_mesh_data[surface.name] = surface.value
-                            if surface.name == "LV_ENDOCARDIAL" and config["output"]["closed_mesh"] == True:
-                                control_mesh_mesh_data["MITRAL_VALVE"] = ControlMesh.MITRAL_VALVE.value
-                                control_mesh_mesh_data["AORTA_VALVE"] = ControlMesh.AORTA_VALVE.value
-                            if surface.name == "EPICARDIAL" and config["output"]["closed_mesh"] == True:
-                                control_mesh_mesh_data["PULMONARY_VALVE"] = ControlMesh.PULMONARY_VALVE.value
-                                control_mesh_mesh_data["TRICUSPID_VALVE"] = ControlMesh.TRICUSPID_VALVE.value
-                                control_mesh_mesh_data["MITRAL_VALVE"] = ControlMesh.MITRAL_VALVE.value
-                                control_mesh_mesh_data["AORTA_VALVE"] = ControlMesh.AORTA_VALVE.value
-                            if surface.name == "RV_ENDOCARDIAL" and config["output"]["closed_mesh"] == True:
-                                control_mesh_mesh_data["PULMONARY_VALVE"] = ControlMesh.PULMONARY_VALVE.value
-                                control_mesh_mesh_data["TRICUSPID_VALVE"] = ControlMesh.TRICUSPID_VALVE.value
+                                control_mesh_meshes[surface.name] = control_mesh_mesh_data
 
-                            control_mesh_meshes[surface.name] = control_mesh_mesh_data
-
-                for key, value in meshes.items():
-                    vertices = np.array([]).reshape(0, 3)
-                    faces_mapped = np.array([], dtype=np.int64).reshape(0, 3)
-
-                    offset = 0
-                    for type in value:
-                        start_fi = biventricular_model.surface_start_end[value[type]][0]
-                        end_fi = biventricular_model.surface_start_end[value[type]][1] + 1
-                        faces_et = biventricular_model.et_indices[start_fi:end_fi]
-                        unique_inds = np.unique(faces_et.flatten())
-                        vertices = np.vstack((vertices, biventricular_model.et_pos[unique_inds]))
-
-                        # remap faces/indices to 0-indexing
-                        mapping = {old_index: new_index for new_index, old_index in enumerate(unique_inds)}
-                        faces_mapped = np.vstack((faces_mapped, np.vectorize(mapping.get)(faces_et) + offset))
-                        offset += len(biventricular_model.et_pos[unique_inds])
-
-                    if output_format == ".vtk":
-                        output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
-                        output_folder_vtk.mkdir(exist_ok=True)
-                        mesh_path = Path(
-                            output_folder_vtk, f"{case}_{key}_{num:03}.vtk"
-                        )
-                        write_vtk_surface(str(mesh_path), vertices, faces_mapped)
-                        my_logger.success(f"{case}_{key}_{num:03}.vtk successfully saved to {output_folder_vtk}")
-
-                    elif output_format == ".obj":
-                        output_folder_obj = Path(output_folder, f"obj{gp_suffix}")
-                        output_folder_obj.mkdir(exist_ok=True)
-                        mesh_path = Path(
-                            output_folder_obj, f"{case}_{key}_{num:03}.obj"
-                        )
-                        export_to_obj(mesh_path, vertices, faces_mapped)
-                        my_logger.success(f"{case}_{key}_{num:03}.obj successfully saved to {output_folder_obj}")
-                    else:
-                        my_logger.error('argument format must be .obj or .vtk')
-                        return -1
-
-                ##TODO remove duplicated code here - not sure how yet
-                if config["output"]["export_control_mesh"]:
-                    for key, value in control_mesh_meshes.items():
+                    for key, value in meshes.items():
                         vertices = np.array([]).reshape(0, 3)
                         faces_mapped = np.array([], dtype=np.int64).reshape(0, 3)
 
                         offset = 0
                         for type in value:
-                            start_fi = biventricular_model.control_mesh_start_end[value[type]][0]
-                            end_fi = biventricular_model.control_mesh_start_end[value[type]][1] + 1
-                            faces_et = biventricular_model.et_indices_control_mesh[start_fi:end_fi]
+                            start_fi = biventricular_model.surface_start_end[value[type]][0]
+                            end_fi = biventricular_model.surface_start_end[value[type]][1] + 1
+                            faces_et = biventricular_model.et_indices[start_fi:end_fi]
                             unique_inds = np.unique(faces_et.flatten())
-                            vertices = np.vstack((vertices, biventricular_model.control_mesh[unique_inds]))
+                            vertices = np.vstack((vertices, biventricular_model.et_pos[unique_inds]))
 
                             # remap faces/indices to 0-indexing
                             mapping = {old_index: new_index for new_index, old_index in enumerate(unique_inds)}
                             faces_mapped = np.vstack((faces_mapped, np.vectorize(mapping.get)(faces_et) + offset))
-                            offset += len(biventricular_model.control_mesh[unique_inds])
+                            offset += len(biventricular_model.et_pos[unique_inds])
 
                         if output_format == ".vtk":
                             output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
                             output_folder_vtk.mkdir(exist_ok=True)
                             mesh_path = Path(
-                                output_folder_vtk, f"{case}_{key}_{num:03}_control_mesh.vtk"
+                                output_folder_vtk, f"{case}_{key}_{num:03}.vtk"
                             )
                             write_vtk_surface(str(mesh_path), vertices, faces_mapped)
-                            my_logger.success(f"{case}_{key}_{num:03}_control_mesh.vtk successfully saved to {output_folder_vtk}")
+                            my_logger.success(f"{case}_{key}_{num:03}.vtk successfully saved to {output_folder_vtk}")
 
                         elif output_format == ".obj":
                             output_folder_obj = Path(output_folder, f"obj{gp_suffix}")
                             output_folder_obj.mkdir(exist_ok=True)
                             mesh_path = Path(
-                                output_folder_obj, f"{case}_{key}_{num:03}_control_mesh.obj"
+                                output_folder_obj, f"{case}_{key}_{num:03}.obj"
                             )
                             export_to_obj(mesh_path, vertices, faces_mapped)
-                            my_logger.success(f"{case}_{key}_{num:03}_control_mesh.obj successfully saved to {output_folder_obj}")
+                            my_logger.success(f"{case}_{key}_{num:03}.obj successfully saved to {output_folder_obj}")
                         else:
                             my_logger.error('argument format must be .obj or .vtk')
                             return -1
+
+                    ##TODO remove duplicated code here - not sure how yet
+                    if config["output"]["export_control_mesh"]:
+                        for key, value in control_mesh_meshes.items():
+                            vertices = np.array([]).reshape(0, 3)
+                            faces_mapped = np.array([], dtype=np.int64).reshape(0, 3)
+
+                            offset = 0
+                            for type in value:
+                                start_fi = biventricular_model.control_mesh_start_end[value[type]][0]
+                                end_fi = biventricular_model.control_mesh_start_end[value[type]][1] + 1
+                                faces_et = biventricular_model.et_indices_control_mesh[start_fi:end_fi]
+                                unique_inds = np.unique(faces_et.flatten())
+                                vertices = np.vstack((vertices, biventricular_model.control_mesh[unique_inds]))
+
+                                # remap faces/indices to 0-indexing
+                                mapping = {old_index: new_index for new_index, old_index in enumerate(unique_inds)}
+                                faces_mapped = np.vstack((faces_mapped, np.vectorize(mapping.get)(faces_et) + offset))
+                                offset += len(biventricular_model.control_mesh[unique_inds])
+
+                            if output_format == ".vtk":
+                                output_folder_vtk = Path(output_folder, f"vtk{gp_suffix}")
+                                output_folder_vtk.mkdir(exist_ok=True)
+                                mesh_path = Path(
+                                    output_folder_vtk, f"{case}_{key}_{num:03}_control_mesh.vtk"
+                                )
+                                write_vtk_surface(str(mesh_path), vertices, faces_mapped)
+                                my_logger.success(f"{case}_{key}_{num:03}_control_mesh.vtk successfully saved to {output_folder_vtk}")
+
+                            elif output_format == ".obj":
+                                output_folder_obj = Path(output_folder, f"obj{gp_suffix}")
+                                output_folder_obj.mkdir(exist_ok=True)
+                                mesh_path = Path(
+                                    output_folder_obj, f"{case}_{key}_{num:03}_control_mesh.obj"
+                                )
+                                export_to_obj(mesh_path, vertices, faces_mapped)
+                                my_logger.success(f"{case}_{key}_{num:03}_control_mesh.obj successfully saved to {output_folder_obj}")
+                            else:
+                                my_logger.error('argument format must be .obj or .vtk')
+                                return -1
 
                 progress.advance(task)
         return residuals
@@ -511,8 +512,8 @@ if __name__ == "__main__":
     # start processing...
     start_time = time.time()
 
-    if not (config["output"]["mesh_format"].endswith('.obj') or config["output"]["mesh_format"].endswith('.vtk')):
-        logger.error(f'argument mesh_format must be .obj or .vtk. {config["output"]["mesh_format"]} given.')
+    if not (config["output"]["mesh_format"].endswith('.obj') or config["output"]["mesh_format"].endswith('.vtk') or config["output"]["mesh_format"] == 'none'):
+        logger.error(f'argument mesh_format must be .obj, .vtk or none. {config["output"]["mesh_format"]} given.')
         sys.exit(0)
 
     for mesh in config["output"]["output_meshes"]:

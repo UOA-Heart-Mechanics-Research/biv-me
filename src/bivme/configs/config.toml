@@ -70,10 +70,11 @@ export_control_mesh = false
 # Decide whether or not to save the coarse mesh. If true, the coarse mesh will be generated (format: mesh_format)
 # Default: false
 
-mesh_format = ".vtk"
+mesh_format = "none"
 # Allowed values:
 # * ".obj" : write the mesh as a wavefront .obj file - compatible with most computer graphics/mesh visualisation software
 # * ".vtk" : write the mesh as to vk format
+# * "none" : Only the .txt files containing the fitted model control meshes are written.
 # Default: ".vtk"
 
 closed_mesh = false
