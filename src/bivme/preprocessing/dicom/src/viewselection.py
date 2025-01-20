@@ -102,13 +102,12 @@ class ViewSelector:
         
                 annotations.append([os.path.basename(save_path), 0])
         
-        # Write annotations to file
+        # Write dummy annotations to file
         test_annotations = os.path.join(dir_view_classification, 'test_annotations.csv')
         test_annotations_df = pd.DataFrame(annotations, columns=['image_name', 'view'])
         test_annotations_df.to_csv(test_annotations, index=False)
 
         print(f"Data prepared for view prediction. {len(self.df)} image series found.")
-
 
     def predict_views(self):
         self.prepare_data_for_prediction()
@@ -120,7 +119,7 @@ class ViewSelector:
         dir_img_test = os.path.join(self.dst, 'view-classification', 'tmp') # Directory of images to predict
         
         # Load model from file
-        loaded_model_path = os.path.join(self.model, "ViewSelection", "resnet50_v9.pth")
+        loaded_model_path = os.path.join(self.model, "ViewSelection", "resnet50-v9.pth")
         loaded_model = torchvision.models.resnet50()
         loaded_model.fc = nn.Linear(2048, 10)
         loaded_model.load_state_dict(torch.load(loaded_model_path))
@@ -200,6 +199,9 @@ class ViewSelector:
         
         # Save to csv
         output_df.to_csv(self.csv_path, mode='w', index=False)
+
+        # Remove dummy annotations
+        os.remove(test_annotations)
 
     def write_sorted_pngs(self):
         # Load view predictions

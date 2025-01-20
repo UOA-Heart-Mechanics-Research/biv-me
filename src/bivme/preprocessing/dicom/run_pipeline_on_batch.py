@@ -14,19 +14,23 @@ from bivme.preprocessing.dicom.segment_views import segment_views
 from bivme.preprocessing.dicom.generate_contours import generate_contours
 from bivme.preprocessing.dicom.export_guidepoints import export_guidepoints
 
+from pathlib import Path
+# Path: src/bivme/preprocessing/dicom/models
+MODEL_DIR = Path(os.path.dirname(__file__)) / 'models'
+
 if __name__ == "__main__":
     # Check if GPU is available (torch)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device: ", device)
 
-    batch_ID = 'fimh-2025-2d'
+    batch_ID = 'unit-test'
     analyst_id = 'jdil469'
 
-    src = r"C:\Users\jdil469\bivme-data\fitting\raw-dicoms" + "\\" + 'fimh-2025'
+    src = r"C:\Users\jdil469\bivme-data\fitting\raw-dicoms" + "\\" + 'unit-test'
     dst = r"C:\Users\jdil469\bivme-data\fitting\processed" + "\\" + batch_ID
     states = r"C:\Users\jdil469\bivme-data\fitting\states" + "\\" + batch_ID
     output = r"C:\Users\jdil469\bivme-data\fitting\output" + "\\" + batch_ID
-    model = "models/"
+    model = MODEL_DIR
 
     caselist = os.listdir(src)
 
@@ -69,21 +73,18 @@ if __name__ == "__main__":
         print(f'Processing case: {case}')
 
         # Step 1: View selection
-        # option = 'default'
-        option = 'load'
+        option = 'default'
+        slice_info_df, num_phases, slice_mapping = select_views(case, case_src, case_dst, model, states, option)
 
-        # Temporarily displace states folder to load view predictions
-        states_2d = r"C:\Users\jdil469\bivme-data\fitting\states\fimh-2024-2d"
-        states_2d = os.path.join(states_2d, case, analyst_id)
+        # option = 'load'
 
-        slice_info_df, num_phases, slice_mapping = select_views(case, case_src, case_dst, model, states_2d, option)
         print('View selection complete.')
 
         print(f'Number of phases: {num_phases}')
 
         # Step 2: Segmentation
         ## Segmentation
-        version = '2d' # 2d or 3d
+        version = '3d' # 2d or 3d
         start_time = time.time()
         segment_views(case, dst, model, slice_info_df, version = version)
         end_time = time.time()

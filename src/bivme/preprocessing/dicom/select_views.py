@@ -18,8 +18,8 @@ def select_views(patient, src, dst, model, states, option='default'):
 
         ## Exclude any slices with non-matching number of phases
         try:
-            num_phases = statistics.mode(viewSelector.df['Frames Per Slice'].values[0])
-        except:
+            num_phases = statistics.mode(viewSelector.df['Frames Per Slice'].values)
+        except statistics.StatisticsError: # If no mode found (i.e. two values with equally similar counts), use median
             num_phases = np.median(viewSelector.df['Frames Per Slice'].values)
         
         for i, row in viewSelector.df.iterrows():
@@ -49,7 +49,8 @@ def select_views(patient, src, dst, model, states, option='default'):
             view_predictions[view_predictions['Series Number'].isin(repeated_series_num[idx_to_exclude])]['Predicted View'] = 'Excluded' # TODO: Not sure if this is working
     
 
-        # Type 2 - Multiple series classed as the same 'exclusive' view (i.e. 2ch, 3ch, 4ch, RVOT, 2ch-RT, RVOT-T)
+        # Type 2 - Multiple series classed as the same 'exclusive' view (i.e. 2ch, 3ch, 4ch, RVOT, RVOT-T 2ch-RT, RVOT-T, LVOT) 
+        # i.e. a view that should only have one series 
         exclusive_views = ['2ch', '3ch', '4ch', 'RVOT', 'RVOT-T', '2ch-RT', 'LVOT']
         for view in exclusive_views:
             series = view_predictions[view_predictions['Predicted View'] == view]

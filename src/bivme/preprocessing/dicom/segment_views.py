@@ -4,6 +4,11 @@ import nibabel as nib
 import shutil
 import torch
 
+# Set nnUNet environment variables so it doesn't scream at you with warnings
+os.environ['nnUNet_raw'] = '.'
+os.environ['nnUNet_preprocessed'] = '.'
+os.environ['nnUNet_results'] = '.'
+
 import nnunetv2 as nnunetv2
 from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
 

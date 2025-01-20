@@ -3,7 +3,7 @@ import numpy as np
 import csv
 from pathlib import Path
 
-from bivme.preprocessing.utils import *
+from bivme.preprocessing.circle.utils import *
 from bivme.fitting.GPDataSet import GPDataSet
 
 
