@@ -10,6 +10,20 @@ This code reads in DICOM files and generates GPFiles for personalised biventricu
 
 -----------------------------------------------
 
+## Download models
+The preprocessing pipeline uses deep learning models for view prediction and segmentation. These can be downloaded from ([here](https://www.dropbox.com/scl/fo/54662zpqpb0ibmoysqy54/AF4eN0-Bzmb7O-l1lJ6WCZI?rlkey=wxahs4jcepd8ryhh0nfersne2&st=75oy73u9&dl=0)). They should be placed in the biv-me repository like so:
+
+    ```
+    src 
+    └─── bivme
+        └─── preprocessing
+            └─── dicom
+                └─── models
+                    └─── Segmentation
+                    └─── ViewSelection
+    ```
+
+
 ## Import libraries
 This preprocessing pipeline utilises PyTorch and nnU-Net. The default biv-me conda environment currently doesn't install either of these for you. To set these up, activate the biv-me conda environment, like so:
 
