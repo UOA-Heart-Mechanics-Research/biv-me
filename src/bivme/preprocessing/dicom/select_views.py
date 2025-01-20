@@ -46,7 +46,7 @@ def select_views(patient, src, dst, model, states, option='default'):
             idx_to_exclude = [i for i in range(len(repeated_series_num)) if i != idx_max]
 
             print(f'Excluded series {repeated_series_num[idx_to_exclude]} due to duplicate slice location.')
-            view_predictions[view_predictions['Series Number'].isin(repeated_series_num[idx_to_exclude])]['Predicted View'] = 'Excluded' # TODO: Not sure if this is working
+            view_predictions[view_predictions['Series Number'].isin(repeated_series_num[idx_to_exclude])]['Predicted View'] = 'Excluded' # TODO: Check if this is actually working
     
 
         # Type 2 - Multiple series classed as the same 'exclusive' view (i.e. 2ch, 3ch, 4ch, RVOT, RVOT-T 2ch-RT, RVOT-T, LVOT) 
@@ -81,7 +81,7 @@ def select_views(patient, src, dst, model, states, option='default'):
         print('Loading view predictions from states folder...')
         csv_path = os.path.join(states, 'view_predictions.csv')
         if not os.path.exists(csv_path):
-            raise FileNotFoundError(f'View predictions not found at {csv_path}. Please run view selection with option=default first.')
+            raise FileNotFoundError(f'View predictions not found at {csv_path}. Please run view selection with option="default" first.')
         
         view_predictions = pd.read_csv(csv_path)
         try:

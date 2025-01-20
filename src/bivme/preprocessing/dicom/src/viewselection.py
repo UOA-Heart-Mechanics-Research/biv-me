@@ -67,7 +67,7 @@ class ViewSelector:
         os.makedirs(dir_view_classification, exist_ok=True)
 
         # Write images to png
-        dir_unsorted = os.path.join(dir_view_classification, 'tmp')
+        dir_unsorted = os.path.join(dir_view_classification, 'unsorted')
         
         if not os.path.exists(dir_unsorted):
             os.makedirs(dir_unsorted)
@@ -116,7 +116,7 @@ class ViewSelector:
                     'OTHER': 5, 'RVOT': 6, 'RVOT-T': 7, 'SAX': 8, 'SAX-atria': 9}
         
         test_annotations = os.path.join(self.dst, 'view-classification', 'test_annotations.csv') # Dummy annotations file
-        dir_img_test = os.path.join(self.dst, 'view-classification', 'tmp') # Directory of images to predict
+        dir_img_test = os.path.join(self.dst, 'view-classification', 'unsorted') # Directory of images to predict. Predictions are run on .pngs
         
         # Load model from file
         loaded_model_path = os.path.join(self.model, "ViewSelection", "resnet50-v9.pth")
@@ -192,7 +192,7 @@ class ViewSelector:
 
             # Get most common view
             predicted_view = view_counts.idxmax()
-            confidence = view_counts.max()
+            confidence = view_counts.max() # TODO: This isn't really 'confidence' but the proportion of frames with this view. Change to 'Unanimity' or something
 
             new_row = pd.DataFrame({'Series Number': [series], 'Predicted View': [list(view_label_map.keys())[predicted_view]], 'Confidence': [confidence], 'Frames Per Slice': [len(series_views)]})
             output_df = pd.concat([output_df, new_row], ignore_index=True)
@@ -208,7 +208,7 @@ class ViewSelector:
         view_predictions = pd.read_csv(self.csv_path)
 
         # Unsorted directory
-        dir_unsorted = os.path.join(self.dst, 'view-classification', 'tmp')
+        dir_unsorted = os.path.join(self.dst, 'view-classification', 'unsorted')
 
         # Destination for view classification
         dir_sorted = os.path.join(self.dst, 'view-classification', 'sorted')

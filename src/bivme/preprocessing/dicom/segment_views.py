@@ -147,7 +147,7 @@ def segment_views(case, dst, model, slice_info_df, version):
     for i, view in enumerate(views):
         os.makedirs(os.path.join(input_folder, view), exist_ok=True)
         os.makedirs(os.path.join(output_folder, view), exist_ok=True)
-        print(f'Writing {view} images to nifti files...')
+        print(f'Writing {view} images to nifti files...\n')
 
         view_rows = slice_info_df[slice_info_df['View'] == view]
         for j, row in view_rows.iterrows():
@@ -156,7 +156,7 @@ def segment_views(case, dst, model, slice_info_df, version):
             pixel_spacing = row['Pixel Spacing']
             write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view, version)
 
-        print(f'Segmenting {view} images...')
+        print(f'Segmenting {view} images...\n')
         
         if version == '2d':
             dataset = datasets_2d[i]

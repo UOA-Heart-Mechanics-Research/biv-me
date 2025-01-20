@@ -5,7 +5,7 @@ version = "1.0.0" # for semantic versioning - Major.Minor.Patch sequence
 # When a developer fixes a bug in that version, the next version release is named version 2.3.2.
 
 [input]
-source = 'C:\Users\jdil469\bivme-data\fitting\raw-dicoms\unit-test'
+source = ''
 # Define the directory containing raw dicoms. Files must be grouped into one folder per case and converted to .dcm format
 # Default: ''
 
@@ -13,15 +13,15 @@ batch_ID = "test"
 # Define the id of the batch you are processing. This will define the name of the folder that processed outputs will be written to
 # Default: "test"
 
-analyst_id = "test"
+analyst_id = "analyst1"
 # Define the id of the analyst performing the preprocessing. Useful e.g. if view predictions need to be corrected
-# Default: "test"
+# Default: "analyst1"
 
-processing = 'C:\Users\jdil469\bivme-data\fitting\processed'
+processing = ''
 # Define the directory where processing files (including view predictions, segmentations) will be written
 # Default: ''
 
-states = 'C:\Users\jdil469\bivme-data\fitting\states'
+states = ''
 # Define the directory where view predictions and log files will be written out to
 # Default: ''
 
@@ -29,8 +29,8 @@ states = 'C:\Users\jdil469\bivme-data\fitting\states'
 option = "default"
 # Define whether you would like to run view predictions from scratch or load existing ones
 # * "default" : Views predictions are automatically generated
-# * "load" : View predictions are loaded from the states folder, if they existing
-# Default: ""
+# * "load" : View predictions are loaded from the states folder, if they exist
+# Default: "default"
 
 [segmentation]
 version = "3d"
@@ -44,6 +44,6 @@ version = "3d"
 overwrite = true
 # Define to overwrite the processed folder and outputs of an already preprocessed case, if it exists
 
-output_directory = 'C:\Users\jdil469\bivme-data\fitting\output'
+output_directory = ''
 # Define the directory where GPFiles will be created
 # Default: ''

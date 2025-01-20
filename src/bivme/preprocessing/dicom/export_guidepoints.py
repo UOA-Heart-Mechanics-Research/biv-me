@@ -12,7 +12,6 @@ def export_guidepoints(case, case_dst, output_folder, slice_dict, slice_mapping)
         shutil.rmtree(output_folder)
         os.makedirs(output_folder)
 
-
     for s in slice_dict.values():
         s.export_slice(output_folder, slice_mapping)
 
