@@ -1,0 +1,49 @@
+title = "Configuration file for dicom preprocessing"
+version = "1.0.0" # for semantic versioning - Major.Minor.Patch sequence
+# e.g software version 2.3.1 means that the software is in its second major version,
+# with three additional functionalities added, and one patch fix implemented.
+# When a developer fixes a bug in that version, the next version release is named version 2.3.2.
+
+[input]
+source = 'C:\Users\jdil469\bivme-data\fitting\raw-dicoms\unit-test'
+# Define the directory containing raw dicoms. Files must be grouped into one folder per case and converted to .dcm format
+# Default: ''
+
+batch_ID = "test"
+# Define the id of the batch you are processing. This will define the name of the folder that processed outputs will be written to
+# Default: "test"
+
+analyst_id = "test"
+# Define the id of the analyst performing the preprocessing. Useful e.g. if view predictions need to be corrected
+# Default: "test"
+
+processing = 'C:\Users\jdil469\bivme-data\fitting\processed'
+# Define the directory where processing files (including view predictions, segmentations) will be written
+# Default: ''
+
+states = 'C:\Users\jdil469\bivme-data\fitting\states'
+# Define the directory where view predictions and log files will be written out to
+# Default: ''
+
+[view classification]
+option = "default"
+# Define whether you would like to run view predictions from scratch or load existing ones
+# * "default" : Views predictions are automatically generated
+# * "load" : View predictions are loaded from the states folder, if they existing
+# Default: ""
+
+[segmentation]
+version = "3d"
+# Define the version of nnU-Net models to segment with. 3D models are recommended, for increased speed and temporal coherency, but you have the option 
+# Allowed values:
+# * "2d" : Use 2D segmentation models. Runs frame by frame.
+# * "3d" : Use 3D segmentation models. Runs on 2D+t sequence.
+# Default: "3d"
+
+[output]
+overwrite = true
+# Define to overwrite the processed folder and outputs of an already preprocessed case, if it exists
+
+output_directory = 'C:\Users\jdil469\bivme-data\fitting\output'
+# Define the directory where GPFiles will be created
+# Default: ''

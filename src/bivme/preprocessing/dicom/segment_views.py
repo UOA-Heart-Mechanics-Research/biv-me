@@ -120,10 +120,10 @@ def predict_view(input_folder, output_folder, model, view, version, dataset):
                 nib.save(img_nii, os.path.join(view_output_folder, '{}_2d_{}_{:03}.nii.gz'.format(view, seg.split('_')[-1].replace('.nii.gz',''), frame)))
     
 
-def segment_views(patient, dst, model, slice_info_df, version):
+def segment_views(case, dst, model, slice_info_df, version):
     # define I/O parameters for nnUnet segmentation
-    input_folder = os.path.join(dst, patient, 'images')
-    output_folder = os.path.join(dst, patient, 'segmentations')
+    input_folder = os.path.join(dst, 'images')
+    output_folder = os.path.join(dst, 'segmentations')
 
     if not os.path.exists(input_folder):
         os.makedirs(input_folder)
