@@ -8,8 +8,8 @@ from pydicom.filereader import dcmread
 
 from bivme.fitting import *
 from bivme.preprocessing import Contours as cont
-from bivme.preprocessing.cvi42.CVI42XML import *
-from bivme.preprocessing.read_cim_guide_points import read_guidepoints, read_offsets
+from bivme.preprocessing.circle.cvi42.CVI42XML import *
+from bivme.preprocessing.circle.read_cim_guide_points import read_guidepoints, read_offsets
 
 
 fieldnames = [
