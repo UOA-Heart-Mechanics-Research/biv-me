@@ -29,11 +29,21 @@ def select_views(patient, src, dst, model, states, option='default'):
 
         ## Remove duplicates
         # Type 1 - Same location, different series
-        slice_locations = viewSelector.df['Image Position Patient'].values
-        
+        slice_locations = [] # Only consider slices not already excluded
+        idx = []
+        # Loop over view predictions
+        for i, row in view_predictions.iterrows():
+            if row['Predicted View'] == 'Excluded':
+                continue
+            slice_locations.append(viewSelector.df[viewSelector.df['Series Number'] == row['Series Number']]['Image Position Patient'].values[0])
+            # Index should be the same as the row index in viewSelector.df
+            index = viewSelector.df[viewSelector.df['Series Number'] == row['Series Number']].index[0]
+            idx.append(index)
+
+        repeated_slice_locations = [x for x in slice_locations if slice_locations.count(x) > 1]
+        idx = [index for i,index in enumerate(idx) if slice_locations[i] in repeated_slice_locations]
+
         # Find repeated slice locations
-        repeated_locs = [x for x in slice_locations if list(slice_locations).count(x) > 1]
-        idx = [i for i, x in enumerate(slice_locations) if x in repeated_locs]
         if len(idx) == 0:
             print('No duplicate slice locations found.')
         else:
