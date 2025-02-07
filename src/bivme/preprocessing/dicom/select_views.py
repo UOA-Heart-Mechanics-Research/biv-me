@@ -5,9 +5,7 @@ import statistics
 import warnings
 warnings.filterwarnings('ignore')
 
-import importlib
 from bivme.preprocessing.dicom.src.viewselection import ViewSelector
-importlib.reload(sys.modules[ViewSelector.__module__])
 
 def select_views(patient, src, dst, model, states, option='default'):
     if option == 'default':
