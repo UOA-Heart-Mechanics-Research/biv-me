@@ -289,17 +289,46 @@ class ViewSelector:
         # Merge frames for each series
         output = []
         unique_series = self.df['Series Number'].unique()
+
+        # Sometimes, multiple series are stored together as one dicom 'series'. I heavily frown upon this practice. However, if it is the case, we need to split them up.
+        # Let's try to find this by whether the image position patient changes between frames
         for series in unique_series:
             series_rows = self.df[self.df['Series Number'] == series]
-            # Order by instance number
             series_rows = series_rows.sort_values('Instance Number')
-            img = np.stack(series_rows['Img'].values, axis=0)
 
-            num_phases = img.shape[0]
+            all_img_positions = series_rows['Image Position Patient'].values
+            same_position = [np.all(all_img_positions[i] == all_img_positions[0]) for i in range(len(all_img_positions))]
+            if not np.all(same_position):
+                # Find out how many series are merged
+                num_merged_series = len(all_img_positions) // len(np.where(same_position)[0])
+                idx_split = [len(all_img_positions) // num_merged_series * i for i in range(num_merged_series)]
+                unique_image_positions = [all_img_positions[i] for i in idx_split]
 
-            # Add to output
-            output.append([series_rows['Patient ID'].values[0], series_rows['Filename'].values[0], series_rows['Modality'].values[0], series_rows['Series ID'].values[0], series_rows['Series Number'].values[0], series_rows['Image Position Patient'].values[0], series_rows['Image Orientation Patient'].values[0], series_rows['Pixel Spacing'].values[0], img, num_phases, series_rows['Series Description'].values[0]])
+                print(f"Series {series} contains {num_merged_series} merged series. Splitting...")
 
+                max_series_num = self.df['Series Number'].max()
+
+                print(f"New 'synthetic' series will range from: {max_series_num+1} to {max_series_num+num_merged_series}")
+                
+                for i in range(0,num_merged_series):
+                    series_rows_split = series_rows[series_rows['Image Position Patient'] == unique_image_positions[i]]
+                    series_rows_split = series_rows_split.sort_values('Instance Number')
+                    img = np.stack(series_rows_split['Img'].values, axis=0)
+
+                    num_phases = img.shape[0]
+
+                    series_num = max_series_num + i # New series number ('fake' series number)
+
+                    # Add to output
+                    output.append([series_rows_split['Patient ID'].values[0], series_rows_split['Filename'].values[0], series_rows_split['Modality'].values[0], series_rows_split['Series ID'].values[0], series_num, series_rows_split['Image Position Patient'].values[0], series_rows_split['Image Orientation Patient'].values[0], series_rows_split['Pixel Spacing'].values[0], img, num_phases, series_rows_split['Series Description'].values[0]])
+
+            else: # Just merge rows, no need to split series
+                img = np.stack(series_rows['Img'].values, axis=0)
+
+                num_phases = img.shape[0]
+
+                # Add to output
+                output.append([series_rows['Patient ID'].values[0], series_rows['Filename'].values[0], series_rows['Modality'].values[0], series_rows['Series ID'].values[0], series_rows['Series Number'].values[0], series_rows['Image Position Patient'].values[0], series_rows['Image Orientation Patient'].values[0], series_rows['Pixel Spacing'].values[0], img, num_phases, series_rows['Series Description'].values[0]])
  
         # generated pandas dataframe to store information from headers
         self.df = pd.DataFrame(sorted(output), columns=['Patient ID',
@@ -313,6 +342,9 @@ class ViewSelector:
                                             'Img',
                                             'Frames Per Slice',
                                             'Series Description'])
+    
+
+
 
 
         
