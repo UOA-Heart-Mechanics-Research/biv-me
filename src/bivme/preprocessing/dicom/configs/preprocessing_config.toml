@@ -25,7 +25,7 @@ states = ''
 # Define the directory where view predictions and log files will be written out to
 # Default: ''
 
-[view classification]
+[view-classification]
 option = "default"
 # Define whether you would like to run view predictions from scratch or load existing ones
 # * "default" : Views predictions are automatically generated

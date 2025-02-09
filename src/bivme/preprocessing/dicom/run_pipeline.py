@@ -75,7 +75,7 @@ if __name__ == "__main__":
                       "processing": str(),
                       "states": str()
                       },
-            "view classification": {"option": str()},
+            "view-classification": {"option": str()},
             "segmentation": {"version": str()},
             "output": {"output_directory": str(), "overwrite": bool()},
         }:
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     output = os.path.join(config["output"]["output_directory"], batch_ID)
     os.makedirs(output, exist_ok=True)
 
-    option = config["view classification"]["option"]
+    option = config["view-classification"]["option"]
     version = config["segmentation"]["version"]
 
     caselist = os.listdir(src)
