@@ -13,6 +13,8 @@ os.environ['nnUNet_results'] = '.'
 import nnunetv2 as nnunetv2
 from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
 
+from bivme.preprocessing.dicom.src.utils import write_nifti
+
 def init_nnUNetv2(model_folder):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -32,63 +34,6 @@ def init_nnUNetv2(model_folder):
         checkpoint_name='checkpoint_final.pth',
     )
     return predictor
-
-def write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view, version):
-    if version == '2d':
-        for frame, img in enumerate(pixel_array):
-            img = img.astype(np.float32)
-            # Transpose
-            img = np.transpose(img)
-
-            affine = np.eye(4)
-            affine[0, 0] = pixel_spacing[0]
-            affine[1, 1] = pixel_spacing[1]
-            img_nii = nib.Nifti1Image(img, affine)
-            nib.save(img_nii, os.path.join(input_folder, view, '{}_2d_{}_{:03}_0000.nii.gz'.format(view, slice_id, frame)))
-
-        rescale_factor = 1 # Dummy value for now
-            
-    elif version == '3d':
-        img = pixel_array.astype(np.float32)
-        # Transpose so that the last dimension is the number of frames
-        img = np.transpose(img, (1, 2, 0))
-        # Transpose width and height
-        img = np.transpose(img, (1, 0, 2))
-
-        # Pad to square
-        max_dim = max(img.shape)
-        pad = [(0, 0), (0, 0), (0, 0)]
-        pad[0] = (0, max_dim - img.shape[0])
-        pad[1] = (0, max_dim - img.shape[1])
-        img = np.pad(img, pad, mode='constant', constant_values=0)
-
-        # Pad to 256x256, or resize to 256x256 if it's larger
-        current_dims = img.shape
-        if current_dims[0] < 256 or current_dims[1] < 256:
-            # Pad to 256x256, adding in opposite corner to origin
-            pad = [(0, 256 - current_dims[0]), (0, 256 - current_dims[1]), (0, 0)]
-            img = np.pad(img, pad, mode='constant', constant_values=0)
-            rescale_factor = 1
-
-        elif current_dims[0] > 256 or current_dims[1] > 256:
-            # Resize to 256x256
-            rescale_factor = max(current_dims[0], current_dims[1]) / 256 # Need to change pixel spacing accordingly
-            img = cv2.resize(img, (256, 256), interpolation=cv2.INTER_CUBIC)
-        
-        else:
-            rescale_factor = 1
-
-        # Remap pixel values to 0-255
-        img = img - np.min(img)
-        img = img / np.max(img) * 255
-        img = img.astype(np.uint8)
-
-        affine = np.eye(4) # Default pixel spacing is 1,1,1. This is what the segmentation model expects
-
-        img_nii = nib.Nifti1Image(img, affine)
-        nib.save(img_nii, os.path.join(input_folder, view, '{}_3d_{}_0000.nii.gz'.format(view, slice_id)))
-
-    return rescale_factor
 
 def predict_view(input_folder, output_folder, model, view, version, dataset, my_logger):
     my_logger.info(f'Making predictions for {view} images...')
@@ -139,19 +84,7 @@ def predict_view(input_folder, output_folder, model, view, version, dataset, my_
             img_nii = nib.Nifti1Image(concat_seg, affine)
             nib.save(img_nii, os.path.join(view_output_folder, '{}_3d_{}.nii.gz'.format(view, slice)))
 
-    # elif version == '3d':
-    #     # Split 3D predictions to 2D
-    #     segmentations = [f for f in os.listdir(view_output_folder) if f.endswith('.nii.gz')]
-    #     for seg in segmentations:
-    #         img = nib.load(os.path.join(view_output_folder, seg))
-    #         img = img.get_fdata()
-    #         for frame in range(img.shape[-1]):
-    #             img_frame = img[:, :, frame]
-    #             affine = np.eye(4)
-    #             img_nii = nib.Nifti1Image(img_frame, affine)
-    #             nib.save(img_nii, os.path.join(view_output_folder, '{}_2d_{}_{:03}.nii.gz'.format(view, seg.split('_')[-1].replace('.nii.gz',''), frame)))
     
-
 def segment_views(case, dst, model, slice_info_df, version, my_logger):
     # define I/O parameters for nnUnet segmentation
     input_folder = os.path.join(dst, 'images')
