@@ -17,9 +17,10 @@ from bivme.preprocessing.dicom.select_views import select_views
 from bivme.preprocessing.dicom.segment_views import segment_views
 from bivme.preprocessing.dicom.generate_contours import generate_contours
 from bivme.preprocessing.dicom.export_guidepoints import export_guidepoints
+from bivme.plotting.plot_guidepoints import generate_html # for plotting guidepoints
 
 
-def run_pipeline(case, case_src, case_dst, model, states, option, version, output, my_logger):
+def run_pipeline(case, case_src, case_dst, model, states, option, version, output, plotting, my_logger):
     start_time = time.time()
     ## Step 0: Pre-preprocessing
     my_logger.info(f'Finding cines...')
@@ -51,6 +52,12 @@ def run_pipeline(case, case_src, case_dst, model, states, option, version, outpu
     my_logger.success(f'Case {case} complete.')
     my_logger.info(f'Total time taken: {time.time()-start_time} seconds.')
 
+    ## Step 5: Generate HTML (optional) of guide points for visualisation
+    gp_dir = os.path.join(output, case)
+    generate_html(gp_dir, out_dir=plotting, gp_suffix='', si_suffix='', frames_to_fit=[], my_logger=my_logger, model_path=None)
+
+    logger.info(f'Guidepoints plotted and saved in {plotting}.')
+
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser(description='Preprocess DICOM files for fitting')
@@ -80,7 +87,7 @@ if __name__ == "__main__":
                       },
             "view-classification": {"option": str()},
             "segmentation": {"version": str()},
-            "output": {"output_directory": str(), "overwrite": bool()},
+            "output": {"output_directory": str(), "plotting_directory": str(), "overwrite": bool()},
         }:
             pass
         case _:
@@ -103,8 +110,12 @@ if __name__ == "__main__":
     os.makedirs(states, exist_ok=True)
 
     overwrite = config["output"]["overwrite"]
+
     output = os.path.join(config["output"]["output_directory"], batch_ID)
     os.makedirs(output, exist_ok=True)
+
+    plotting = os.path.join(config["output"]["plotting_directory"], batch_ID)
+    os.makedirs(plotting, exist_ok=True)
 
     option = config["view-classification"]["option"]
     version = config["segmentation"]["version"]
@@ -144,7 +155,7 @@ if __name__ == "__main__":
                     
             logger.info(f'Processing case: {case}')
 
-            run_pipeline(case, case_src, case_dst, MODEL_DIR, case_states, option, version, output, logger)
+            run_pipeline(case, case_src, case_dst, MODEL_DIR, case_states, option, version, output, plotting, logger)
 
             logger.remove(logger_id)
 

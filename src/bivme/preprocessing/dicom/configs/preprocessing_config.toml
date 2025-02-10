@@ -47,3 +47,7 @@ overwrite = true
 output_directory = ''
 # Define the directory where GPFiles will be created
 # Default: ''
+
+plotting_directory = ''
+# Define the directory where GPFiles will be plotted for visualisation
+# Default: ''
