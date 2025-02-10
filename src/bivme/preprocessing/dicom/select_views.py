@@ -7,6 +7,7 @@ warnings.filterwarnings('ignore')
 
 from bivme.preprocessing.dicom.src.viewselection import ViewSelector
 from bivme.preprocessing.dicom.src.predict_views import predict_views
+from bivme.preprocessing.dicom.src.utils import write_sliceinfofile
 
 def select_views(patient, src, dst, model, states, option, my_logger):
     if option == 'default':
@@ -124,31 +125,7 @@ def select_views(patient, src, dst, model, states, option, my_logger):
     # generate dataframe
     slice_info_df = pd.DataFrame(out, columns = ['Slice ID', 'File', 'View', 'ImagePositionPatient', 'ImageOrientationPatient', 'Pixel Spacing', 'Img'])
 
-    # Calculate a slice mapping (reformat to 1-numslices)
-    slice_mapping = {}
-    for i, row in slice_info_df.iterrows():
-        slice_mapping[row['Slice ID']] = i+1
-        
-    # write to slice info file
-    with open(os.path.join(dst, 'SliceInfoFile.txt'), 'w') as f:
-        for i, row in slice_info_df.iterrows():
-            sliceID = slice_mapping[row['Slice ID']]
-            file = row['File']
-            file = os.path.basename(file)
-            view = row['View']
-            imagePositionPatient = row['ImagePositionPatient']
-            imageOrientationPatient = row['ImageOrientationPatient']
-            pixelSpacing = row['Pixel Spacing']
-            
-            f.write('{}\t'.format(file))
-            f.write('sliceID: \t')
-            f.write('{}\t'.format(sliceID))
-            f.write('ImagePositionPatient\t')
-            f.write('{}\t{}\t{}\t'.format(imagePositionPatient[0], imagePositionPatient[1], imagePositionPatient[2]))
-            f.write('ImageOrientationPatient\t')
-            f.write('{}\t{}\t{}\t{}\t{}\t{}\t'.format(imageOrientationPatient[0], imageOrientationPatient[1], imageOrientationPatient[2],
-                                                imageOrientationPatient[3], imageOrientationPatient[4], imageOrientationPatient[5]))
-            f.write('PixelSpacing\t')
-            f.write('{}\t{}\n'.format(pixelSpacing[0], pixelSpacing[1]))
+    # write slice info file
+    slice_mapping = write_sliceinfofile(dst, slice_info_df)
     
     return slice_info_df, num_phases, slice_mapping

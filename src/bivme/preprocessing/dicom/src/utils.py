@@ -3,6 +3,37 @@ import numpy as np
 import nibabel as nib
 import cv2
 
+def write_sliceinfofile(dst, slice_info_df):
+    # Calculate a slice mapping (reformat to 1-numslices)
+    slice_mapping = {}
+    for i, row in slice_info_df.iterrows():
+        slice_mapping[row['Slice ID']] = i+1
+        
+    # write to slice info file
+    with open(os.path.join(dst, 'SliceInfoFile.txt'), 'w') as f:
+        for i, row in slice_info_df.iterrows():
+            sliceID = slice_mapping[row['Slice ID']]
+            file = row['File']
+            file = os.path.basename(file)
+            view = row['View']
+            imagePositionPatient = row['ImagePositionPatient']
+            imageOrientationPatient = row['ImageOrientationPatient']
+            pixelSpacing = row['Pixel Spacing']
+            
+            f.write('{}\t'.format(file))
+            f.write('sliceID: \t')
+            f.write('{}\t'.format(sliceID))
+            f.write('ImagePositionPatient\t')
+            f.write('{}\t{}\t{}\t'.format(imagePositionPatient[0], imagePositionPatient[1], imagePositionPatient[2]))
+            f.write('ImageOrientationPatient\t')
+            f.write('{}\t{}\t{}\t{}\t{}\t{}\t'.format(imageOrientationPatient[0], imageOrientationPatient[1], imageOrientationPatient[2],
+                                                imageOrientationPatient[3], imageOrientationPatient[4], imageOrientationPatient[5]))
+            f.write('PixelSpacing\t')
+            f.write('{}\t{}\n'.format(pixelSpacing[0], pixelSpacing[1]))
+    
+    return slice_mapping
+    
+
 def write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view, version):
     if version == '2d':
         for frame, img in enumerate(pixel_array):
