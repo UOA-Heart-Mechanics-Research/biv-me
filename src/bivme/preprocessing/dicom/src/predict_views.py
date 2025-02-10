@@ -41,7 +41,7 @@ def predict_views(vs):
     dir_img_test = os.path.join(vs.dst, 'view-classification', 'unsorted') # Directory of images to predict. Predictions are run on .pngs
     
     # Load model from file
-    loaded_model_path = os.path.join(vs.model, "ViewSelection", "resnet50-v9.pth")
+    loaded_model_path = os.path.join(vs.model, "ViewSelection", "resnet50-v13.pth")
     loaded_model = torchvision.models.resnet50()
     loaded_model.fc = nn.Linear(2048, 10)
     loaded_model.load_state_dict(torch.load(loaded_model_path))

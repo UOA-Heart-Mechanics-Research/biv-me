@@ -3,6 +3,7 @@ import numpy as np
 import nibabel as nib
 import shutil
 import torch
+import cv2
 
 # Set nnUNet environment variables so it doesn't scream at you with warnings
 os.environ['nnUNet_raw'] = '.'
@@ -44,6 +45,8 @@ def write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view, versio
             affine[1, 1] = pixel_spacing[1]
             img_nii = nib.Nifti1Image(img, affine)
             nib.save(img_nii, os.path.join(input_folder, view, '{}_2d_{}_{:03}_0000.nii.gz'.format(view, slice_id, frame)))
+
+        rescale_factor = 1 # Dummy value for now
             
     elif version == '3d':
         img = pixel_array.astype(np.float32)
@@ -52,9 +55,36 @@ def write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view, versio
         # Transpose width and height
         img = np.transpose(img, (1, 0, 2))
 
-        affine = np.eye(4)
-        affine[0, 0] = pixel_spacing[0]
-        affine[1, 1] = pixel_spacing[1]
+        # Pad to square
+        max_dim = max(img.shape)
+        pad = [(0, 0), (0, 0), (0, 0)]
+        pad[0] = (0, max_dim - img.shape[0])
+        pad[1] = (0, max_dim - img.shape[1])
+        img = np.pad(img, pad, mode='constant', constant_values=0)
+
+        # Pad to 256x256, or resize to 256x256 if it's larger
+        current_dims = img.shape
+        if current_dims[0] < 256 or current_dims[1] < 256:
+            # Pad to 256x256, adding in opposite corner to origin
+            pad = [(0, 256 - current_dims[0]), (0, 256 - current_dims[1]), (0, 0)]
+            img = np.pad(img, pad, mode='constant', constant_values=0)
+            rescale_factor = 1
+
+        elif current_dims[0] > 256 or current_dims[1] > 256:
+            # Resize to 256x256
+            rescale_factor = max(current_dims[0], current_dims[1]) / 256 # Need to change pixel spacing accordingly
+            img = cv2.resize(img, (256, 256), interpolation=cv2.INTER_CUBIC)
+        
+        else:
+            rescale_factor = 1
+
+        # Remap pixel values to 0-255
+        img = img - np.min(img)
+        img = img / np.max(img) * 255
+        img = img.astype(np.uint8)
+
+        affine = np.eye(4) # Default pixel spacing is 1,1,1. This is what the segmentation model expects
+
         img_nii = nib.Nifti1Image(img, affine)
         nib.save(img_nii, os.path.join(input_folder, view, '{}_3d_{}_0000.nii.gz'.format(view, slice_id)))
 
@@ -142,7 +172,7 @@ def segment_views(case, dst, model, slice_info_df, version, my_logger):
 
     # nnunet models / tasks
     datasets_2d = ["Dataset210_SAX_2D", "Dataset211_2ch_2D", "Dataset212_3ch_2D", "Dataset213_4ch_2D", "Dataset214_RVOT_2D"]
-    datasets_3d = ["Dataset220_SAX_3D", "Dataset221_2ch_3D", "Dataset222_3ch_3D", "Dataset223_4ch_3D", "Dataset224_RVOT_3D"]
+    datasets_3d = ["Dataset230_SAX_3D", "Dataset231_2ch_3D", "Dataset232_3ch_3D", "Dataset233_4ch_3D", "Dataset234_RVOT_3D"]
 
     views = ['SAX', '2ch', '3ch', '4ch', 'RVOT']
 
@@ -157,9 +187,16 @@ def segment_views(case, dst, model, slice_info_df, version, my_logger):
             slice_id = row['Slice ID']
             pixel_array = row['Img']
             pixel_spacing = row['Pixel Spacing']
-            write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view, version)
+            rescale_factor = write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view, version)
 
-        print(f'Segmenting {view} images...\n')
+            if rescale_factor == 1:
+                continue
+
+            # Update pixel spacing
+            idx = slice_info_df.index[slice_info_df['Slice ID'] == slice_id].tolist()[0]
+            # Use idx to update the original slice_info_df
+            slice_info_df.at[idx, 'Pixel Spacing'] = [pixel_spacing[0]*rescale_factor, pixel_spacing[1]*rescale_factor]
+
         my_logger.info(f'Segmenting {view} images...')
         
         if version == '2d':
