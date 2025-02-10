@@ -6,12 +6,13 @@ import warnings
 warnings.filterwarnings('ignore')
 
 from bivme.preprocessing.dicom.src.viewselection import ViewSelector
+from bivme.preprocessing.dicom.src.predict_views import predict_views
 
 def select_views(patient, src, dst, model, states, option, my_logger):
     if option == 'default':
         csv_path = os.path.join(dst, 'view-classification', 'view_predictions.csv')
         viewSelector = ViewSelector(src, dst, model, csv_path=csv_path, my_logger=my_logger)
-        viewSelector.predict_views()
+        predict_views(viewSelector)
 
         view_predictions = pd.read_csv(csv_path)
 
