@@ -58,8 +58,10 @@ def write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view, versio
         img_nii = nib.Nifti1Image(img, affine)
         nib.save(img_nii, os.path.join(input_folder, view, '{}_3d_{}_0000.nii.gz'.format(view, slice_id)))
 
-def predict_view(input_folder, output_folder, model, view, version, dataset):
-    print('*** Making predictions for {} images ***'.format(view))
+    return rescale_factor
+
+def predict_view(input_folder, output_folder, model, view, version, dataset, my_logger):
+    my_logger.info(f'Making predictions for {view} images...')
 
     # Define the trained model to use (Specified by the Task)
     if version == '2d':
@@ -84,7 +86,7 @@ def predict_view(input_folder, output_folder, model, view, version, dataset):
             folder_with_segs_from_prev_stage=None, num_parts=1, part_id=0
         )
 
-        print('Done with {}\n'.format(view))
+        my_logger.info(f'Done with {view}')
 
     if version == '2d':
         # Concatenate 2D predictions to 3D
@@ -120,7 +122,7 @@ def predict_view(input_folder, output_folder, model, view, version, dataset):
                 nib.save(img_nii, os.path.join(view_output_folder, '{}_2d_{}_{:03}.nii.gz'.format(view, seg.split('_')[-1].replace('.nii.gz',''), frame)))
     
 
-def segment_views(case, dst, model, slice_info_df, version):
+def segment_views(case, dst, model, slice_info_df, version, my_logger):
     # define I/O parameters for nnUnet segmentation
     input_folder = os.path.join(dst, 'images')
     output_folder = os.path.join(dst, 'segmentations')
@@ -147,7 +149,8 @@ def segment_views(case, dst, model, slice_info_df, version):
     for i, view in enumerate(views):
         os.makedirs(os.path.join(input_folder, view), exist_ok=True)
         os.makedirs(os.path.join(output_folder, view), exist_ok=True)
-        print(f'Writing {view} images to nifti files...\n')
+
+        my_logger.info(f'Writing {view} images to nifti files...')
 
         view_rows = slice_info_df[slice_info_df['View'] == view]
         for j, row in view_rows.iterrows():
@@ -157,10 +160,11 @@ def segment_views(case, dst, model, slice_info_df, version):
             write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view, version)
 
         print(f'Segmenting {view} images...\n')
+        my_logger.info(f'Segmenting {view} images...')
         
         if version == '2d':
             dataset = datasets_2d[i]
-            predict_view(input_folder, output_folder, model, view, version, dataset)
+            predict_view(input_folder, output_folder, model, view, version, dataset, my_logger)
         elif version == '3d':
             dataset = datasets_3d[i]
-            predict_view(input_folder, output_folder, model, view, version, dataset)
+            predict_view(input_folder, output_folder, model, view, version, dataset, my_logger)

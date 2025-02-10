@@ -47,12 +47,13 @@ def clean_text(string):
 
 class ViewSelector:
 
-    def __init__(self, src, dst, model, csv_path):
+    def __init__(self, src, dst, model, csv_path, my_logger):
         self.src = src
         self.dst = dst
         self.model = model
         self.csv_path = csv_path
         self.df = None
+        self.my_logger = my_logger
 
     def load_predictions(self):
         self.store_dicom_info()
@@ -107,7 +108,7 @@ class ViewSelector:
         test_annotations_df = pd.DataFrame(annotations, columns=['image_name', 'view'])
         test_annotations_df.to_csv(test_annotations, index=False)
 
-        print(f"Data prepared for view prediction. {len(self.df)} image series found.")
+        self.my_logger.info(f"Data prepared for view prediction. {len(self.df)} image series found.")
 
     def predict_views(self):
         self.prepare_data_for_prediction()
@@ -140,7 +141,7 @@ class ViewSelector:
         test_dataset = CustomImageDataset(test_annotations, dir_img_test, transform=orig_transform)
         test_loader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=False)
         
-        print("Running view predictions...")
+        self.my_logger.info("Running view predictions...")
         model.eval()
         model.to(device)
 
@@ -304,11 +305,11 @@ class ViewSelector:
                 idx_split = [len(all_img_positions) // num_merged_series * i for i in range(num_merged_series)]
                 unique_image_positions = [all_img_positions[i] for i in idx_split]
 
-                print(f"Series {series} contains {num_merged_series} merged series. Splitting...")
+                self.my_logger.info(f"Series {series} contains {num_merged_series} merged series. Splitting...")
 
                 max_series_num = self.df['Series Number'].max()
 
-                print(f"New 'synthetic' series will range from: {max_series_num+1} to {max_series_num+num_merged_series}")
+                self.my_logger.info(f"New 'synthetic' series will range from: {max_series_num+1} to {max_series_num+num_merged_series}")
                 
                 for i in range(0,num_merged_series):
                     series_rows_split = series_rows[series_rows['Image Position Patient'] == unique_image_positions[i]]
@@ -317,7 +318,7 @@ class ViewSelector:
 
                     num_phases = img.shape[0]
 
-                    series_num = max_series_num + i # New series number ('fake' series number)
+                    series_num = max_series_num + i + 1 # New series number ('fake' series number)
 
                     # Add to output
                     output.append([series_rows_split['Patient ID'].values[0], series_rows_split['Filename'].values[0], series_rows_split['Modality'].values[0], series_rows_split['Series ID'].values[0], series_num, series_rows_split['Image Position Patient'].values[0], series_rows_split['Image Orientation Patient'].values[0], series_rows_split['Pixel Spacing'].values[0], img, num_phases, series_rows_split['Series Description'].values[0]])
