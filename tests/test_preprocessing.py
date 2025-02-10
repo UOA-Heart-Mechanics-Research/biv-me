@@ -1,4 +1,6 @@
 import os
+import numpy as np
+import nibabel as nib
 import PIL
 import pandas as pd 
 import shutil
@@ -6,8 +8,9 @@ from loguru import logger
 from bivme import TEST_RESOURCE_DIR
 
 from bivme.preprocessing.dicom.src.viewselection import ViewSelector
+from bivme.preprocessing.dicom.src.utils import write_nifti
 
-def test_viewselection():
+def test_viewselection(): # This test checks whether the dicom-png conversion and csv generation prior to view prediction works as expected
     test_csv_path = ''
     test_src = os.path.join(TEST_RESOURCE_DIR, 'viewselection_data', 'dicoms')
     test_dst = os.path.join(TEST_RESOURCE_DIR, 'viewselection_data', 'output-pngs', 'patient1')
@@ -42,4 +45,46 @@ def test_viewselection():
     # Close all images
     for img in test_images:
         img.close()
+    shutil.rmtree(test_dst)
+
+def test_writenifti():
+    root = os.path.join(TEST_RESOURCE_DIR, 'writenifti_data')
+
+    # Set up dummy data
+    slice_id = 1
+    view = "SAX"
+    pixel_spacing = [1, 1]
+    
+    # Create a 3D image
+    img = np.zeros((27, 256, 256))
+    initial_x, initial_y = 50, 200
+    for i in range(27):
+        for j in range(256):
+            for k in range(256):
+                if initial_x+(2*i) < j < initial_y-(2*i) and initial_x+(2*i) < k < initial_y-(2*i) and j < k:
+                    img[i, j, k] = 1
+        img[i] = img[i] * 255
+        img[i] = img[i].astype(np.uint8)
+    
+    test_dst = os.path.join(root, 'output', 'patient1')
+    os.makedirs(test_dst, exist_ok=True)
+
+    os.makedirs(os.path.join(test_dst, view), exist_ok=True)
+
+    write_nifti(slice_id, img, pixel_spacing, test_dst, view, '3d') # Testing 3d version
+
+    # Find the generated nifti file
+    nifti_path = os.path.join(test_dst, view, f'{view}_3d_{slice_id}_0000.nii.gz')
+    assert os.path.exists(nifti_path), 'Nifti file not found.'
+
+    # Compare to reference
+    reference_path = os.path.join(root, 'reference-nifti', 'patient1', view, f'{view}_3d_{slice_id}_0000.nii.gz')
+    reference_nifti = nib.load(reference_path)
+    test_nifti = nib.load(nifti_path)
+
+    assert reference_nifti.get_fdata().shape == test_nifti.get_fdata().shape, 'Nifti shape does not match.'
+
+    assert np.array_equal(reference_nifti.get_fdata(), test_nifti.get_fdata()), 'Nifti data does not match.'
+
+    # Clean up
     shutil.rmtree(test_dst)
