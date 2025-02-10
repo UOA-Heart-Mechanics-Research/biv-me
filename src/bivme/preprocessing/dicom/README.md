@@ -40,24 +40,20 @@ pip install nnunetv2
 ```
 
 ### Before running
-The preprocessing pipeline expects DICOM files to be organised in a certain way. There are three key things to get right with the DICOMs before running the code. 
+Set up the directories in the config file located at src/bivme/preprocessing/dicom/configs/preprocess_config.toml. If you wish, you can create a new config file for each time you want to make changes. Just make sure to update the argument you call the code with.
 
-Firstly, there should be no non-cine images or non-cardiac views. My job is hard enough as it is. Some day I'll add a pre-preprocessing step, but not today.
-
-Secondly, images should be separated into folders by case, like so:
+All directories will be created for you except for the 'source' directory. This should point to your DICOMs, separated into folders by case like so:
 
     ```
-    input_path   
+    source
     └─── case1
-        │─── *.dcm
+        │─── *
     └─── case2
-        │─── *.dcm
+        │─── *
     └─── ...
     ```
 
-Thirdly, all images should be converted to .dcm format.
-
-Once your DICOMs are organised, set up the directories in the config file located at src/bivme/preprocessing/dicom/configs/preprocess_config.toml. If you wish, you can create a new config file for each time you want to make changes. Just make sure to update the argument you call the code with.
+Don't worry about preprocessing your dicoms, separating by scan type, or excluding non-cines. The pipeline should find which ones are cines and which ones aren't by checking key terms within the series descriptions. Check src/bivme/preprocessing/dicom/extract_cines.py for the list of key terms.
 
 ### Preprocess DICOM files for fitting
 The main script for running the preprocessing pipeline mesh fitting can be found in src/bivme/preprocessing/dicom. This runs the pipeline on all images stored within the main DICOM folder you provide it. The output is a set of GPFiles for each frame of each case, which can be used for fitting.

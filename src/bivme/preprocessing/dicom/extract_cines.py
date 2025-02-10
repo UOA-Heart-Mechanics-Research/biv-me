@@ -2,8 +2,8 @@ import os
 import pydicom
 
 # Update these if they don't work for your dataset
-INCLUSION_TERMS = ['cine', 'tf2d12', 'retro']
-EXCLUSION_TERMS = ['loc', 'localizer', 'molli', 't1', 't2', 'dense', 'scout', 'grid']
+INCLUSION_TERMS = ['cine', 'tf2d12', 'retro'] # include only series any one of these terms in the description
+EXCLUSION_TERMS = ['loc', 'localizer', 'molli', 't1', 't2', 'dense', 'scout', 'grid'] # exclude series with any one of these terms in the description
 
 def extract_cines(src, dst, my_logger):
     # This function is used to preprocess the DICOM files before running the pipeline. 
