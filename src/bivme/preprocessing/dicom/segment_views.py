@@ -119,7 +119,7 @@ def predict_view(input_folder, output_folder, model, view, version, dataset, my_
         my_logger.info(f'Done with {view}')
 
     if version == '2d':
-        # Concatenate 2D predictions to 3D
+        # Concatenate 2D predictions to 3D to make them easier to inspect and correct if needed
         segmentations = [f for f in os.listdir(view_output_folder) if f.endswith('.nii.gz')]
         slices = np.unique([f.split('_')[-2] for f in segmentations])
         for slice in slices:
@@ -139,17 +139,17 @@ def predict_view(input_folder, output_folder, model, view, version, dataset, my_
             img_nii = nib.Nifti1Image(concat_seg, affine)
             nib.save(img_nii, os.path.join(view_output_folder, '{}_3d_{}.nii.gz'.format(view, slice)))
 
-    elif version == '3d':
-        # Split 3D predictions to 2D
-        segmentations = [f for f in os.listdir(view_output_folder) if f.endswith('.nii.gz')]
-        for seg in segmentations:
-            img = nib.load(os.path.join(view_output_folder, seg))
-            img = img.get_fdata()
-            for frame in range(img.shape[-1]):
-                img_frame = img[:, :, frame]
-                affine = np.eye(4)
-                img_nii = nib.Nifti1Image(img_frame, affine)
-                nib.save(img_nii, os.path.join(view_output_folder, '{}_2d_{}_{:03}.nii.gz'.format(view, seg.split('_')[-1].replace('.nii.gz',''), frame)))
+    # elif version == '3d':
+    #     # Split 3D predictions to 2D
+    #     segmentations = [f for f in os.listdir(view_output_folder) if f.endswith('.nii.gz')]
+    #     for seg in segmentations:
+    #         img = nib.load(os.path.join(view_output_folder, seg))
+    #         img = img.get_fdata()
+    #         for frame in range(img.shape[-1]):
+    #             img_frame = img[:, :, frame]
+    #             affine = np.eye(4)
+    #             img_nii = nib.Nifti1Image(img_frame, affine)
+    #             nib.save(img_nii, os.path.join(view_output_folder, '{}_2d_{}_{:03}.nii.gz'.format(view, seg.split('_')[-1].replace('.nii.gz',''), frame)))
     
 
 def segment_views(case, dst, model, slice_info_df, version, my_logger):

@@ -30,23 +30,31 @@ class SliceViewer:
 
     def get_images(self):
         images = []
-        for phase in self.phases:
-            image = os.path.join(self.image_folder, self.view, f"{self.view}_2d_{self.sliceID}_{int(phase):03}_0000.nii.gz")
+        if self.version == '2d':
+            for phase in self.phases:
+                image = os.path.join(self.image_folder, self.view, f"{self.view}_2d_{self.sliceID}_{int(phase):03}_0000.nii.gz")
+                image = nib.load(image).get_fdata()
+                image = np.transpose(image)
+                images.append(image)
+        elif self.version == '3d':
+            image = os.path.join(self.image_folder, self.view, f"{self.view}_3d_{self.sliceID}.nii.gz")
             image = nib.load(image).get_fdata()
-            image = np.transpose(image)
-            images.append(image)
+            image = np.transpose(image, (1, 0, 2))
+            for i in range(0,image.shape[2]):
+                images.append(image[:,:,i])
 
         self.size = images[0].shape
         return images
         
     def get_segmentations(self):
         segmentations = []
-        for phase in self.phases:
-            segmentation = os.path.join(self.segmentation_folder, self.view, f"{self.view}_2d_{self.sliceID}_{int(phase):03}.nii.gz")
-            segmentation = nib.load(segmentation).get_fdata()
-            segmentation = np.transpose(segmentation)
-            segmentations.append(segmentation)
-        
+
+        segmentation = os.path.join(self.segmentation_folder, self.view, f"{self.view}_3d_{self.sliceID}.nii.gz") # Load from 3D to make manual correction easier
+        segmentation = nib.load(segmentation).get_fdata()
+        segmentation = np.transpose(segmentation, (1, 0, 2))
+        for i in range(0,segmentation.shape[2]):
+            segmentations.append(segmentation[:,:,i])
+
         self.size = segmentations[0].shape
         return segmentations
     
