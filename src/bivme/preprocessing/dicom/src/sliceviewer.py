@@ -570,9 +570,13 @@ class SliceViewer:
                                 RV_epi_pts,
                                 PV_pts]
                 
-                labels = ['SAX_RV_FREEWALL',
-                            'SAX_RV_SEPTUM',
-                            'SAX_RV_EPICARDIAL',
+                # labels = ['SAX_RV_FREEWALL',
+                #             'SAX_RV_SEPTUM',
+                #             'SAX_RV_EPICARDIAL',
+                #             'PULMONARY_VALVE']
+                labels = ['LAX_RV_FREEWALL',
+                            'LAX_RV_SEPTUM',
+                            'LAX_RV_EPICARDIAL',
                             'PULMONARY_VALVE']
 
                 for i,points in enumerate(point_lists):

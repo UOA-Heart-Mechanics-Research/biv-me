@@ -104,7 +104,7 @@ def select_views(patient, src, dst, model, states, option, my_logger):
         except:
             num_phases = np.median(view_predictions['Frames Per Slice'].values)
 
-        viewSelector = ViewSelector(src, dst, model, csv_path=csv_path)
+        viewSelector = ViewSelector(src, dst, model, csv_path=csv_path, my_logger=my_logger)
         viewSelector.load_predictions()
 
         # Print summary
