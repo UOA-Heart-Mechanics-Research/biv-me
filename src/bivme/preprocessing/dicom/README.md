@@ -56,7 +56,7 @@ All directories will be created for you except for the 'source' directory. This 
 Don't worry about preprocessing your dicoms, separating by scan type, or excluding non-cines. The pipeline should find which ones are cines and which ones aren't by checking key terms within the series descriptions. Check src/bivme/preprocessing/dicom/extract_cines.py for the list of key terms.
 
 ### Preprocess DICOM files for fitting
-The main script for running the preprocessing pipeline mesh fitting can be found in src/bivme/preprocessing/dicom. This runs the pipeline on all images stored within the main DICOM folder you provide it. The output is a set of GPFiles for each frame of each case, which can be used for fitting.
+The main script for running the preprocessing pipeline can be found in src/bivme/preprocessing/dicom. This runs the pipeline on all images stored within the main DICOM folder you provide it. The output is a set of GPFiles for each frame of each case, which can be used for fitting.
 
 ```
 usage: run_pipeline.py [-h] [-config CONFIG_FILE]
