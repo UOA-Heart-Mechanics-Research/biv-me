@@ -40,6 +40,65 @@ python src/pyezzi/setup.py build_ext --inplace
 ## Usage
 
 -----------------------------------------------
+### (Preprocessing) Create GP files from DICOM files
+If you do not already have them, guidepoint files (GPFiles) for personalised biventricular mesh fitting can be generated directly from DICOM files.
+
+## Download models
+The preprocessing pipeline uses deep learning models for view prediction and segmentation. These can be downloaded from ([here](https://www.dropbox.com/scl/fo/54662zpqpb0ibmoysqy54/AF4eN0-Bzmb7O-l1lJ6WCZI?rlkey=wxahs4jcepd8ryhh0nfersne2&st=75oy73u9&dl=0)). They should be placed in the biv-me repository like so:
+
+    ```
+    src 
+    └─── bivme
+        └─── preprocessing
+            └─── dicom
+                └─── models
+                    └─── Segmentation
+                    └─── ViewSelection
+    ```
+
+## Import libraries
+This preprocessing pipeline utilises PyTorch and nnU-Net. The default biv-me conda environment currently doesn't install either of these for you. To set these up, activate the biv-me conda environment, like so:
+
+```
+conda activate bivme311
+```
+
+Then, find the PyTorch right version for your GPU and OS ([here](https://pytorch.org/get-started/locally/)) and install it as described on the website.
+
+After PyTorch has been installed, install nnU-Net like so:
+
+```
+pip install nnunetv2
+```
+
+## Run preprocessing pipeline
+The main script for running the preprocessing pipeline can be found in src/bivme/preprocessing/dicom. This runs the pipeline on the DICOM directory you provide it. No prior organisation of DICOM files are required, other than to separate into one folder per case, like so:
+
+    ```
+    DICOM directory
+    └─── case1
+        │─── *
+    └─── case2
+        │─── *
+    └─── ...
+    ```
+
+The output is a set of GPFiles (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) for each frame of each case, which can be used for fitting (see next section).
+
+```
+usage: run_pipeline.py [-h] [-config CONFIG_FILE]
+
+Preprocess DICOM files for fitting
+
+options:
+  -h, --help            show this help message and exit
+  -config CONFIG_FILE, --config_file CONFIG_FILE
+                        Config file containing preprocessing parameters
+
+```
+An example of a config file can be found in src/bivme/preprocessing/dicom/configs/preprocessing-config.toml. 
+
+You can also run the preprocessing from a Jupyter notebook, in the same directory, named run_pipeline_interactive.ipynb. This notebook runs case by case. It is particularly useful if you would like some tighter supervision over certain aspects, such as the view selection. 
 
 ### Fit a Biv-me model to GP files
 The script for the mesh fitting can be found in src/bivme/fitting
@@ -54,7 +113,7 @@ options:
                         Config file containing fitting parameters
 
 ```
-An example of config file can be found in src/bivme/configs/config.toml. The gp_directory should contain one subfolder for each patient. Each subfolder should contain a set of GPFiles (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) and one SliceInfoFile.txt relative to one patient. See example in the example folder.
+An example of a config file can be found in src/bivme/configs/config.toml. The gp_directory should contain one subfolder for each patient. Each subfolder should contain a set of GPFiles (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) and one SliceInfoFile.txt relative to one patient. See example in the example folder.
 
 ### Calculate volumes from biv-me models
 The script for the volume calculation can be found in src/bivme/analysis
@@ -192,4 +251,4 @@ def greet(name: str) -> str:
 
 Credits
 ------------------------------------
-Based on work by: Laura Dal Toso, Anna Mira, Liandong Lee, Richard Burns, Charlene Mauger
+Based on work by: Laura Dal Toso, Anna Mira, Liandong Lee, Richard Burns, Joshua Dillon, Charlene Mauger
