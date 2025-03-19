@@ -90,3 +90,49 @@ def write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view, versio
         nib.save(img_nii, os.path.join(input_folder, view, '{}_3d_{}_0000.nii.gz'.format(view, slice_id)))
 
     return rescale_factor
+
+def resample_seg(dst, view, series, num_phases, my_logger):
+    # Load 3D nifti
+    seg = nib.load(os.path.join(dst, 'segmentations', view, '{}_3d_{}.nii.gz'.format(view, series)))
+    seg_array = seg.get_fdata()
+
+    # Need to resample last dimension to num_phases
+    current_phases = seg_array.shape[-1]
+
+    # Interpolate each pixel in the last dimension
+    new_seg_array = np.zeros((seg_array.shape[0], seg_array.shape[1], num_phases))
+    label_classes = np.unique(seg_array)
+    label_arrays = np.zeros((seg_array.shape[0], seg_array.shape[1], num_phases, len(label_classes)))
+
+    # Perform interpolation seperately for each label class
+    for l in label_classes:
+        l = int(l)
+        if l == 0:
+            continue
+        new_label_array = np.zeros((seg_array.shape[0], seg_array.shape[1], num_phases))
+        label_array = (seg_array == l).astype(np.uint8)
+        for i in range(label_array.shape[0]):
+            for j in range(label_array.shape[1]):
+                new_label_array[i, j, :] = np.interp(np.linspace(0, current_phases-1, num_phases), np.arange(current_phases), label_array[i, j]) # TODO: Pretty rudimentary, but should work. Maybe revisit later
+        
+        # Threshold 
+        new_label_array[new_label_array > 0.5] = l
+        new_label_array[new_label_array <= 0.5] = 0
+
+        label_arrays[:, :, :, l] = new_label_array
+    
+    # Reassemble
+    for l in label_classes: # TODO: Not ideal because there's no sense of priority, might want to order label classes by reverse importance (e.g. LV overwrites LA)
+        l = int(l)
+        if l == 0:
+            continue
+        new_seg_array[label_arrays[:, :, :, l] == l] = l
+
+    new_seg_array = new_seg_array.astype(np.uint8)
+
+    # Save as 3D nii
+    affine = seg.affine
+    new_nii = nib.Nifti1Image(new_seg_array, affine)
+    nib.save(new_nii, os.path.join(dst, 'segmentations', view, '{}_3d_{}.nii.gz'.format(view, series)))
+
+    pass

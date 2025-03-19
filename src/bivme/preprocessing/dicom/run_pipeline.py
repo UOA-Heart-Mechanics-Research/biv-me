@@ -15,6 +15,7 @@ warnings.filterwarnings('ignore')
 from bivme.preprocessing.dicom.extract_cines import extract_cines
 from bivme.preprocessing.dicom.select_views import select_views
 from bivme.preprocessing.dicom.segment_views import segment_views
+from bivme.preprocessing.dicom.correct_phase_mismatch import correct_phase_mismatch
 from bivme.preprocessing.dicom.generate_contours import generate_contours
 from bivme.preprocessing.dicom.export_guidepoints import export_guidepoints
 from bivme.plotting.plot_guidepoints import generate_html # for plotting guidepoints
@@ -41,6 +42,9 @@ def run_pipeline(case, case_src, case_dst, model, states, option, version, outpu
     segment_views(case, case_dst, model, slice_info_df, version, my_logger) # TODO: Find a way to suppress nnUnet output
     seg_end_time = time.time()
     my_logger.success(f'Segmentation complete. Time taken: {seg_end_time-seg_start_time} seconds ({version} version).')
+
+    ## Step 2.1: Correct phase mismatch (if required)
+    correct_phase_mismatch(case_dst, slice_info_df, num_phases, my_logger)
 
     ## Step 3: Guide point extraction
     slice_dict = generate_contours(case, case_dst, slice_info_df, num_phases, version, my_logger)
