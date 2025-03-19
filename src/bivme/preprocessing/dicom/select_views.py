@@ -19,7 +19,6 @@ def select_views(patient, src, dst, model, states, option, my_logger):
 
         ## Flag any slices with non-matching number of phases
         # Use the SAX series as the reference for the 'right' number of phases
-        mismatch_dict = {}
         try:
             sax_series = view_predictions[view_predictions['Predicted View'] == 'SAX'] 
             num_phases = statistics.mode(sax_series['Frames Per Slice'].values)
@@ -28,7 +27,6 @@ def select_views(patient, src, dst, model, states, option, my_logger):
         
         for i, row in viewSelector.df.iterrows():
             if row['Frames Per Slice'] != num_phases:
-                mismatch_dict[row['Series Number']] = row['Frames Per Slice']
                 my_logger.warning(f"Series {row['Series Number']} has a mismatching number of phases ({row['Frames Per Slice']} vs {num_phases}).")
 
         ## Remove duplicates
@@ -118,7 +116,6 @@ def select_views(patient, src, dst, model, states, option, my_logger):
 
         ## Flag any slices with non-matching number of phases
         # Use the SAX series as the reference for the 'right' number of phases
-        mismatch_dict = {}
         try:
             sax_series = view_predictions[view_predictions['Predicted View'] == 'SAX'] 
             num_phases = statistics.mode(sax_series['Frames Per Slice'].values)
@@ -127,7 +124,6 @@ def select_views(patient, src, dst, model, states, option, my_logger):
         
         for i, row in viewSelector.df.iterrows():
             if row['Frames Per Slice'] != num_phases:
-                mismatch_dict[row['Series Number']] = row['Frames Per Slice']
                 my_logger.warning(f"Series {row['Series Number']} has a mismatching number of phases ({row['Frames Per Slice']} vs {num_phases}).")
 
         # Print summary

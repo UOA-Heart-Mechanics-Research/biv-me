@@ -3,7 +3,6 @@ import numpy as np
 import nibabel as nib
 import shutil
 import torch
-import cv2
 
 # Set nnUNet environment variables so it doesn't scream at you with warnings
 os.environ['nnUNet_raw'] = '.'
@@ -36,8 +35,6 @@ def init_nnUNetv2(model_folder):
     return predictor
 
 def predict_view(input_folder, output_folder, model, view, version, dataset, my_logger):
-    my_logger.info(f'Making predictions for {view} images...')
-
     # Define the trained model to use (Specified by the Task)
     if version == '2d':
         model_folder_name = os.path.join(model,"Segmentation/{}/nnUNetTrainer__nnUNetPlans__2d/".format(dataset))
@@ -122,13 +119,11 @@ def segment_views(case, dst, model, slice_info_df, version, my_logger):
             pixel_spacing = row['Pixel Spacing']
             rescale_factor = write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view, version)
 
-            if rescale_factor == 1:
-                continue
-
-            # Update pixel spacing
-            idx = slice_info_df.index[slice_info_df['Slice ID'] == slice_id].tolist()[0]
-            # Use idx to update the original slice_info_df
-            slice_info_df.at[idx, 'Pixel Spacing'] = [pixel_spacing[0]*rescale_factor, pixel_spacing[1]*rescale_factor]
+            if rescale_factor != 1:
+                # Update pixel spacing
+                idx = slice_info_df.index[slice_info_df['Slice ID'] == slice_id].tolist()[0]
+                # Use idx to update the original slice_info_df
+                slice_info_df.at[idx, 'Pixel Spacing'] = [pixel_spacing[0]*rescale_factor, pixel_spacing[1]*rescale_factor]
 
         my_logger.info(f'Segmenting {view} images...')
         
