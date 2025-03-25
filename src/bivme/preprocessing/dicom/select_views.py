@@ -17,16 +17,17 @@ def select_views(patient, src, dst, model, states, option, my_logger):
 
         view_predictions = pd.read_csv(csv_path)
 
-        ## Exclude any slices with non-matching number of phases
+        ## Flag any slices with non-matching number of phases
+        # Use the SAX series as the reference for the 'right' number of phases
         try:
-            num_phases = statistics.mode(viewSelector.df['Frames Per Slice'].values)
+            sax_series = view_predictions[view_predictions['Predicted View'] == 'SAX'] 
+            num_phases = statistics.mode(sax_series['Frames Per Slice'].values)
         except statistics.StatisticsError: # If no mode found (i.e. two values with equally similar counts), use median
-            num_phases = np.median(viewSelector.df['Frames Per Slice'].values)
+            num_phases = np.median(sax_series['Frames Per Slice'].values)
         
         for i, row in viewSelector.df.iterrows():
             if row['Frames Per Slice'] != num_phases:
-                view_predictions.loc[view_predictions['Series Number'] == row['Series Number'], 'Predicted View'] = 'Excluded'
-                my_logger.info(f"Excluded series {row['Series Number']} due to mismatched number of phases ({row['Frames Per Slice']} vs {num_phases}).")
+                my_logger.warning(f"Series {row['Series Number']} has a mismatching number of phases ({row['Frames Per Slice']} vs {num_phases}).")
 
         ## Remove duplicates
         # Type 1 - Same location, different series
@@ -50,9 +51,13 @@ def select_views(patient, src, dst, model, states, option, my_logger):
         else:
             repeated_series = viewSelector.df.iloc[idx]
             repeated_series_num = repeated_series['Series Number'].values
+            # Order by series number, so that if that if two series have the same confidence, the higher series number is retained
+            repeated_series_num = sorted(repeated_series_num, reverse=True)
+            repeated_series_num = np.array(repeated_series_num)
 
             # Retain only the series with the highest confidence, convert the rest to 'Excluded'
             confidences = [view_predictions[view_predictions['Series Number'] == x]['Confidence'].values[0] for x in repeated_series_num]
+
             idx_max = np.argmax(confidences)
             idx_to_exclude = [i for i in range(len(repeated_series_num)) if i != idx_max]
 
@@ -65,15 +70,21 @@ def select_views(patient, src, dst, model, states, option, my_logger):
         exclusive_views = ['2ch', '3ch', '4ch', 'RVOT', 'RVOT-T', '2ch-RT', 'LVOT']
         for view in exclusive_views:
             series = view_predictions[view_predictions['Predicted View'] == view]
+            series_nums = series['Series Number'].values
+            # Order by series number, so that if that if two series have the same confidence, the higher series number is retained
+            series_nums = sorted(series_nums, reverse=True)
+            series_nums = np.array(series_nums)
+
             if len(series) > 1:
                 my_logger.info(f'Multiple series classed as {view}.')
 
-                confidences = series['Confidence'].values
+                confidences = [view_predictions[view_predictions['Series Number'] == x]['Confidence'].values[0] for x in series_nums]
+
                 idx_max = np.argmax(confidences)
                 idx_to_exclude = [i for i in range(len(series)) if i != idx_max]
-                view_predictions.loc[series.index[idx_to_exclude], 'Predicted View'] = 'Excluded'
+                view_predictions.loc[view_predictions['Series Number'].isin(series_nums[idx_to_exclude]), 'Predicted View'] = 'Excluded'
 
-                my_logger.info(f'Excluded series {series.iloc[idx_to_exclude]["Series Number"].values} due to multiple series classed as {view}.')
+                my_logger.info(f'Excluded series {series_nums[idx_to_exclude]} due to multiple series classed as {view}.')
 
         # Print summary to log
         my_logger.info(f'View predictions for {patient}:')
@@ -99,13 +110,21 @@ def select_views(patient, src, dst, model, states, option, my_logger):
             raise FileNotFoundError(f'View predictions not found at {csv_path}. Please run view selection with option="default" first.')
         
         view_predictions = pd.read_csv(csv_path)
-        try:
-            num_phases = statistics.mode(view_predictions['Frames Per Slice'].values)
-        except:
-            num_phases = np.median(view_predictions['Frames Per Slice'].values)
 
         viewSelector = ViewSelector(src, dst, model, csv_path=csv_path, my_logger=my_logger)
         viewSelector.load_predictions()
+
+        ## Flag any slices with non-matching number of phases
+        # Use the SAX series as the reference for the 'right' number of phases
+        try:
+            sax_series = view_predictions[view_predictions['Predicted View'] == 'SAX'] 
+            num_phases = statistics.mode(sax_series['Frames Per Slice'].values)
+        except statistics.StatisticsError: # If no mode found (i.e. two values with equally similar counts), use median
+            num_phases = np.median(sax_series['Frames Per Slice'].values)
+        
+        for i, row in viewSelector.df.iterrows():
+            if row['Frames Per Slice'] != num_phases:
+                my_logger.warning(f"Series {row['Series Number']} has a mismatching number of phases ({row['Frames Per Slice']} vs {num_phases}).")
 
         # Print summary
         my_logger.info(f'View predictions for {patient}:')
@@ -120,10 +139,11 @@ def select_views(patient, src, dst, model, states, option, my_logger):
     for i, row in view_predictions.iterrows():
         # Get row of viewSelector.df
         series_row = viewSelector.df[viewSelector.df['Series Number'] == row['Series Number']].iloc[0]
-        out.append([series_row['Series Number'], series_row['Filename'], row['Predicted View'], series_row['Image Position Patient'], series_row['Image Orientation Patient'], series_row['Pixel Spacing'], series_row['Img']])
+        frames_per_slice = series_row['Frames Per Slice']
+        out.append([series_row['Series Number'], frames_per_slice, series_row['Filename'], row['Predicted View'], series_row['Image Position Patient'], series_row['Image Orientation Patient'], series_row['Pixel Spacing'], series_row['Img']])
 
     # generate dataframe
-    slice_info_df = pd.DataFrame(out, columns = ['Slice ID', 'File', 'View', 'ImagePositionPatient', 'ImageOrientationPatient', 'Pixel Spacing', 'Img'])
+    slice_info_df = pd.DataFrame(out, columns = ['Slice ID', 'Frames Per Slice', 'File', 'View', 'ImagePositionPatient', 'ImageOrientationPatient', 'Pixel Spacing', 'Img'])
 
     # write slice info file
     slice_mapping = write_sliceinfofile(dst, slice_info_df)

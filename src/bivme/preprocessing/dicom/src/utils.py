@@ -2,6 +2,7 @@ import os
 import numpy as np
 import nibabel as nib
 import cv2
+import scipy.ndimage as ndimage
 
 def write_sliceinfofile(dst, slice_info_df):
     # Calculate a slice mapping (reformat to 1-numslices)
@@ -90,3 +91,20 @@ def write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view, versio
         nib.save(img_nii, os.path.join(input_folder, view, '{}_3d_{}_0000.nii.gz'.format(view, slice_id)))
 
     return rescale_factor
+
+def resample_seg(dst, view, series, num_phases, my_logger):
+    # Load 3D nifti
+    seg = nib.load(os.path.join(dst, 'segmentations', view, '{}_3d_{}.nii.gz'.format(view, series)))
+    seg_array = seg.get_fdata()
+
+    # Need to resample last dimension to num_phases
+    current_phases = seg_array.shape[-1]
+
+    # Apply spline interpolation in the temporal dimension
+    new_seg_array = ndimage.zoom(seg_array, (1, 1, num_phases/current_phases), order=0) # Order 0 is nearest neighbour
+    new_seg_array = new_seg_array.astype(np.uint8)
+
+    # Save as 3D nii
+    affine = seg.affine
+    new_nii = nib.Nifti1Image(new_seg_array, affine)
+    nib.save(new_nii, os.path.join(dst, 'segmentations', view, '{}_3d_{}.nii.gz'.format(view, series)))

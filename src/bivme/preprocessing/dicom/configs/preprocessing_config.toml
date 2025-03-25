@@ -6,7 +6,7 @@ version = "1.0.0" # for semantic versioning - Major.Minor.Patch sequence
 
 [input]
 source = ''
-# Define the directory containing raw dicoms. Files must be grouped into one folder per case and converted to .dcm format
+# Define the directory containing raw dicoms. Files must be grouped into one folder per case
 # Default: ''
 
 batch_ID = "test"
