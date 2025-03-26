@@ -3,17 +3,14 @@ import shutil
 import pydicom
 import numpy as np
 import pandas as pd
-import PIL
+import PIL.Image as Image
+import joblib
+import os
+import pandas as pd
+import shutil
+from pathlib import Path
 
-def clean_text(string):
-
-    # clean and standardize text descriptions, which makes searching files easier
-
-    forbidden_symbols = ["*", ".", ",", "\"", "\\", "/", "|", "[", "]", ":", ";", " "]
-    for symbol in forbidden_symbols:
-        string = string.replace(symbol, "")  # replace all bad symbols
-
-    return string.lower()
+from bivme.preprocessing.dicom.src.utils import clean_text, from_2d_to_3d
 
 class ViewSelector:
 
@@ -67,7 +64,7 @@ class ViewSelector:
                 img_data = np.stack((img_data,)*3, axis=-1)
 
                 # Save as png
-                img_data = PIL.Image.fromarray(img_data)
+                img_data = Image.fromarray(img_data)
                 save_path = os.path.join(dir_unsorted, f'{row["Series Number"]}_{frame}.png')
                 img_data.save(save_path)
         
@@ -218,9 +215,214 @@ class ViewSelector:
                                             'Frames Per Slice',
                                             'Series Description'])
     
+class ViewSelectorMetadata:
 
+    def __init__(self, src, dst, model_path, csv_path, my_logger):
+        self.src = src
+        self.dst = dst
+        self.model = joblib.load(model_path)
+        self.df = None
+        self.unique_df = {}
+        self.sorted_dict = {}
+        self.csv_path = csv_path
+        self.my_logger = my_logger
 
+    def get_dicom_header(self, dicom_loc):
 
+        # read dicom file and return header information and image
+        ds = pydicom.read_file(dicom_loc, force=True)
+        # get patient, study, and series information
+        patient_id = ds.get("PatientID", "NA")
+        modality = ds.get("Modality","NA")
+        instance_number = ds.get("InstanceNumber","NA")
+        series_instance_uid = ds.get("SeriesInstanceUID","NA")
+        series_number = ds.get('SeriesNumber', 'NA')
+        image_position_patient = ds.get("ImagePositionPatient", 'NA')
+        image_orientation_patient = ds.get("ImageOrientationPatient", 'NA')
+        pixel_spacing = ds.get("PixelSpacing", 'NA')
+        echo_time = ds.get("EchoTime", 'NA')
+        repetition_time = ds.get("RepetitionTime", 'NA')
+        trigger_time = float(ds.get('TriggerTime', 'NA'))
+        image_dimension = [ds.get('Rows', 'NA'), ds.get('Columns', 'NA')]
+        slice_thickness = ds.get('SliceThickness', 'NA')
+        slice_location = ds.get('SliceLocation', 'NA')
+
+        # store image data
+        array = ds.pixel_array
+
+        return patient_id, dicom_loc, modality, instance_number, series_instance_uid, series_number , tuple(image_position_patient), image_orientation_patient, pixel_spacing, echo_time, repetition_time, trigger_time, image_dimension, slice_thickness, array, slice_location
+
+    def predict_views(self):
+
+        unsorted_list = [os.path.join(root, file) for root, _, files in os.walk(self.src) for file in files if ".dcm" in file]
+
+        output = []
+        for dicom_loc in unsorted_list:
+            try:
+                output.append(self.get_dicom_header(dicom_loc))
+            except:
+                continue
+
+        # generated pandas dataframe to store information from headers
+        self.df = pd.DataFrame(output, columns=['Patient ID',
+                                                'Filename',
+                                                'Modality',
+                                                'Instance Number',                                   
+                                                'Series InstanceUID',
+                                                'Series Number',
+                                                'Image Position Patient',
+                                                'Image Orientation Patient',
+                                                'Pixel Spacing', 
+                                                'Echo Time',
+                                                'Repetition Time',
+                                                'Trigger Time',
+                                                'Image Dimension',
+                                                'Slice Thickness',
+                                                'image',
+                                                'Slice Location'])
+
+        self.sort_dicom_per_series()
+        self.predict()
+
+        if len(self.unique_df) == 0:
+            self.my_logger.warning(f'DataFrame is empty')
+
+        if len(self.unique_df) > 0:
+            output_path = self.dst
+            self.unique_df.to_csv(f'{output_path}/view-prediction.csv', sep='\t')
+
+    def predict(self):
+        # Each series is a separate row in the dataframe
+        # Merge frames for each series
+                #self.merge_dicom_frames_and_predict(export_to_csv)
+        
+        # directory = Path(self.dst)
+        # p = directory.glob('**/*')
+        # files = [x for x in p if x.is_file()]
+
+        files = [os.path.join(root, file) for root, _, files in os.walk(os.path.join(self.dst, 'temp')) for file in files if ".dcm" in file]
+
+        avg_participant = [0.0, 0.0, 0.0]
+        number_of_average = 0
+        for file in files:
+            try:
+                ds = pydicom.dcmread(file)
+                p2 = [ds.Rows /2, ds.Columns /2]
+                pixel_spacing = [ds.PixelSpacing[0], ds.PixelSpacing[1]]
+                image_position = [ds.ImagePositionPatient[i] for i in range(3) ]
+                image_orientation = [ds.ImageOrientationPatient[i] for i in range(6) ]
+                x, y, z = from_2d_to_3d(p2, image_orientation, image_position, pixel_spacing)
+                avg_participant[0] += x
+                avg_participant[1] += y
+                avg_participant[2] += z
+                number_of_average += 1
+            except:
+                continue
+
+        if number_of_average == 0:
+            return
+
+        avg_participant[0] = avg_participant[0] / number_of_average
+        avg_participant[1] = avg_participant[1] / number_of_average
+        avg_participant[2] = avg_participant[2] / number_of_average
+
+        sids = [n for n in os.listdir(os.path.join(self.dst,  'temp'))]
+
+        output_dataframe = []
+        count = 0
+        for ids in sids:
+            
+
+            dcm = [n for n in os.listdir(os.path.join(self.dst, 'temp', ids)) if 'dcm' in n]
+
+            ds = pydicom.dcmread(os.path.join(self.dst, 'temp', ids, dcm[0]))
+
+            p2 = [ds.Rows /2, ds.Columns /2]
+            pixel_spacing = [ds.PixelSpacing[0], ds.PixelSpacing[1]]
+            image_position = [ds.ImagePositionPatient[i] for i in range(3) ]
+            image_orientation = [ds.ImageOrientationPatient[i] for i in range(6) ]
+            x, y, z = from_2d_to_3d(p2, image_orientation, image_position, pixel_spacing)
+
+            my_vector = np.array([avg_participant[0] - x, 
+                                  avg_participant[1] - y,
+                                  avg_participant[2] - z])
+            magnitude = np.linalg.norm(my_vector)
+            normalized_vector = my_vector / magnitude
+
+            predictors = np.array([float(ds.EchoTime),  
+                                        float(ds.ImageOrientationPatient[0]), 
+                                        float(ds.ImageOrientationPatient[1]), 
+                                        float(ds.ImageOrientationPatient[2]), 
+                                        float(ds.ImageOrientationPatient[3]), 
+                                        float(ds.ImageOrientationPatient[4]), 
+                                        float(ds.ImageOrientationPatient[5]), 
+                                        float(normalized_vector[0]), 
+                                        float(normalized_vector[1]), 
+                                        float(normalized_vector[2]),   
+                                        float(ds.ImagePositionPatient[0]), 
+                                        float(ds.ImagePositionPatient[1]), 
+                                        float(ds.ImagePositionPatient[2]),           
+                                        float(ds.RepetitionTime),
+                                        float(ds.SliceThickness)])
+            
+            scaler = self.model.scaler
+            scaled_predictors = scaler.transform(predictors.reshape(1, -1))
+
+            y_pred = self.model.predict(scaled_predictors)     
+
+            key = f'{ids}'
+
+            # Export to csv
+            output_dataframe.append([Path(ids).name, 
+                                        ds.InstanceNumber,   
+                                        ds.SeriesInstanceUID, 
+                                        ds.SeriesNumber, 
+                                        len(self.sorted_dict[key]),
+                                        y_pred[0]])
+
+        self.unique_df = pd.DataFrame(output_dataframe, columns=['Patient ID',
+                                                                'Instance Number',
+                                                                'Series InstanceUID',
+                                                                'Series Number',
+                                                                'Number of Frames',
+                                                                'Predicted view'])
+
+        # delete temp folder
+        shutil.rmtree(os.path.join(self.dst, 'temp'))
+
+    def sort_dicom_per_series(self):
+        # Each series is a separate row in the dataframe
+        # Merge frames for each series
+        unique_series = self.df[['Series Number', 'Image Position Patient']].drop_duplicates()
+
+        self.my_logger.info(f"{len(unique_series)} unique series found")
+        count = 0
+
+        os.makedirs(os.path.join(self.dst, 'temp'), exist_ok=True)
+
+        for _, row in unique_series.iterrows():
+
+            series_rows = self.df.loc[(self.df['Series Number'] == row['Series Number']) & (self.df['Image Position Patient'] == row['Image Position Patient'])]
+
+            if len(series_rows) < 10: # unlikely to be a cine
+                self.my_logger.warning(f"Removing series {row['Series Number']} - less than 10 frames")
+                continue
+
+            series_rows = series_rows.sort_values('Trigger Time')
+            pos = series_rows['Image Position Patient'].values[0]
+
+            key = f'{series_rows["Series Number"].values[0]}_{pos[2]}'
+            dcm_path = os.path.join(self.dst, 'temp',key)
+            os.makedirs(dcm_path, exist_ok=True) 
+
+            count = 0
+            for name in series_rows['Filename']:
+                num = int(series_rows['Trigger Time'].values[count])
+                shutil.copy(name, dcm_path / Path(f'{num:05}.dcm')) 
+                count += 1
+
+            self.sorted_dict[key] = series_rows
+            
 
         
             

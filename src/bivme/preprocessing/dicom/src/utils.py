@@ -108,3 +108,63 @@ def resample_seg(dst, view, series, num_phases, my_logger):
     affine = seg.affine
     new_nii = nib.Nifti1Image(new_seg_array, affine)
     nib.save(new_nii, os.path.join(dst, 'segmentations', view, '{}_3d_{}.nii.gz'.format(view, series)))
+
+def clean_text(string):
+
+    # clean and standardize text descriptions, which makes searching files easier
+
+    forbidden_symbols = ["*", ".", ",", "\"", "\\", "/", "|", "[", "]", ":", ";", " "]
+    for symbol in forbidden_symbols:
+        string = string.replace(symbol, "")  # replace all bad symbols
+
+    return string.lower()
+
+def from_2d_to_3d(
+    p2, image_orientation, image_position, pixel_spacing
+):
+    """# Convert indices of a pixel in a 2D image in space to 3D coordinates.
+    #	Inputs
+    #		image_orientation
+    #		image_position
+    #		pixel_spacing
+    #		subpixel_resolution
+    #	Outputs
+    #		P3:  3D points
+    """
+    # if points2D.
+    points2D = np.array(p2)
+
+    S = np.eye(4)
+    S[0, 0] = pixel_spacing[1]
+    S[1, 1] = pixel_spacing[0]
+    S = np.matrix(S)
+
+    R = np.identity(4)
+    R[0:3, 0] = image_orientation[
+        0:3
+    ]  # col direction, i.e. increases with row index i
+    R[0:3, 1] = image_orientation[
+        3:7
+    ]  # row direction, i.e. increases with col index j
+    R[0:3, 2] = np.cross(R[0:3, 0], R[0:3, 1])
+
+    T = np.identity(4)
+    T[0:3, 3] = image_position
+
+    F = np.identity(4)
+    F[0:1, 3] = -0.5
+
+    T = np.dot(T, R)
+    T = np.dot(T, S)
+    Transformation = np.dot(T, F)
+
+    pts = np.ones((len(points2D), 4))
+    pts[:, 0:2] = points2D
+    pts[:, 2] = [0] * len(points2D)
+    pts[:, 3] = [1] * len(points2D)
+
+    Px = np.dot(Transformation, pts.T)
+    p3 = Px[0:3, :] / (np.vstack((Px[3, :], np.vstack((Px[3, :], Px[3, :])))))
+    p3 = p3.T
+
+    return p3[0, 0], p3[0, 1], p3[0, 2]
