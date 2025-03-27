@@ -9,18 +9,42 @@ from bivme.preprocessing.dicom.src.utils import write_sliceinfofile
 
 def select_views(patient, src, dst, model, states, option, my_logger):
     if option == 'default':
-        csv_path = os.path.join(dst, 'view-classification', 'view_predictions.csv')
-
         # Metadata-based model
+        metadata_csv_path = os.path.join(dst, 'view-classification', 'metadata_view_predictions.csv')
         metadata_model = os.path.join(os.getcwd(), 'metadata-based_model.joblib')
-        viewSelectorMetadata = ViewSelectorMetadata(src, dst, metadata_model, csv_path=csv_path, my_logger=my_logger)
-        viewSelectorMetadata.predict_views()
+        my_logger.info('Performing metadata-based view prediction...')
+        viewSelectorMetadata = ViewSelectorMetadata(src, dst, metadata_model, csv_path=metadata_csv_path, my_logger=my_logger)
+        viewSelectorMetadata.predict_views() 
+        my_logger.info('Metadata-based view prediction complete.')
 
         # Image-based model
-        viewSelector = ViewSelector(src, dst, model, csv_path=csv_path, my_logger=my_logger)
+        my_logger.info('Performing image-based view prediction...')
+        image_csv_path = os.path.join(dst, 'view-classification', 'image_view_predictions.csv')
+        viewSelector = ViewSelector(src, dst, model, csv_path=image_csv_path, my_logger=my_logger)
         predict_views(viewSelector)
+        my_logger.info('Image-based view prediction complete.')
 
-        view_predictions = pd.read_csv(csv_path)
+        # Combine metadata and image-based predictions
+        my_logger.info('Combining metadata and image-based view predictions...')
+        metadata_view_predictions = pd.read_csv(metadata_csv_path)
+        image_view_predictions = pd.read_csv(image_csv_path)
+
+        all_series = set(metadata_view_predictions['Series Number'].values + image_view_predictions['Series Number'].values)
+        view_predictions_array = []
+        refinement_map = {'2ch': 'LAX', '3ch': 'LAX', '4ch': 'LAX', 'RVOT': 'RVOT', 'RVOT-T': 'RVOT', '2ch-RT': 'LAX', 'LVOT': 'LVOT', 'SAX': 'SAX', 'SAX-atria': 'SAX', 'OTHER': 'SAX'}
+        for series in all_series:
+            metadata_row = metadata_view_predictions[metadata_view_predictions['Series Number'] == series]
+            image_row = image_view_predictions[image_view_predictions['Series Number'] == series]
+
+            metadata_broad_pred = refinement_map[metadata_row['Predicted View'].values[0]]
+            image_broad_pred = refinement_map[image_row['Predicted View'].values[0]]
+
+            if metadata_broad_pred == image_broad_pred:
+                view_predictions_array.append([series, image_row['Predicted View'].values[0], image_row['Vote Share'].values[0], image_row['Frames Per Slice'].values[0]])
+            else:
+                pass # TODO: Implement logic for when metadata and image-based predictions differ
+
+        view_predictions = pd.DataFrame(view_predictions_array, columns=['Series Number', 'Predicted View', 'Vote Share', 'Frames Per Slice'])
 
         ## Flag any slices with non-matching number of phases
         # Use the SAX series as the reference for the 'right' number of phases

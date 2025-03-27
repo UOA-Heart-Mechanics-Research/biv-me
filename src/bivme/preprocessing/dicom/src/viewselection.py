@@ -215,7 +215,7 @@ class ViewSelector:
                                             'Frames Per Slice',
                                             'Series Description'])
     
-class ViewSelectorMetadata:
+class ViewSelectorMetadata: # TODO: Merge with ViewSelector
 
     def __init__(self, src, dst, model_path, csv_path, my_logger):
         self.src = src
@@ -288,19 +288,11 @@ class ViewSelectorMetadata:
             self.my_logger.warning(f'DataFrame is empty')
 
         if len(self.unique_df) > 0:
-            output_path = self.dst
-            self.unique_df.to_csv(f'{output_path}/view-prediction.csv', sep='\t')
+            output_path = os.path.join(self.dst, 'view-classification')
+            self.unique_df.to_csv(f'{output_path}/metadata_view_predictions.csv', index=False)
 
     def predict(self):
-        # Each series is a separate row in the dataframe
-        # Merge frames for each series
-                #self.merge_dicom_frames_and_predict(export_to_csv)
-        
-        # directory = Path(self.dst)
-        # p = directory.glob('**/*')
-        # files = [x for x in p if x.is_file()]
-
-        files = [os.path.join(root, file) for root, _, files in os.walk(os.path.join(self.dst, 'temp')) for file in files if ".dcm" in file]
+        files = [os.path.join(root, file) for root, _, files in os.walk(os.path.join(self.dst, 'view-classification', 'temp')) for file in files if ".dcm" in file]
 
         avg_participant = [0.0, 0.0, 0.0]
         number_of_average = 0
@@ -326,16 +318,14 @@ class ViewSelectorMetadata:
         avg_participant[1] = avg_participant[1] / number_of_average
         avg_participant[2] = avg_participant[2] / number_of_average
 
-        sids = [n for n in os.listdir(os.path.join(self.dst,  'temp'))]
+        sids = [n for n in os.listdir(os.path.join(self.dst,  'view-classification', 'temp'))]
 
         output_dataframe = []
-        count = 0
+        view_class_map = {'SA': 'SAX', '2CH LT': '2ch', '2CH RT': '2ch-RT', '3CH': '3ch', '4CH': '4ch', 'LVOT': 'LVOT', 'RVOT': 'RVOT', 'RVOT-T': 'RVOT-T', 'SAX-atria': 'SAX-atria', 'OTHER': 'OTHER'}
         for ids in sids:
-            
+            dcm = [n for n in os.listdir(os.path.join(self.dst, 'view-classification', 'temp', ids)) if 'dcm' in n]
 
-            dcm = [n for n in os.listdir(os.path.join(self.dst, 'temp', ids)) if 'dcm' in n]
-
-            ds = pydicom.dcmread(os.path.join(self.dst, 'temp', ids, dcm[0]))
+            ds = pydicom.dcmread(os.path.join(self.dst, 'view-classification', 'temp', ids, dcm[0]))
 
             p2 = [ds.Rows /2, ds.Columns /2]
             pixel_spacing = [ds.PixelSpacing[0], ds.PixelSpacing[1]]
@@ -368,27 +358,22 @@ class ViewSelectorMetadata:
             scaler = self.model.scaler
             scaled_predictors = scaler.transform(predictors.reshape(1, -1))
 
-            y_pred = self.model.predict(scaled_predictors)     
+            y_pred = self.model.predict(scaled_predictors)
+            predicted_view = view_class_map[y_pred[0]]     
 
-            key = f'{ids}'
+            output_dataframe.append([ds.SeriesNumber, predicted_view, 1, len(dcm)])
 
-            # Export to csv
-            output_dataframe.append([Path(ids).name, 
-                                        ds.InstanceNumber,   
-                                        ds.SeriesInstanceUID, 
-                                        ds.SeriesNumber, 
-                                        len(self.sorted_dict[key]),
-                                        y_pred[0]])
+        # self.unique_df = pd.DataFrame(output_dataframe, columns=['Patient ID',
+        #                                                         'Instance Number',
+        #                                                         'Series InstanceUID',
+        #                                                         'Series Number',
+        #                                                         'Number of Frames',
+        #                                                         'Predicted view'])
 
-        self.unique_df = pd.DataFrame(output_dataframe, columns=['Patient ID',
-                                                                'Instance Number',
-                                                                'Series InstanceUID',
-                                                                'Series Number',
-                                                                'Number of Frames',
-                                                                'Predicted view'])
+        self.unique_df = pd.DataFrame(output_dataframe, columns=['Series Number', 'Predicted View', 'Confidence', 'Frames Per Slice'])
 
         # delete temp folder
-        shutil.rmtree(os.path.join(self.dst, 'temp'))
+        shutil.rmtree(os.path.join(self.dst, 'view-classification', 'temp'))
 
     def sort_dicom_per_series(self):
         # Each series is a separate row in the dataframe
@@ -398,7 +383,7 @@ class ViewSelectorMetadata:
         self.my_logger.info(f"{len(unique_series)} unique series found")
         count = 0
 
-        os.makedirs(os.path.join(self.dst, 'temp'), exist_ok=True)
+        os.makedirs(os.path.join(self.dst, 'view-classification', 'temp'), exist_ok=True)
 
         for _, row in unique_series.iterrows():
 
@@ -412,7 +397,7 @@ class ViewSelectorMetadata:
             pos = series_rows['Image Position Patient'].values[0]
 
             key = f'{series_rows["Series Number"].values[0]}_{pos[2]}'
-            dcm_path = os.path.join(self.dst, 'temp',key)
+            dcm_path = os.path.join(self.dst, 'view-classification', 'temp',key)
             os.makedirs(dcm_path, exist_ok=True) 
 
             count = 0

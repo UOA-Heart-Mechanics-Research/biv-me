@@ -84,15 +84,40 @@ def predict_views(vs):
 
             # Calculate confidence
             confidence = nn.functional.softmax(outputs, dim=1)
-            confidence = confidence.cpu().numpy()
-            confidence = np.max(confidence, axis=1)
+            confidence = confidence.cpu().numpy().T
+            # confidence = np.max(confidence, axis=1)
 
-            new_row = pd.DataFrame({'image_name': img_names, 'predicted_label': predicted_labels, 'confidence': confidence})
+            new_row = pd.DataFrame({'image_name': img_names, 
+                                    'predicted_label': predicted_labels, 
+                                    'confidence_0': confidence[0],
+                                    'confidence_1': confidence[1],
+                                    'confidence_2': confidence[2],
+                                    'confidence_3': confidence[3],
+                                    'confidence_4': confidence[4],
+                                    'confidence_5': confidence[5],
+                                    'confidence_6': confidence[6],
+                                    'confidence_7': confidence[7],
+                                    'confidence_8': confidence[8],
+                                    'confidence_9': confidence[9]})
+            
             test_pred_df = pd.concat([test_pred_df, new_row], ignore_index=True)
 
-
     # Determine view class of each series
-    output_df = pd.DataFrame(columns=['Series Number', 'Predicted View', 'Confidence', 'Frames Per Slice'])
+    output_df = pd.DataFrame(columns=['Series Number', 
+                                      'Predicted View', 
+                                        'Vote Share',
+                                      'Frames Per Slice',
+                                      f'{list(view_label_map.keys())[0]} confidence',
+                                        f'{list(view_label_map.keys())[1]} confidence',
+                                        f'{list(view_label_map.keys())[2]} confidence',
+                                        f'{list(view_label_map.keys())[3]} confidence',
+                                        f'{list(view_label_map.keys())[4]} confidence',
+                                        f'{list(view_label_map.keys())[5]} confidence',
+                                        f'{list(view_label_map.keys())[6]} confidence',
+                                        f'{list(view_label_map.keys())[7]} confidence',
+                                        f'{list(view_label_map.keys())[8]} confidence',
+                                        f'{list(view_label_map.keys())[9]} confidence'])
+
 
     # Determine view class from majority vote across all frames
     for series in vs.df['Series Number'].unique():
@@ -103,9 +128,27 @@ def predict_views(vs):
 
         # Get most common view
         predicted_view = view_counts.idxmax()
-        confidence = view_counts.max() # TODO: This isn't really 'confidence' but the proportion of frames with this view. Change to 'Unanimity' or something
+        
+        # Get mean confidences
+        confidences = [series_views[f'confidence_{i}'].values for i in range(10)]
+        confidences = np.mean(confidences, axis=1)
 
-        new_row = pd.DataFrame({'Series Number': [series], 'Predicted View': [list(view_label_map.keys())[predicted_view]], 'Confidence': [confidence], 'Frames Per Slice': [len(series_views)]})
+        new_row = pd.DataFrame({'Series Number': [series], 
+                                'Predicted View': [list(view_label_map.keys())[predicted_view]], 
+                                'Vote Share': [view_counts[predicted_view]],
+                                'Frames Per Slice': [len(series_views)],
+                                f'{list(view_label_map.keys())[0]} confidence': [confidences[0]],
+                                f'{list(view_label_map.keys())[1]} confidence': [confidences[1]],
+                                f'{list(view_label_map.keys())[2]} confidence': [confidences[2]],
+                                f'{list(view_label_map.keys())[3]} confidence': [confidences[3]],
+                                f'{list(view_label_map.keys())[4]} confidence': [confidences[4]],
+                                f'{list(view_label_map.keys())[5]} confidence': [confidences[5]],
+                                f'{list(view_label_map.keys())[6]} confidence': [confidences[6]],
+                                f'{list(view_label_map.keys())[7]} confidence': [confidences[7]],
+                                f'{list(view_label_map.keys())[8]} confidence': [confidences[8]],
+                                f'{list(view_label_map.keys())[9]} confidence': [confidences[9]]})
+
+        
         output_df = pd.concat([output_df, new_row], ignore_index=True)
     
     # Save to csv
