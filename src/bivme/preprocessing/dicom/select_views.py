@@ -31,7 +31,7 @@ def select_views(patient, src, dst, model, states, option, my_logger):
 
         all_series = list(set(np.concatenate([metadata_view_predictions['Series Number'].values,image_view_predictions['Series Number'].values])))
         view_predictions_array = []
-        refinement_map = {'2ch': 'LAX', '2ch-RT': 'LAX', '3ch': 'LAX', '4ch': 'LAX', 'LVOT': 'LVOT', 'OTHER': 'SAX', 'RVOT': 'RVOT', 'RVOT-T': 'RVOT', 'SAX': 'SAX', 'SAX-atria': 'SAX'} # Map refined views to broad views (SAX, LAX, RVOT, LVOT)
+        refinement_map = {'2ch': 'LAX', '2ch-RT': 'LAX', '3ch': 'LAX', '4ch': 'LAX', 'LVOT': 'SAX', 'OTHER': 'SAX', 'RVOT': 'RVOT', 'RVOT-T': 'RVOT', 'SAX': 'SAX', 'SAX-atria': 'SAX'} # Map refined views to broad views (SAX, LAX, RVOT)
         for series in all_series:
             metadata_row = metadata_view_predictions[metadata_view_predictions['Series Number'] == series]
             image_row = image_view_predictions[image_view_predictions['Series Number'] == series]
