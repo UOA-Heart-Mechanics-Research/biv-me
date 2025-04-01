@@ -166,6 +166,11 @@ class ViewSelector:
         # Let's try to find this by whether the image position patient changes between frames
         for series in unique_series:
             series_rows = self.df[self.df['Series Number'] == series]
+
+            if len(series_rows) < 10: # unlikely to be a cine
+                self.my_logger.warning(f"Removing series {series} - less than 10 frames")
+                continue
+
             series_rows = series_rows.sort_values('Instance Number')
 
             all_img_positions = series_rows['Image Position Patient'].values
@@ -185,11 +190,14 @@ class ViewSelector:
                 for i in range(0,num_merged_series):
                     series_rows_split = series_rows[series_rows['Image Position Patient'] == unique_image_positions[i]]
                     series_rows_split = series_rows_split.sort_values('Instance Number')
-                    img = np.stack(series_rows_split['Img'].values, axis=0)
-
-                    num_phases = img.shape[0]
-
                     series_num = max_series_num + i + 1 # New series number ('fake' series number)
+
+                    if len(series_rows_split) < 10: # unlikely to be a cine
+                        self.my_logger.warning(f"Removing series {series_num} - less than 10 frames")
+                        continue
+
+                    img = np.stack(series_rows_split['Img'].values, axis=0)
+                    num_phases = img.shape[0]
 
                     # Add to output
                     output.append([series_rows_split['Patient ID'].values[0], series_rows_split['Filename'].values[0], series_rows_split['Modality'].values[0], series_rows_split['Series ID'].values[0], series_num, series_rows_split['Image Position Patient'].values[0], series_rows_split['Image Orientation Patient'].values[0], series_rows_split['Pixel Spacing'].values[0], img, num_phases, series_rows_split['Series Description'].values[0]])
@@ -363,13 +371,6 @@ class ViewSelectorMetadata: # TODO: Merge with ViewSelector
 
             output_dataframe.append([ds.SeriesNumber, predicted_view, 1, len(dcm)])
 
-        # self.unique_df = pd.DataFrame(output_dataframe, columns=['Patient ID',
-        #                                                         'Instance Number',
-        #                                                         'Series InstanceUID',
-        #                                                         'Series Number',
-        #                                                         'Number of Frames',
-        #                                                         'Predicted view'])
-
         self.unique_df = pd.DataFrame(output_dataframe, columns=['Series Number', 'Predicted View', 'Confidence', 'Frames Per Slice'])
 
         # delete temp folder
@@ -378,35 +379,75 @@ class ViewSelectorMetadata: # TODO: Merge with ViewSelector
     def sort_dicom_per_series(self):
         # Each series is a separate row in the dataframe
         # Merge frames for each series
-        unique_series = self.df[['Series Number', 'Image Position Patient']].drop_duplicates()
+        unique_series = self.df[['Series Number']].drop_duplicates()
 
-        self.my_logger.info(f"{len(unique_series)} unique series found")
+        # self.my_logger.info(f"{len(unique_series)} unique series found")
         count = 0
 
         os.makedirs(os.path.join(self.dst, 'view-classification', 'temp'), exist_ok=True)
 
         for _, row in unique_series.iterrows():
-
-            series_rows = self.df.loc[(self.df['Series Number'] == row['Series Number']) & (self.df['Image Position Patient'] == row['Image Position Patient'])]
+            series = row['Series Number']
+            series_rows = self.df.loc[(self.df['Series Number'] == series)]
 
             if len(series_rows) < 10: # unlikely to be a cine
-                self.my_logger.warning(f"Removing series {row['Series Number']} - less than 10 frames")
+                self.my_logger.warning(f"Removing series {series} - less than 10 frames")
                 continue
 
-            series_rows = series_rows.sort_values('Trigger Time')
-            pos = series_rows['Image Position Patient'].values[0]
+            all_img_positions = series_rows['Image Position Patient'].values
+            same_position = [np.all(all_img_positions[i] == all_img_positions[0]) for i in range(len(all_img_positions))]
+            if not np.all(same_position):
+                # Find out how many series are merged
+                num_merged_series = len(all_img_positions) // len(np.where(same_position)[0])
+                idx_split = [len(all_img_positions) // num_merged_series * i for i in range(num_merged_series)]
+                unique_image_positions = [all_img_positions[i] for i in idx_split]
 
-            key = f'{series_rows["Series Number"].values[0]}_{pos[2]}'
-            dcm_path = os.path.join(self.dst, 'view-classification', 'temp',key)
-            os.makedirs(dcm_path, exist_ok=True) 
+                self.my_logger.info(f"Series {series} contains {num_merged_series} merged series. Splitting...")
 
-            count = 0
-            for name in series_rows['Filename']:
-                num = int(series_rows['Trigger Time'].values[count])
-                shutil.copy(name, dcm_path / Path(f'{num:05}.dcm')) 
-                count += 1
+                max_series_num = self.df['Series Number'].max()
 
-            self.sorted_dict[key] = series_rows
+                self.my_logger.info(f"New 'synthetic' series will range from: {max_series_num+1} to {max_series_num+num_merged_series}")
+                
+                for i in range(0,num_merged_series):
+                    series_rows_split = series_rows[series_rows['Image Position Patient'] == unique_image_positions[i]]
+                    series_rows_split = series_rows_split.sort_values('Instance Number')
+
+                    series_num = max_series_num + i + 1 # New series number ('fake' series number)
+
+                    if len(series_rows_split) < 10: # unlikely to be a cine
+                        self.my_logger.warning(f"Removing series {series_num} - less than 10 frames")
+                        continue
+
+                    series_rows_split = series_rows_split.sort_values('Trigger Time')
+                    pos = series_rows_split['Image Position Patient'].values[0]
+
+                    key = f'{series_num}_{pos[2]}'
+                    dcm_path = os.path.join(self.dst, 'view-classification', 'temp',key)
+                    os.makedirs(dcm_path, exist_ok=True) 
+
+                    count = 0
+                    for name in series_rows_split['Filename']:
+                        num = int(series_rows_split['Trigger Time'].values[count])
+                        shutil.copy(name, dcm_path / Path(f'{num:05}.dcm')) 
+                        count += 1
+
+                    self.sorted_dict[key] = series_rows_split
+
+            else:
+                series_rows = series_rows.sort_values('Trigger Time')
+                pos = series_rows['Image Position Patient'].values[0]
+
+                key = f'{series_rows["Series Number"].values[0]}_{pos[2]}'
+                dcm_path = os.path.join(self.dst, 'view-classification', 'temp',key)
+                os.makedirs(dcm_path, exist_ok=True) 
+
+                count = 0
+                for name in series_rows['Filename']:
+                    num = int(series_rows['Trigger Time'].values[count])
+                    shutil.copy(name, dcm_path / Path(f'{num:05}.dcm')) 
+                    count += 1
+
+                self.sorted_dict[key] = series_rows
             
 
         

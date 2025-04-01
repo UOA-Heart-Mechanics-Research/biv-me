@@ -34,6 +34,10 @@ class CustomImageDataset(Dataset):
 def predict_views(vs):
     vs.prepare_data_for_prediction()
 
+    if len(vs.df) == 0:
+        vs.my_logger.warning("No series found")
+        return
+
     view_label_map = {'2ch': 0, '2ch-RT': 1, '3ch': 2, '4ch': 3, 'LVOT': 4, 
                 'OTHER': 5, 'RVOT': 6, 'RVOT-T': 7, 'SAX': 8, 'SAX-atria': 9}
     
