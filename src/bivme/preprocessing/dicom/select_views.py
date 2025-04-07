@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import statistics
 
-from bivme.preprocessing.dicom.src.viewselection import ViewSelector, ViewSelectorMetadata
+from bivme.preprocessing.dicom.src.viewselection import ViewSelectorImage, ViewSelectorMetadata
 from bivme.preprocessing.dicom.src.predict_views import predict_views
 from bivme.preprocessing.dicom.src.utils import write_sliceinfofile
 
@@ -20,7 +20,7 @@ def select_views(patient, src, dst, model, states, option, my_logger):
         # Image-based model
         my_logger.info('Performing image-based view prediction...')
         image_csv_path = os.path.join(dst, 'view-classification', 'image_view_predictions.csv')
-        viewSelector = ViewSelector(src, dst, model, csv_path=image_csv_path, my_logger=my_logger)
+        viewSelector = ViewSelectorImage(src, dst, model, csv_path=image_csv_path, my_logger=my_logger)
         predict_views(viewSelector)
         my_logger.info('Image-based view prediction complete.')
 
@@ -31,7 +31,7 @@ def select_views(patient, src, dst, model, states, option, my_logger):
 
         all_series = list(set(np.concatenate([metadata_view_predictions['Series Number'].values,image_view_predictions['Series Number'].values])))
         view_predictions_array = []
-        refinement_map = {'2ch': 'LAX', '2ch-RT': 'LAX', '3ch': 'LAX', '4ch': 'LAX', 'LVOT': 'SAX', 'OTHER': 'SAX', 'RVOT': 'RVOT', 'RVOT-T': 'RVOT', 'SAX': 'SAX', 'SAX-atria': 'SAX'} # Map refined views to broad views (SAX, LAX, RVOT)
+        refinement_map = {'2ch': 'LAX', '2ch-RT': 'LAX', '3ch': 'LAX', '4ch': 'LAX', 'LVOT': 'SAX', 'OTHER': 'SAX', 'RVOT': 'Outflow', 'RVOT-T': 'Outflow', 'SAX': 'SAX', 'SAX-atria': 'SAX'} # Map refined views to broad views (SAX, LAX, Outflow)
         for series in all_series:
             metadata_row = metadata_view_predictions[metadata_view_predictions['Series Number'] == series]
             image_row = image_view_predictions[image_view_predictions['Series Number'] == series]
@@ -40,9 +40,10 @@ def select_views(patient, src, dst, model, states, option, my_logger):
             image_broad_pred = refinement_map[image_row['Predicted View'].values[0]]
 
             if metadata_broad_pred == image_broad_pred: # If metadata and image-based predictions agree on broad view, use the image-based prediction
-                view_predictions_array.append([series, image_row['Predicted View'].values[0], image_row['Vote Share'].values[0], image_row['Frames Per Slice'].values[0]])
+                conf = image_row[f'{image_row["Predicted View"].values[0]} confidence'].values[0]
+                view_predictions_array.append([series, image_row['Predicted View'].values[0], conf, image_row['Frames Per Slice'].values[0]])
 
-            else: # If metadata and image-based predictions conflict, use the metadata-based prediction to adjust the image-based prediction
+            elif (metadata_broad_pred == 'SAX' and image_broad_pred == 'LAX') or (metadata_broad_pred == 'LAX' and image_broad_pred == 'SAX'): # If metadata-based prediction is SAX and image-based prediction is LAX or vice versa, use the metadata-based prediction to correct the image-based prediction
                 my_logger.info(f'Series {series} metadata and image-based predictions conflict: {metadata_broad_pred} vs {image_broad_pred}. Using metadata-based prediction to correct image-based prediction...') # TODO: Remove after debugging
                 # Zero out the confidence of the incorrect categories
                 confidences = []
@@ -53,9 +54,15 @@ def select_views(patient, src, dst, model, states, option, my_logger):
                 
                 # Image prediction is the view with the highest confidence remaining
                 image_pred = list(refinement_map.keys())[np.argmax(confidences)]
-                view_predictions_array.append([series, image_pred, 0, image_row['Frames Per Slice'].values[0]])
+                conf = image_row[f'{image_pred} confidence'].values[0]
+                view_predictions_array.append([series, image_pred, conf, image_row['Frames Per Slice'].values[0]])
+
+            else: # Otherwise, use the image-based prediction, but log the conflict
+                my_logger.info(f'Series {series} metadata and image-based predictions conflict: {metadata_broad_pred} vs {image_broad_pred}. Using image-based prediction for now...')
+                conf = image_row[f'{image_row["Predicted View"].values[0]} confidence'].values[0]
+                view_predictions_array.append([series, image_row['Predicted View'].values[0], conf, image_row['Frames Per Slice'].values[0]]) 
                 
-        view_predictions = pd.DataFrame(view_predictions_array, columns=['Series Number', 'Predicted View', 'Vote Share', 'Frames Per Slice'])
+        view_predictions = pd.DataFrame(view_predictions_array, columns=['Series Number', 'Predicted View', 'Confidence', 'Frames Per Slice'])
         csv_path = os.path.join(dst, 'view-classification', 'view_predictions.csv')
         viewSelector.csv_path = csv_path
         view_predictions.to_csv(csv_path, mode='w', index=False)
@@ -96,12 +103,12 @@ def select_views(patient, src, dst, model, states, option, my_logger):
         else:
             repeated_series = viewSelector.df.iloc[idx]
             repeated_series_num = repeated_series['Series Number'].values
-            # Order by series number, so that if that if two series have the same vote share, the higher series number is retained
+            # Order by series number, so that if that if two series have the same Confidence, the higher series number is retained
             repeated_series_num = sorted(repeated_series_num, reverse=True)
             repeated_series_num = np.array(repeated_series_num)
 
-            # Retain only the series with the highest vote share, convert the rest to 'Excluded'
-            vote_shares = [view_predictions[view_predictions['Series Number'] == x]['Vote Share'].values[0] for x in repeated_series_num]
+            # Retain only the series with the highest Confidence, convert the rest to 'Excluded'
+            vote_shares = [view_predictions[view_predictions['Series Number'] == x]['Confidence'].values[0] for x in repeated_series_num]
 
             idx_max = np.argmax(vote_shares)
             idx_to_exclude = [i for i in range(len(repeated_series_num)) if i != idx_max]
@@ -116,14 +123,14 @@ def select_views(patient, src, dst, model, states, option, my_logger):
         for view in exclusive_views:
             series = view_predictions[view_predictions['Predicted View'] == view]
             series_nums = series['Series Number'].values
-            # Order by series number, so that if that if two series have the same vote share, the higher series number is retained
+            # Order by series number, so that if that if two series have the same Confidence, the higher series number is retained
             series_nums = sorted(series_nums, reverse=True)
             series_nums = np.array(series_nums)
 
             if len(series) > 1:
                 my_logger.info(f'Multiple series classed as {view}.')
 
-                vote_shares = [view_predictions[view_predictions['Series Number'] == x]['Vote Share'].values[0] for x in series_nums]
+                vote_shares = [view_predictions[view_predictions['Series Number'] == x]['Confidence'].values[0] for x in series_nums]
 
                 idx_max = np.argmax(vote_shares)
                 idx_to_exclude = [i for i in range(len(series)) if i != idx_max]
@@ -135,6 +142,9 @@ def select_views(patient, src, dst, model, states, option, my_logger):
         my_logger.info(f'View predictions for {patient}:')
         for view in view_predictions['Predicted View'].unique():
             my_logger.info(f'{view}: {len(view_predictions[view_predictions["Predicted View"] == view])} series')
+
+        # Sort by series number
+        view_predictions = view_predictions.sort_values('Series Number')
 
         # Write view predictions to csv
         view_predictions.to_csv(csv_path, mode='w', index=False)
@@ -156,7 +166,7 @@ def select_views(patient, src, dst, model, states, option, my_logger):
         
         view_predictions = pd.read_csv(csv_path)
 
-        viewSelector = ViewSelector(src, dst, model, csv_path=csv_path, my_logger=my_logger)
+        viewSelector = ViewSelectorImage(src, dst, model, csv_path=csv_path, my_logger=my_logger)
         viewSelector.load_predictions()
 
         ## Flag any slices with non-matching number of phases
@@ -179,7 +189,6 @@ def select_views(patient, src, dst, model, states, option, my_logger):
         # Write csv to dst
         view_predictions.to_csv(os.path.join(dst, 'view-classification', 'view_predictions.csv'), mode='w', index=False)
         
-
     out = []
     for i, row in view_predictions.iterrows():
         # Get row of viewSelector.df

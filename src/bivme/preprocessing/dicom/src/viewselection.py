@@ -12,8 +12,7 @@ from pathlib import Path
 
 from bivme.preprocessing.dicom.src.utils import clean_text, from_2d_to_3d
 
-class ViewSelector:
-
+class ViewSelectorImage:
     def __init__(self, src, dst, model, csv_path, my_logger):
         self.src = src
         self.dst = dst
@@ -125,7 +124,11 @@ class ViewSelector:
         pixel_spacing = ds.get("PixelSpacing", 'NA')
 
         # load image data
-        array = ds.pixel_array
+        try:
+            array = ds.pixel_array
+        except:
+            self.my_logger.warning(f"Could not load image data for {dicom_loc}. Might not contain an image.")
+            array = None
 
         return patient_id, dicom_loc, modality, series_instance_uid, \
                series_number, instance_number, image_position_patient, image_orientation_patient, pixel_spacing, array, series_description
@@ -256,7 +259,11 @@ class ViewSelectorMetadata: # TODO: Merge with ViewSelector
         slice_location = ds.get('SliceLocation', 'NA')
 
         # store image data
-        array = ds.pixel_array
+        try:
+            array = ds.pixel_array
+        except:
+            self.my_logger.warning(f"Could not load image data for {dicom_loc}. Might not contain an image.")
+            array = None
 
         return patient_id, dicom_loc, modality, instance_number, series_instance_uid, series_number , tuple(image_position_patient), image_orientation_patient, pixel_spacing, echo_time, repetition_time, trigger_time, image_dimension, slice_thickness, array, slice_location
 
