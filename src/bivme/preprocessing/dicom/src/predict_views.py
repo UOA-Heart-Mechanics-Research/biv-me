@@ -8,7 +8,7 @@ import torchvision.transforms as transforms
 from torch.utils.data import Dataset, DataLoader
 from torchvision.io import read_image
 
-from bivme.preprocessing.dicom.src.viewselection import ViewSelector
+from bivme.preprocessing.dicom.src.viewselection import ViewSelectorImage
 
 class CustomImageDataset(Dataset):
     def __init__(self, annotations_file, img_dir, transform=None, target_transform=None):

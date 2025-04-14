@@ -22,7 +22,6 @@ class ViewSelectorImage:
         self.my_logger = my_logger
 
     def load_predictions(self):
-        self.store_dicom_info()
         self.prepare_data_for_prediction()
         self.write_sorted_pngs()
 
@@ -109,29 +108,31 @@ class ViewSelectorImage:
     def get_dicom_header(self, dicom_loc):
         # read dicom file and return header information and image
         ds = pydicom.read_file(dicom_loc, force=True)
-
         # get patient, study, and series information
-        patient_id = clean_text(ds.get("PatientID", "NA"))
-        series_description = clean_text(ds.get("SeriesDescription", "NA"))
-
-        # generate new, standardized file name
+        patient_id = ds.get("PatientID", "NA")
         modality = ds.get("Modality","NA")
+        instance_number = ds.get("InstanceNumber","NA")
         series_instance_uid = ds.get("SeriesInstanceUID","NA")
         series_number = ds.get('SeriesNumber', 'NA')
-        instance_number = int(ds.get("InstanceNumber","0"))
         image_position_patient = ds.get("ImagePositionPatient", 'NA')
         image_orientation_patient = ds.get("ImageOrientationPatient", 'NA')
         pixel_spacing = ds.get("PixelSpacing", 'NA')
+        echo_time = ds.get("EchoTime", 'NA')
+        repetition_time = ds.get("RepetitionTime", 'NA')
+        trigger_time = float(ds.get('TriggerTime', 'NA'))
+        image_dimension = [ds.get('Rows', 'NA'), ds.get('Columns', 'NA')]
+        slice_thickness = ds.get('SliceThickness', 'NA')
+        slice_location = ds.get('SliceLocation', 'NA')
+        series_description = ds.get('SeriesDescription', 'NA')
 
-        # load image data
+        # store image data
         try:
             array = ds.pixel_array
         except:
             self.my_logger.warning(f"Could not load image data for {dicom_loc}. Might not contain an image.")
             array = None
 
-        return patient_id, dicom_loc, modality, series_instance_uid, \
-               series_number, instance_number, image_position_patient, image_orientation_patient, pixel_spacing, array, series_description
+        return patient_id, dicom_loc, modality, instance_number, series_instance_uid, series_number , tuple(image_position_patient), image_orientation_patient, pixel_spacing, echo_time, repetition_time, trigger_time, image_dimension, slice_thickness, array, slice_location, series_description
     
     def store_dicom_info(self):
         unsorted_list = []
@@ -142,21 +143,31 @@ class ViewSelectorImage:
 
         output = []
         for dicom_loc in unsorted_list:
-            output.append(self.get_dicom_header(dicom_loc))
+            try:
+                output.append(self.get_dicom_header(dicom_loc))
+            except:
+                # self.my_logger.warning(f"Could not read {dicom_loc}. Image data may be incompatible.")
+                continue
+
 
         # generated pandas dataframe to store information from headers
-        self.df = pd.DataFrame(sorted(output), columns=['Patient ID',
-                                            'Filename',
-                                            'Modality',
-                                            'Series ID',
-                                            'Series Number',
-                                            'Instance Number',
-                                            'Image Position Patient',
-                                            'Image Orientation Patient',
-                                            'Pixel Spacing', 
-                                            'Img',
-                                            'Series Description'])
-
+        self.df = pd.DataFrame(output, columns=['Patient ID',
+                                                'Filename',
+                                                'Modality',
+                                                'Instance Number',                                   
+                                                'Series InstanceUID',
+                                                'Series Number',
+                                                'Image Position Patient',
+                                                'Image Orientation Patient',
+                                                'Pixel Spacing', 
+                                                'Echo Time',
+                                                'Repetition Time',
+                                                'Trigger Time',
+                                                'Image Dimension',
+                                                'Slice Thickness',
+                                                'Img',
+                                                'Slice Location',
+                                                'Series Description'])
         self.merge_dicom_frames()
         
     def merge_dicom_frames(self):
@@ -178,6 +189,14 @@ class ViewSelectorImage:
 
             all_img_positions = series_rows['Image Position Patient'].values
             same_position = [np.all(all_img_positions[i] == all_img_positions[0]) for i in range(len(all_img_positions))]
+
+            # get basic dicom information
+            patient_id = series_rows['Patient ID'].values[0]
+            filename = series_rows['Filename'].values[0]
+            modality = series_rows['Modality'].values[0]
+            series_instance_uid = series_rows['Series InstanceUID'].values[0]
+            series_description = series_rows['Series Description'].values[0]
+
             if not np.all(same_position):
                 # Find out how many series are merged
                 num_merged_series = len(all_img_positions) // len(np.where(same_position)[0])
@@ -202,22 +221,32 @@ class ViewSelectorImage:
                     img = np.stack(series_rows_split['Img'].values, axis=0)
                     num_phases = img.shape[0]
 
+                    # slice specific dicom information
+                    image_position_patient = series_rows_split['Image Position Patient'].values[0]
+                    image_orientation_patient = series_rows_split['Image Orientation Patient'].values[0]
+                    pixel_spacing = series_rows_split['Pixel Spacing'].values[0]
+
                     # Add to output
-                    output.append([series_rows_split['Patient ID'].values[0], series_rows_split['Filename'].values[0], series_rows_split['Modality'].values[0], series_rows_split['Series ID'].values[0], series_num, series_rows_split['Image Position Patient'].values[0], series_rows_split['Image Orientation Patient'].values[0], series_rows_split['Pixel Spacing'].values[0], img, num_phases, series_rows_split['Series Description'].values[0]])
+                    output.append([patient_id, filename, modality, series_instance_uid, series_num, image_position_patient, image_orientation_patient, pixel_spacing, img, num_phases, series_description])
 
             else: # Just merge rows, no need to split series
                 img = np.stack(series_rows['Img'].values, axis=0)
 
                 num_phases = img.shape[0]
 
+                # slice specific dicom information
+                image_position_patient = series_rows['Image Position Patient'].values[0]
+                image_orientation_patient = series_rows['Image Orientation Patient'].values[0]
+                pixel_spacing = series_rows['Pixel Spacing'].values[0]
+
                 # Add to output
-                output.append([series_rows['Patient ID'].values[0], series_rows['Filename'].values[0], series_rows['Modality'].values[0], series_rows['Series ID'].values[0], series_rows['Series Number'].values[0], series_rows['Image Position Patient'].values[0], series_rows['Image Orientation Patient'].values[0], series_rows['Pixel Spacing'].values[0], img, num_phases, series_rows['Series Description'].values[0]])
+                output.append([patient_id, filename, modality, series_instance_uid, series, image_position_patient, image_orientation_patient, pixel_spacing, img, num_phases, series_description])
  
         # generated pandas dataframe to store information from headers
         self.df = pd.DataFrame(sorted(output), columns=['Patient ID',
                                             'Filename',
                                             'Modality',
-                                            'Series ID',
+                                            'Series InstanceUID',
                                             'Series Number',
                                             'Image Position Patient',
                                             'Image Orientation Patient',
@@ -226,7 +255,7 @@ class ViewSelectorImage:
                                             'Frames Per Slice',
                                             'Series Description'])
     
-class ViewSelectorMetadata: # TODO: Merge with ViewSelector
+class ViewSelectorMetadata: # TODO: Merge with ViewSelectorImage
 
     def __init__(self, src, dst, model_path, csv_path, my_logger):
         self.src = src
@@ -257,6 +286,7 @@ class ViewSelectorMetadata: # TODO: Merge with ViewSelector
         image_dimension = [ds.get('Rows', 'NA'), ds.get('Columns', 'NA')]
         slice_thickness = ds.get('SliceThickness', 'NA')
         slice_location = ds.get('SliceLocation', 'NA')
+        series_description = ds.get('SeriesDescription', 'NA')
 
         # store image data
         try:
@@ -265,7 +295,7 @@ class ViewSelectorMetadata: # TODO: Merge with ViewSelector
             self.my_logger.warning(f"Could not load image data for {dicom_loc}. Might not contain an image.")
             array = None
 
-        return patient_id, dicom_loc, modality, instance_number, series_instance_uid, series_number , tuple(image_position_patient), image_orientation_patient, pixel_spacing, echo_time, repetition_time, trigger_time, image_dimension, slice_thickness, array, slice_location
+        return patient_id, dicom_loc, modality, instance_number, series_instance_uid, series_number , tuple(image_position_patient), image_orientation_patient, pixel_spacing, echo_time, repetition_time, trigger_time, image_dimension, slice_thickness, array, slice_location, series_description
 
     def predict_views(self):
 
@@ -276,6 +306,7 @@ class ViewSelectorMetadata: # TODO: Merge with ViewSelector
             try:
                 output.append(self.get_dicom_header(dicom_loc))
             except:
+                # self.my_logger.warning(f"Could not read {dicom_loc}. Image data may be incompatible.")
                 continue
 
         # generated pandas dataframe to store information from headers
@@ -294,7 +325,8 @@ class ViewSelectorMetadata: # TODO: Merge with ViewSelector
                                                 'Image Dimension',
                                                 'Slice Thickness',
                                                 'image',
-                                                'Slice Location'])
+                                                'Slice Location',
+                                                'Series Description'])
 
         self.sort_dicom_per_series()
         self.predict()

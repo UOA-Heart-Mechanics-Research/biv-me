@@ -7,6 +7,8 @@ from bivme.preprocessing.dicom.src.viewselection import ViewSelectorImage, ViewS
 from bivme.preprocessing.dicom.src.predict_views import predict_views
 from bivme.preprocessing.dicom.src.utils import write_sliceinfofile
 
+CONFIDENCE_THRESHOLD = 0.8
+
 def select_views(patient, src, dst, model, states, option, my_logger):
     if option == 'default':
         # Metadata-based model
@@ -15,14 +17,14 @@ def select_views(patient, src, dst, model, states, option, my_logger):
         my_logger.info('Performing metadata-based view prediction...')
         viewSelectorMetadata = ViewSelectorMetadata(src, dst, metadata_model, csv_path=metadata_csv_path, my_logger=my_logger)
         viewSelectorMetadata.predict_views() 
-        my_logger.info('Metadata-based view prediction complete.')
+        my_logger.success('Metadata-based view prediction complete.')
 
         # Image-based model
         my_logger.info('Performing image-based view prediction...')
         image_csv_path = os.path.join(dst, 'view-classification', 'image_view_predictions.csv')
         viewSelector = ViewSelectorImage(src, dst, model, csv_path=image_csv_path, my_logger=my_logger)
         predict_views(viewSelector)
-        my_logger.info('Image-based view prediction complete.')
+        my_logger.success('Image-based view prediction complete.')
 
         # Combine metadata and image-based predictions
         my_logger.info('Combining metadata and image-based view predictions...')
@@ -39,11 +41,16 @@ def select_views(patient, src, dst, model, states, option, my_logger):
             metadata_broad_pred = refinement_map[metadata_row['Predicted View'].values[0]]
             image_broad_pred = refinement_map[image_row['Predicted View'].values[0]]
 
-            if metadata_broad_pred == image_broad_pred: # If metadata and image-based predictions agree on broad view, use the image-based prediction
-                conf = image_row[f'{image_row["Predicted View"].values[0]} confidence'].values[0]
+            conf = image_row[f'{image_row["Predicted View"].values[0]} confidence'].values[0]
+
+            # Scenario 1: Metadata and image-based predictions agree on broad view. We trust the image-based prediction.
+            if metadata_broad_pred == image_broad_pred:
+                if conf < CONFIDENCE_THRESHOLD:
+                    my_logger.warning(f"Low prediction confidence for series {series} with image based prediction ({image_row['Predicted View'].values[0]}). Metadata-based prediction is {metadata_row['Predicted View'].values[0]}") # TODO: Remove after debugging
                 view_predictions_array.append([series, image_row['Predicted View'].values[0], conf, image_row['Frames Per Slice'].values[0]])
 
-            elif (metadata_broad_pred == 'SAX' and image_broad_pred == 'LAX') or (metadata_broad_pred == 'LAX' and image_broad_pred == 'SAX'): # If metadata-based prediction is SAX and image-based prediction is LAX or vice versa, use the metadata-based prediction to correct the image-based prediction
+            # Scenario 2: Metadata and image-based predictions disagree on broad view. We use the metadata-based prediction to correct the image-based prediction
+            elif (metadata_broad_pred == 'SAX' and image_broad_pred == 'LAX') or (metadata_broad_pred == 'LAX' and image_broad_pred == 'SAX'): 
                 my_logger.info(f'Series {series} metadata and image-based predictions conflict: {metadata_broad_pred} vs {image_broad_pred}. Using metadata-based prediction to correct image-based prediction...') # TODO: Remove after debugging
                 # Zero out the confidence of the incorrect categories
                 confidences = []
@@ -57,10 +64,25 @@ def select_views(patient, src, dst, model, states, option, my_logger):
                 conf = image_row[f'{image_pred} confidence'].values[0]
                 view_predictions_array.append([series, image_pred, conf, image_row['Frames Per Slice'].values[0]])
 
-            else: # Otherwise, use the image-based prediction, but log the conflict
+            # Scenario 3: Metadata and image-based predictions disagree on broad view, and the image-based prediction has low confidence. We trust the metadata-based prediction.
+            elif conf < CONFIDENCE_THRESHOLD: 
+                my_logger.info(f'Low confidence for series {series} with image based prediction ({image_broad_pred}). Using metadata-based prediction ({metadata_broad_pred}) to correct image-based prediction...') # TODO: Remove after debugging
+                # Zero out the confidence of the incorrect categories
+                confidences = []
+                for v in list(refinement_map.keys()):
+                    if refinement_map[v] != metadata_broad_pred:
+                        image_row[f'{v} confidence'] = 0
+                    confidences.append(image_row[f'{v} confidence'].values[0])
+                
+                # Image prediction is the view with the highest confidence remaining
+                image_pred = list(refinement_map.keys())[np.argmax(confidences)]
+                conf = image_row[f'{image_pred} confidence'].values[0]
+                view_predictions_array.append([series, image_pred, conf, image_row['Frames Per Slice'].values[0]])
+
+            # Scenario 4: Metadata and image-based predictions disagree on broad view, but the image-based prediction has high confidence. We trust the image-based prediction.
+            elif conf >= CONFIDENCE_THRESHOLD:
                 my_logger.info(f'Series {series} metadata and image-based predictions conflict: {metadata_broad_pred} vs {image_broad_pred}. Using image-based prediction for now...')
-                conf = image_row[f'{image_row["Predicted View"].values[0]} confidence'].values[0]
-                view_predictions_array.append([series, image_row['Predicted View'].values[0], conf, image_row['Frames Per Slice'].values[0]]) 
+                view_predictions_array.append([series, image_row['Predicted View'].values[0], conf, image_row['Frames Per Slice'].values[0]])
                 
         view_predictions = pd.DataFrame(view_predictions_array, columns=['Series Number', 'Predicted View', 'Confidence', 'Frames Per Slice'])
         csv_path = os.path.join(dst, 'view-classification', 'view_predictions.csv')
@@ -115,7 +137,7 @@ def select_views(patient, src, dst, model, states, option, my_logger):
 
             view_predictions.loc[view_predictions['Series Number'].isin(repeated_series_num[idx_to_exclude]), 'Predicted View'] = 'Excluded'
 
-            my_logger.info(f'Excluded series {repeated_series_num[idx_to_exclude]} as they exist at the same slice location as another series.')
+            my_logger.info(f'Excluded series {repeated_series_num[idx_to_exclude]} as they exist at the same slice location as another series.') # TODO: Log which series
     
         # Type 2 - Multiple series classed as the same 'exclusive' view (i.e. 2ch, 3ch, 4ch, RVOT, RVOT-T, 2ch-RT, RVOT-T, LVOT) 
         # i.e. a view that should only have one series 
