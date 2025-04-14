@@ -134,7 +134,7 @@ def select_views(patient, src, dst, model, states, option, my_logger):
             # Scenario 3: Metadata and image-based predictions disagree on view type, and the image-based prediction has low confidence. We use the metadata-based prediction.
             elif conf < CONFIDENCE_THRESHOLD:
                 if metadata_pred_type == 'SAX': # Metadata model performs poorly distinguishing between SAX type views, so we use to it correct the image-based model instead
-                    my_logger.warning(f'Low confidence for series {series} with image based prediction: {image_pred} ({image_pred_type}). Using metadata-based prediction to correct to a SAX type view...') # TODO: Remove after debugging
+                    my_logger.warning(f'Low confidence for series {series} with image based prediction: {image_pred} ({image_pred_type}). Using metadata-based prediction ({metadata_pred}) to correct to a SAX type view...') # TODO: Remove after debugging
                     # Zero out the confidence of the incorrect categories
                     confidences = []
                     for v in list(refinement_map.keys()):
@@ -183,6 +183,63 @@ def select_views(patient, src, dst, model, states, option, my_logger):
                 my_logger.warning(f"Series {row['Series Number']} has a mismatching number of phases ({row['Frames Per Slice']} vs {num_phases}).")
 
         view_predictions = handle_duplicates(view_predictions, viewSelector, my_logger) # If duplicate slices are found, choose which ones to keep based on quality (approximated by confidence in prediction)
+
+        # Print summary to log
+        my_logger.success(f'View predictions for {patient}:')
+        for view in view_predictions['Predicted View'].unique():
+            my_logger.info(f'{view}: {len(view_predictions[view_predictions["Predicted View"] == view])} series')
+
+        # Sort by series number
+        view_predictions = view_predictions.sort_values('Series Number')
+
+        # Write view predictions to csv
+        view_predictions.to_csv(csv_path, mode='w', index=False)
+
+        # Save to states folder
+        states_path = os.path.join(states, 'view_predictions.csv')
+        view_predictions.to_csv(states_path, mode='w', index=False)
+
+        # Write pngs into respective view folders
+        viewSelector.write_sorted_pngs()
+
+    elif option == 'metadata-only':
+        # Metadata-based model
+        csv_path = os.path.join(dst, 'view-classification', 'view_predictions.csv')
+        my_logger.info('Performing metadata-based view prediction...')
+        viewSelector = ViewSelector(src, dst, model, type='metadata', csv_path=csv_path, my_logger=my_logger)
+        predict_views(viewSelector)
+        my_logger.success('Metadata-based view prediction complete.')
+
+        view_predictions = pd.read_csv(csv_path)
+        
+        # Restucture dataframe
+        all_series = view_predictions['Series Number'].values
+        view_predictions_array = []                                                                               
+        for series in all_series:
+            image_row = view_predictions[view_predictions['Series Number'] == series]
+            image_pred = image_row['Predicted View'].values[0]
+
+            # Metadata-based model does not have confidence or vote share, so set to arbitrary (equal) values. Let's say 0 for now
+            conf = 0
+            vote_share = 0
+
+            view_predictions_array.append([series, image_pred, vote_share, conf, image_row['Frames Per Slice'].values[0]])
+
+        view_predictions = pd.DataFrame(view_predictions_array, columns=['Series Number', 'Predicted View', 'Vote Share', 'Confidence', 'Frames Per Slice'])
+
+        ## Flag any slices with non-matching number of phases
+        # Use the SAX series as the reference for the 'right' number of phases
+        try:
+            sax_series = view_predictions[view_predictions['Predicted View'] == 'SAX'] 
+            num_phases = statistics.mode(sax_series['Frames Per Slice'].values)
+        except statistics.StatisticsError: # If no mode found (i.e. two values with equally similar counts), use median
+            num_phases = np.median(sax_series['Frames Per Slice'].values)
+        
+        for i, row in viewSelector.df.iterrows():
+            if row['Frames Per Slice'] != num_phases:
+                my_logger.warning(f"Series {row['Series Number']} has a mismatching number of phases ({row['Frames Per Slice']} vs {num_phases}).")
+
+        view_predictions = handle_duplicates(view_predictions, viewSelector, my_logger) # If duplicate slices are found, choose which ones to keep based on which was more recently acquired (higher series number) as confidence is not available for metadata-based model
 
         # Print summary to log
         my_logger.success(f'View predictions for {patient}:')
@@ -256,7 +313,6 @@ def select_views(patient, src, dst, model, states, option, my_logger):
 
         # Write pngs into respective view folders
         viewSelector.write_sorted_pngs()
-
     
     elif option == 'load':
         my_logger.info('Loading view predictions from states folder...')
@@ -292,7 +348,7 @@ def select_views(patient, src, dst, model, states, option, my_logger):
         view_predictions.to_csv(os.path.join(dst, 'view-classification', 'view_predictions.csv'), mode='w', index=False)
 
     else:
-        raise ValueError('Invalid option. Please use "default", "image-only", or "load".')
+        raise ValueError('Invalid option. Please use "default", "metadata-only", "image-only", or "load".')
 
     out = []
     for i, row in view_predictions.iterrows():

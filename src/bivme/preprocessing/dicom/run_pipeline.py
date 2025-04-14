@@ -121,7 +121,7 @@ if __name__ == "__main__":
     plotting = os.path.join(config["output"]["plotting_directory"], batch_ID)
     os.makedirs(plotting, exist_ok=True)
 
-    option = config["view-classification"]["option"]
+    option = config["view-selection"]["option"]
     version = config["segmentation"]["version"]
 
     # Define list of cases to process

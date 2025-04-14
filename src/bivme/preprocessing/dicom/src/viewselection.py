@@ -30,43 +30,43 @@ class ViewSelector:
         dir_view_classification = os.path.join(self.dst, 'view-classification')
         os.makedirs(dir_view_classification, exist_ok=True)
 
+        # Write images to png
+        dir_unsorted = os.path.join(dir_view_classification, 'unsorted')
+        
+        if not os.path.exists(dir_unsorted):
+            os.makedirs(dir_unsorted)
+        else: 
+            # Clear directory
+            for file in os.listdir(dir_unsorted):
+                os.remove(os.path.join(dir_unsorted, file))
+
+        # Generate dummy annotations file
+        annotations = []
+
+        for i, row in self.df.iterrows():
+            img = row['Img']
+            for frame in range(img.shape[0]):
+                img_data = img[frame, :, :]
+
+                # Transpose
+                img_data = np.transpose(img_data)
+                
+                # Cast to uint8
+                # Remap to 0-255
+                img_data = img_data - np.min(img_data)
+                img_data = img_data / np.max(img_data) * 255
+                img_data = img_data.astype(np.uint8)
+
+                img_data = np.stack((img_data,)*3, axis=-1)
+
+                # Save as png
+                img_data = Image.fromarray(img_data)
+                save_path = os.path.join(dir_unsorted, f'{row["Series Number"]}_{frame}.png')
+                img_data.save(save_path)
+        
+                annotations.append([os.path.basename(save_path), 0])
+        
         if self.type == "image":
-            # Write images to png
-            dir_unsorted = os.path.join(dir_view_classification, 'unsorted')
-            
-            if not os.path.exists(dir_unsorted):
-                os.makedirs(dir_unsorted)
-            else: 
-                # Clear directory
-                for file in os.listdir(dir_unsorted):
-                    os.remove(os.path.join(dir_unsorted, file))
-
-            # Generate dummy annotations file
-            annotations = []
-
-            for i, row in self.df.iterrows():
-                img = row['Img']
-                for frame in range(img.shape[0]):
-                    img_data = img[frame, :, :]
-
-                    # Transpose
-                    img_data = np.transpose(img_data)
-                    
-                    # Cast to uint8
-                    # Remap to 0-255
-                    img_data = img_data - np.min(img_data)
-                    img_data = img_data / np.max(img_data) * 255
-                    img_data = img_data.astype(np.uint8)
-
-                    img_data = np.stack((img_data,)*3, axis=-1)
-
-                    # Save as png
-                    img_data = Image.fromarray(img_data)
-                    save_path = os.path.join(dir_unsorted, f'{row["Series Number"]}_{frame}.png')
-                    img_data.save(save_path)
-            
-                    annotations.append([os.path.basename(save_path), 0])
-            
             # Write dummy annotations to file
             test_annotations = os.path.join(dir_view_classification, 'test_annotations.csv')
             test_annotations_df = pd.DataFrame(annotations, columns=['image_name', 'view'])
