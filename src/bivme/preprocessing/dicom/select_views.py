@@ -10,6 +10,67 @@ from bivme.preprocessing.dicom.src.utils import write_sliceinfofile
 CONFIDENCE_THRESHOLD = 0.75  # Modify this to change the confidence threshold for view selection. If metadata and image-based predictions disagree, the image-based prediction will be used if its confidence is above this threshold. 
                             # Otherwise, the metadata-based prediction will be used.
 
+def handle_duplicates(view_predictions, viewSelector, my_logger):
+    ## Remove duplicates
+    # Type 1 - Same location, different series
+    slice_locations = [] # Only consider slices not already excluded
+    idx = []
+    # Loop over view predictions
+    for i, row in view_predictions.iterrows():
+        if row['Predicted View'] == 'Excluded':
+            continue
+        slice_locations.append(viewSelector.df[viewSelector.df['Series Number'] == row['Series Number']]['Image Position Patient'].values[0])
+        # Index should be the same as the row index in viewSelector.df
+        index = viewSelector.df[viewSelector.df['Series Number'] == row['Series Number']].index[0]
+        idx.append(index)
+
+    repeated_slice_locations = [x for x in slice_locations if slice_locations.count(x) > 1]
+    idx = [index for i,index in enumerate(idx) if slice_locations[i] in repeated_slice_locations]
+
+    # Find repeated slice locations
+    if len(idx) == 0:
+        # my_logger.info('No duplicate slice locations found.')
+        pass
+    else:
+        repeated_series = viewSelector.df.iloc[idx]
+        repeated_series_num = repeated_series['Series Number'].values
+        # Order by series number, so that if that if two series have the same Confidence, the higher series number is retained
+        repeated_series_num = sorted(repeated_series_num, reverse=True)
+        repeated_series_num = np.array(repeated_series_num)
+
+        # Retain only the series with the highest Confidence, convert the rest to 'Excluded'
+        confidences = [view_predictions[view_predictions['Series Number'] == x]['Confidence'].values[0] for x in repeated_series_num]
+
+        idx_max = np.argmax(confidences)
+        idx_to_exclude = [i for i in range(len(repeated_series_num)) if i != idx_max]
+
+        view_predictions.loc[view_predictions['Series Number'].isin(repeated_series_num[idx_to_exclude]), 'Predicted View'] = 'Excluded'
+
+        my_logger.info(f'Excluded series {repeated_series_num[idx_to_exclude]} as they exist at the same slice location as another series.') # TODO: Log which series
+
+    # Type 2 - Multiple series classed as the same 'exclusive' view (i.e. 2ch, 3ch, 4ch, RVOT, RVOT-T, 2ch-RT, LVOT) 
+    # i.e. a view that should only have one series 
+    exclusive_views = ['2ch', '3ch', '4ch', 'RVOT', 'RVOT-T', '2ch-RT', 'LVOT']
+    for view in exclusive_views:
+        series = view_predictions[view_predictions['Predicted View'] == view]
+        series_nums = series['Series Number'].values
+        # Order by series number, so that if that if two series have the same Confidence, the higher series number is retained
+        series_nums = sorted(series_nums, reverse=True)
+        series_nums = np.array(series_nums)
+
+        if len(series) > 1:
+            my_logger.info(f'Multiple series classed as {view} ({series_nums}).')
+
+            confidences = [view_predictions[view_predictions['Series Number'] == x]['Confidence'].values[0] for x in series_nums]
+
+            idx_max = np.argmax(confidences)
+            idx_to_exclude = [i for i in range(len(series)) if i != idx_max]
+            view_predictions.loc[view_predictions['Series Number'].isin(series_nums[idx_to_exclude]), 'Predicted View'] = 'Excluded'
+
+            my_logger.info(f'Excluded series {series_nums[idx_to_exclude]}')
+
+    return view_predictions
+
 def select_views(patient, src, dst, model, states, option, my_logger):
     if option == 'default':
         # Metadata-based model
@@ -102,8 +163,8 @@ def select_views(patient, src, dst, model, states, option, my_logger):
         view_predictions = pd.DataFrame(view_predictions_array, columns=['Series Number', 'Predicted View', 'Vote Share', 'Confidence', 'Frames Per Slice'])
         csv_path = os.path.join(dst, 'view-classification', 'view_predictions.csv')
 
-        # os.remove(metadata_csv_path)
-        # os.remove(image_csv_path)
+        os.remove(metadata_csv_path)
+        os.remove(image_csv_path)
         
         # Rename for simplicity
         viewSelector = viewSelectorImage
@@ -121,63 +182,7 @@ def select_views(patient, src, dst, model, states, option, my_logger):
             if row['Frames Per Slice'] != num_phases:
                 my_logger.warning(f"Series {row['Series Number']} has a mismatching number of phases ({row['Frames Per Slice']} vs {num_phases}).")
 
-        ## Remove duplicates
-        # Type 1 - Same location, different series
-        slice_locations = [] # Only consider slices not already excluded
-        idx = []
-        # Loop over view predictions
-        for i, row in view_predictions.iterrows():
-            if row['Predicted View'] == 'Excluded':
-                continue
-            slice_locations.append(viewSelector.df[viewSelector.df['Series Number'] == row['Series Number']]['Image Position Patient'].values[0])
-            # Index should be the same as the row index in viewSelector.df
-            index = viewSelector.df[viewSelector.df['Series Number'] == row['Series Number']].index[0]
-            idx.append(index)
-
-        repeated_slice_locations = [x for x in slice_locations if slice_locations.count(x) > 1]
-        idx = [index for i,index in enumerate(idx) if slice_locations[i] in repeated_slice_locations]
-
-        # Find repeated slice locations
-        if len(idx) == 0:
-            # my_logger.info('No duplicate slice locations found.')
-            pass
-        else:
-            repeated_series = viewSelector.df.iloc[idx]
-            repeated_series_num = repeated_series['Series Number'].values
-            # Order by series number, so that if that if two series have the same Confidence, the higher series number is retained
-            repeated_series_num = sorted(repeated_series_num, reverse=True)
-            repeated_series_num = np.array(repeated_series_num)
-
-            # Retain only the series with the highest Confidence, convert the rest to 'Excluded'
-            confidences = [view_predictions[view_predictions['Series Number'] == x]['Confidence'].values[0] for x in repeated_series_num]
-
-            idx_max = np.argmax(confidences)
-            idx_to_exclude = [i for i in range(len(repeated_series_num)) if i != idx_max]
-
-            view_predictions.loc[view_predictions['Series Number'].isin(repeated_series_num[idx_to_exclude]), 'Predicted View'] = 'Excluded'
-
-            my_logger.info(f'Excluded series {repeated_series_num[idx_to_exclude]} as they exist at the same slice location as another series.') # TODO: Log which series
-    
-        # Type 2 - Multiple series classed as the same 'exclusive' view (i.e. 2ch, 3ch, 4ch, RVOT, RVOT-T, 2ch-RT, LVOT) 
-        # i.e. a view that should only have one series 
-        exclusive_views = ['2ch', '3ch', '4ch', 'RVOT', 'RVOT-T', '2ch-RT', 'LVOT']
-        for view in exclusive_views:
-            series = view_predictions[view_predictions['Predicted View'] == view]
-            series_nums = series['Series Number'].values
-            # Order by series number, so that if that if two series have the same Confidence, the higher series number is retained
-            series_nums = sorted(series_nums, reverse=True)
-            series_nums = np.array(series_nums)
-
-            if len(series) > 1:
-                my_logger.info(f'Multiple series classed as {view} ({series_nums}).')
-
-                confidences = [view_predictions[view_predictions['Series Number'] == x]['Confidence'].values[0] for x in series_nums]
-
-                idx_max = np.argmax(confidences)
-                idx_to_exclude = [i for i in range(len(series)) if i != idx_max]
-                view_predictions.loc[view_predictions['Series Number'].isin(series_nums[idx_to_exclude]), 'Predicted View'] = 'Excluded'
-
-                my_logger.info(f'Excluded series {series_nums[idx_to_exclude]}')
+        view_predictions = handle_duplicates(view_predictions, viewSelector, my_logger) # If duplicate slices are found, choose which ones to keep based on quality (approximated by confidence in prediction)
 
         # Print summary to log
         my_logger.success(f'View predictions for {patient}:')
@@ -196,14 +201,70 @@ def select_views(patient, src, dst, model, states, option, my_logger):
 
         # Write pngs into respective view folders
         viewSelector.write_sorted_pngs()
+
+    elif option == 'image-only':
+        # Image-based model
+        my_logger.info('Performing image-based view prediction...')
+        csv_path = os.path.join(dst, 'view-classification', 'view_predictions.csv')
+        viewSelector = ViewSelector(src, dst, model, type='image', csv_path=csv_path, my_logger=my_logger)
+        predict_views(viewSelector)
+        my_logger.success('Image-based view prediction complete.')
+
+        view_predictions = pd.read_csv(csv_path)
+        
+        # Restucture dataframe
+        all_series = view_predictions['Series Number'].values
+        view_predictions_array = []                                                                               
+        for series in all_series:
+            image_row = view_predictions[view_predictions['Series Number'] == series]
+            image_pred = image_row['Predicted View'].values[0]
+
+            conf = image_row[f'{image_row["Predicted View"].values[0]} confidence'].values[0]
+            vote_share = image_row['Vote Share'].values[0]
+
+            view_predictions_array.append([series, image_pred, vote_share, conf, image_row['Frames Per Slice'].values[0]])
+        view_predictions = pd.DataFrame(view_predictions_array, columns=['Series Number', 'Predicted View', 'Vote Share', 'Confidence', 'Frames Per Slice'])
+
+        ## Flag any slices with non-matching number of phases
+        # Use the SAX series as the reference for the 'right' number of phases
+        try:
+            sax_series = view_predictions[view_predictions['Predicted View'] == 'SAX'] 
+            num_phases = statistics.mode(sax_series['Frames Per Slice'].values)
+        except statistics.StatisticsError: # If no mode found (i.e. two values with equally similar counts), use median
+            num_phases = np.median(sax_series['Frames Per Slice'].values)
+        
+        for i, row in viewSelector.df.iterrows():
+            if row['Frames Per Slice'] != num_phases:
+                my_logger.warning(f"Series {row['Series Number']} has a mismatching number of phases ({row['Frames Per Slice']} vs {num_phases}).")
+
+        view_predictions = handle_duplicates(view_predictions, viewSelector, my_logger) # If duplicate slices are found, choose which ones to keep based on quality (approximated by confidence in prediction)
+
+        # Print summary to log
+        my_logger.success(f'View predictions for {patient}:')
+        for view in view_predictions['Predicted View'].unique():
+            my_logger.info(f'{view}: {len(view_predictions[view_predictions["Predicted View"] == view])} series')
+
+        # Sort by series number
+        view_predictions = view_predictions.sort_values('Series Number')
+
+        # Write view predictions to csv
+        view_predictions.to_csv(csv_path, mode='w', index=False)
+
+        # Save to states folder
+        states_path = os.path.join(states, 'view_predictions.csv')
+        view_predictions.to_csv(states_path, mode='w', index=False)
+
+        # Write pngs into respective view folders
+        viewSelector.write_sorted_pngs()
+
     
     elif option == 'load':
         my_logger.info('Loading view predictions from states folder...')
 
         csv_path = os.path.join(states, 'view_predictions.csv')
         if not os.path.exists(csv_path):
-            my_logger.error(f'View predictions not found at {csv_path}. Please run view selection with option="default" first.')
-            raise FileNotFoundError(f'View predictions not found at {csv_path}. Please run view selection with option="default" first.')
+            my_logger.error(f'View predictions not found at {csv_path}. Please run view selection with option="default" or "image-only" first.')
+            raise FileNotFoundError(f'View predictions not found at {csv_path}. Please run view selection with option="default" or "image-only" first.')
         
         view_predictions = pd.read_csv(csv_path)
 
@@ -229,7 +290,10 @@ def select_views(patient, src, dst, model, states, option, my_logger):
 
         # Write csv to dst
         view_predictions.to_csv(os.path.join(dst, 'view-classification', 'view_predictions.csv'), mode='w', index=False)
-        
+
+    else:
+        raise ValueError('Invalid option. Please use "default", "image-only", or "load".')
+
     out = []
     for i, row in view_predictions.iterrows():
         # Get row of viewSelector.df
