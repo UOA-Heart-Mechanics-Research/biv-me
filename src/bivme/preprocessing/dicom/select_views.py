@@ -207,7 +207,7 @@ def select_views(patient, src, dst, model, states, option, my_logger):
         
         view_predictions = pd.read_csv(csv_path)
 
-        viewSelector = ViewSelector(src, dst, model, csv_path=csv_path, my_logger=my_logger)
+        viewSelector = ViewSelector(src, dst, model, type='image', csv_path=csv_path, my_logger=my_logger)
         viewSelector.load_predictions()
 
         ## Flag any slices with non-matching number of phases

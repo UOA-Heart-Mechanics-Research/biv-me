@@ -21,7 +21,7 @@ def test_viewselection(): # This test checks whether the dicom-png conversion an
 
     os.makedirs(test_dst, exist_ok=True)
 
-    viewSelector = ViewSelector(test_src, test_dst, test_model, csv_path=test_csv_path, my_logger=logger)
+    viewSelector = ViewSelector(test_src, test_dst, test_model, type='image', csv_path=test_csv_path, my_logger=logger)
     viewSelector.prepare_data_for_prediction()
 
     reference_root = os.path.join(TEST_RESOURCE_DIR, 'viewselection_data', 'reference-pngs', 'patient1', 'unsorted')
