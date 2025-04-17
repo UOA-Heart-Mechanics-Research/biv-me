@@ -121,7 +121,8 @@ def predict_on_metadata(vs):
         y_pred = metadata_model.predict(scaled_predictors)
         predicted_view = view_class_map[y_pred[0]]     
 
-        output_dataframe.append([ds.SeriesNumber, predicted_view, 1, len(dcm)])
+        series_num = ids.split('_')[0]
+        output_dataframe.append([series_num, predicted_view, 1, len(dcm)])
 
     # Save to csv
     output_df = pd.DataFrame(output_dataframe, columns=['Series Number', 'Predicted View', 'Confidence', 'Frames Per Slice'])

@@ -139,7 +139,6 @@ class ViewSelector:
             for file in files:
                 if ".dcm" in file: 
                     unsorted_list.append(os.path.join(root, file))
-
         output = []
         for dicom_loc in unsorted_list:
             try:
@@ -181,6 +180,8 @@ class ViewSelector:
         if self.type == "metadata":
             os.makedirs(os.path.join(self.dst, 'view-classification', 'temp'), exist_ok=True)
 
+        max_series_num = self.df['Series Number'].max()
+
         for _, row in unique_series.iterrows():
             series = row['Series Number']
             series_rows = self.df.loc[(self.df['Series Number'] == series)]
@@ -206,8 +207,6 @@ class ViewSelector:
                 unique_image_positions = [all_img_positions[i] for i in idx_split]
 
                 self.my_logger.info(f"Series {series} contains {num_merged_series} merged series. Splitting...")
-
-                max_series_num = self.df['Series Number'].max()
 
                 self.my_logger.info(f"New 'synthetic' series will range from: {max_series_num+1} to {max_series_num+num_merged_series}")
                 
@@ -244,6 +243,9 @@ class ViewSelector:
                             count += 1
 
                         self.sorted_dict[key] = series_rows_split
+                        
+                # Update max series number
+                max_series_num += num_merged_series
 
             else:
                 series_rows = series_rows.sort_values('Trigger Time')

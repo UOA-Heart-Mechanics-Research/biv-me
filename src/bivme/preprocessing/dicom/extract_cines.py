@@ -5,7 +5,7 @@ import pydicom
 INCLUSION_TERMS = [''] # include only series that have any one of these terms in the description
 EXCLUSION_TERMS = ['loc', 'molli', 't1', 't2', 'dense', 'scout', 'grid', 'flow', 'fl2d',
                    'single shot', 'report', 'document', 'segmentation', 'result', 'mapping', 'mag', 'psir', 'suiteheart',
-                   'axial fb', 'cas'] # exclude series with any one of these terms in the description
+                   'axial', 'coronal', 'transverse', 'cas', 'survey', 'nav'] # exclude series with any one of these terms in the description
 
 def extract_cines(src, dst, my_logger):
     # This function is used to preprocess the DICOM files before running the pipeline. 

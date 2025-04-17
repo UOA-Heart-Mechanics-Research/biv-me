@@ -163,8 +163,8 @@ def select_views(patient, src, dst, model, states, option, my_logger):
         view_predictions = pd.DataFrame(view_predictions_array, columns=['Series Number', 'Predicted View', 'Vote Share', 'Confidence', 'Frames Per Slice'])
         csv_path = os.path.join(dst, 'view-classification', 'view_predictions.csv')
 
-        os.remove(metadata_csv_path)
-        os.remove(image_csv_path)
+        # os.remove(metadata_csv_path)
+        # os.remove(image_csv_path)
         
         # Rename for simplicity
         viewSelector = viewSelectorImage
