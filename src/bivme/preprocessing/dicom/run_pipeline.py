@@ -64,7 +64,7 @@ def run_pipeline(case, case_src, case_dst, model, states, option, version, outpu
 
 if __name__ == "__main__":
     # Parse arguments
-    parser = argparse.ArgumentParser(description='Preprocess DICOM files for fitting')
+    parser = argparse.ArgumentParser(description='Preprocess CMR DICOM files for fitting')
     parser.add_argument('-config', '--config_file', type=str,
                         help='Config file containing preprocessing parameters', default='configs/preprocess_config.toml')
     args = parser.parse_args()
@@ -89,7 +89,7 @@ if __name__ == "__main__":
                       "processing": str(),
                       "states": str()
                       },
-            "view-classification": {"option": str()},
+            "view-selection": {"option": str()},
             "segmentation": {"version": str()},
             "output": {"output_directory": str(), "plotting_directory": str(), "overwrite": bool()},
         }:
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     plotting = os.path.join(config["output"]["plotting_directory"], batch_ID)
     os.makedirs(plotting, exist_ok=True)
 
-    option = config["view-classification"]["option"]
+    option = config["view-selection"]["option"]
     version = config["segmentation"]["version"]
 
     # Define list of cases to process

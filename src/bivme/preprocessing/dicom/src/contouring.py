@@ -187,6 +187,10 @@ def contour_SAX(segmentation):
         if len(pairs) > 0:
             RV_epi_pts = np.array([pnt.tolist() for i, pnt in enumerate(RV_epi_pts) if i not in np.unique(pairs[:,0])], 
                                 dtype=np.int64)
+            
+    # If there are no lv endo points, remove the lv epi points
+    if len(LV_endo_pts) == 0:
+        LV_epi_pts = []
                 
     return [LV_endo_pts, LV_epi_pts, RV_septal_pts, RV_fw_pts, RV_epi_pts]
 
