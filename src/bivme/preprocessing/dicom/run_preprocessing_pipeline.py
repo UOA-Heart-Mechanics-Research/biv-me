@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import sys
 import torch
 import shutil
@@ -21,7 +22,7 @@ from bivme.preprocessing.dicom.export_guidepoints import export_guidepoints
 from bivme.plotting.plot_guidepoints import generate_html # for plotting guidepoints
 
 
-def run_pipeline(case, case_src, case_dst, model, states, option, version, output, plotting, my_logger):
+def run_preprocessing_pipeline(case, case_src, case_dst, model, states, option, version, output, plotting, my_logger):
     start_time = time.time()
     ## Step 0: Pre-preprocessing
     my_logger.info(f'Finding cines...')
@@ -62,64 +63,31 @@ def run_pipeline(case, case_src, case_dst, model, states, option, version, outpu
 
     logger.info(f'Guidepoints plotted and saved in {plotting}.')
 
-if __name__ == "__main__":
-    # Parse arguments
-    parser = argparse.ArgumentParser(description='Preprocess CMR DICOM files for fitting')
-    parser.add_argument('-config', '--config_file', type=str,
-                        help='Config file containing preprocessing parameters', default='configs/preprocess_config.toml')
-    args = parser.parse_args()
-
-    from pathlib import Path
+def preprocess_cases(config, mylogger):
     # Path: src/bivme/preprocessing/dicom/models
     MODEL_DIR = Path(os.path.dirname(__file__)) / 'models'
 
-    # Load config
-    assert Path(args.config_file).exists(), \
-        f'Cannot not find {args.config_file}!'
-    with open(args.config_file, mode="rb") as fp:
-        logger.info(f'Loading config file: {args.config_file}')
-        config = tomli.load(fp)
-
-    # TOML Schema Validation
-    match config:
-        case {
-            "input": {"source": str(),
-                      "batch_ID": str(),
-                      "analyst_id": str(),
-                      "processing": str(),
-                      "states": str()
-                      },
-            "view-selection": {"option": str()},
-            "segmentation": {"version": str()},
-            "output": {"output_directory": str(), "plotting_directory": str(), "overwrite": bool()},
-        }:
-            pass
-        case _:
-            raise ValueError(f"Invalid configuration: {config}")
-
     # Unpack config
-    src = config["input"]["source"]
+    src = config["input_pp"]["source"]
 
     assert os.path.exists(src), \
         f'DICOM folder does not exist! Make sure to add the correct directory under "source" in the config file.'
 
+    batch_ID = config["input_pp"]["batch_ID"]
+    analyst_id = config["input_pp"]["analyst_id"]
 
-    batch_ID = config["input"]["batch_ID"]
-    analyst_id = config["input"]["analyst_id"]
-
-    dst = os.path.join(config["input"]["processing"], batch_ID)
+    dst = os.path.join(config["input_pp"]["processing"], batch_ID)
     os.makedirs(dst, exist_ok=True)
 
-    states = os.path.join(config["input"]["states"], batch_ID)
+    states = os.path.join(config["input_pp"]["states"], batch_ID)
     os.makedirs(states, exist_ok=True)
 
-    overwrite = config["output"]["overwrite"]
+    overwrite = config["output_pp"]["overwrite"]
 
-    output = os.path.join(config["output"]["output_directory"], batch_ID)
+    output = os.path.join(config["output_pp"]["output_directory"], batch_ID)
     os.makedirs(output, exist_ok=True)
 
-    plotting = os.path.join(config["output"]["plotting_directory"], batch_ID)
-    os.makedirs(plotting, exist_ok=True)
+    plotting = dst # save the plotted htmls in processed directory
 
     option = config["view-selection"]["option"]
     version = config["segmentation"]["version"]
@@ -127,43 +95,43 @@ if __name__ == "__main__":
     # Define list of cases to process
     caselist = os.listdir(src)
 
+    mylogger.info(f'{len(caselist)} case(s) found.')
+
     # Set up logging
     log_level = "DEBUG"
     log_format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS zz}</green> | <level>{level: <8}</level> | <yellow>Line {line: >4} ({file}):</yellow> <b>{message}</b>"
 
-    logger.info(f'{len(caselist)} case(s) found.')
-
     # Check if GPU is available (torch)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logger.info(f'Using device: {device}')
+    mylogger.info(f'Using device: {device}')
 
     try:
         for i, case in enumerate(caselist):
-            logger.info(f'Processing case: {i+1}/{len(caselist)}')
+            mylogger.info(f'Processing case: {i+1}/{len(caselist)}')
             case_src = os.path.join(src, case)
             case_dst = os.path.join(dst, case)
             case_states = os.path.join(states, case, analyst_id)
             os.makedirs(case_states, exist_ok=True)
 
-            logger_id = logger.add(f'{case_states}/log_file_{datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.log', level=log_level, format=log_format,
+            logger_id = mylogger.add(f'{case_states}/log_file_{datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.log', level=log_level, format=log_format,
                 colorize=False, backtrace=True,
                 diagnose=True)
 
             if os.path.exists(case_dst):
                 if overwrite:
-                    logger.info(f'Overwriting case: {case}')
+                    mylogger.info(f'Overwriting case: {case}')
                     shutil.rmtree(case_dst)
                 else:
-                    logger.info(f'Skipping already processed case: {case}')
+                    mylogger.info(f'Skipping already processed case: {case}')
                     continue
                     
-            logger.info(f'Processing case: {case}')
+            mylogger.info(f'Processing case: {case}')
 
-            run_pipeline(case, case_src, case_dst, MODEL_DIR, case_states, option, version, output, plotting, logger)
+            run_preprocessing_pipeline(case, case_src, case_dst, MODEL_DIR, case_states, option, version, output, plotting, mylogger)
 
-            logger.remove(logger_id)
+            mylogger.remove(logger_id)
 
     except KeyboardInterrupt:
-        logger.info(f"Program interrupted by the user")
+        mylogger.info(f"Program interrupted by the user")
         sys.exit(0)
 
