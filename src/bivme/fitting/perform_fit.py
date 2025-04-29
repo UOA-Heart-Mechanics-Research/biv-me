@@ -459,25 +459,14 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
         return residuals
     except KeyboardInterrupt:
         return -1
-
-def fit_cases(config, mylogger):
+    
+def validate_config(config, mylogger):
     assert Path(config["input_fitting"]["gp_directory"]).exists(), \
         f'gp_directory does not exist. Cannot find {config["input_fitting"]["gp_directory"]}!'
 
-    # set list of cases to process
-    case_list = os.listdir(config["input_fitting"]["gp_directory"])
-    case_dirs = [Path(config["input_fitting"]["gp_directory"], case).as_posix() for case in case_list]
-
-    if not config["output_fitting"]["show_logging"]:
-        mylogger.remove()
-
-    # set up logging
-    log_level = "DEBUG"
-    log_format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS zz}</green> | <level>{level: <8}</level> | <yellow>Line {line: >4} ({file}):</yellow> <b>{message}</b>"
-
-    mylogger.info(f"Found {len(case_dirs)} cases to fit.")
-    # start processing...
-    start_time = time.time()
+    if not (config["breathhold_correction"]["shifting"] == "derived_from_ed" or config["breathhold_correction"]["shifting"] == "average_all_frames" or config["breathhold_correction"]["shifting"] == "none"):
+        mylogger.error(f'argument shifting must be derived_from_ed, average_all_frames or none. {config["breathhold_correction"]["shifting"]} given.')
+        sys.exit(0)
 
     if not (config["output_fitting"]["mesh_format"].endswith('.obj') or config["output_fitting"]["mesh_format"].endswith('.vtk') or config["output_fitting"]["mesh_format"] == 'none'):
         mylogger.error(f'argument mesh_format must be .obj, .vtk or none. {config["output_fitting"]["mesh_format"]} given.')
@@ -488,31 +477,14 @@ def fit_cases(config, mylogger):
             mylogger.error(f'argument output_meshes invalid. {mesh} given. Allowed values are "LV_ENDOCARDIAL", "RV_ENDOCARDIAL", "EPICARDIAL"')
             sys.exit(0)
 
-    try:
-        for case in case_dirs:
-            mylogger.info(f"Processing {os.path.basename(case)}")
-            if config["output_fitting"]["generate_log_file"]:
-                logger_id = mylogger.add(f'{config["output_fitting"]["output_directory"]}/{os.path.basename(case)}/log_file_{datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.log', level=log_level, format=log_format,
-                                            colorize=False, backtrace=True,
-                                            diagnose=True)
+    if not (config["output_fitting"]["mesh_format"].endswith('.obj') or config["output_fitting"]["mesh_format"].endswith('.vtk') or config["output_fitting"]["mesh_format"] == 'none'):
+        mylogger.error(f'argument mesh_format must be .obj, .vtk or none. {config["output_fitting"]["mesh_format"]} given.')
+        sys.exit(0)
 
-            if not config["output_fitting"]["overwrite"]:
-                rule = re.compile(fnmatch.translate(f"{os.path.basename(case)}_model_frame*.txt"), re.IGNORECASE)
-                case_folder = os.path.join(config["output_fitting"]["output_directory"], os.path.basename(case))
-                cases = [name for name in os.listdir(Path(case_folder)) if rule.match(name)]
-                if len(cases) > 0:
-                    logger.info("Folder already exists for this case. Proceeding to next case")
-                    continue
+    if not (config["output_fitting"]["closed_mesh"] == True or config["output_fitting"]["closed_mesh"] == False):
+        mylogger.error(f'argument closed_mesh must be true or false. {config["output_fitting"]["closed_mesh"]} given.')
+        sys.exit(0)
 
-            residuals = perform_fitting(case, config, out_dir=config["output_fitting"]["output_directory"], gp_suffix=config["input_fitting"]["gp_suffix"], si_suffix=config["input_fitting"]["si_suffix"],
-                            frames_to_fit=[], output_format=config["output_fitting"]["mesh_format"], logger=logger)
-            mylogger.info(f"Average residuals: {residuals} for case {os.path.basename(case)}")
-            if config["output_fitting"]["generate_log_file"]:
-                mylogger.remove(logger_id)
-
-        mylogger.info(f"Total cases processed: {len(case_dirs)}")
-        mylogger.info(f"Total time: {time.time() - start_time}")
-        mylogger.success(f'Done. Results are saved in {config["output_fitting"]["output_directory"]}')
-    except KeyboardInterrupt:
-        logger.info(f"Program interrupted by the user")
+    if not (config["output_fitting"]["overwrite"] == True or config["output_fitting"]["overwrite"] == False):
+        mylogger.error(f'argument overwrite must be true or false. {config["output_fitting"]["overwrite"]} given.')
         sys.exit(0)

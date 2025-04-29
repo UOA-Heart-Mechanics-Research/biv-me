@@ -19,6 +19,16 @@ fitting = true
 # * false    : Do not run this module
 # Default: true
 
+[logging]
+show_detailed_logging = true
+# Change the log visibility for preprocessing and fitting. Useful for debugging and oversight.
+# If true, detailed logs will show on the console.
+# Default: true
+
+generate_log_file = true
+# Decide whether or not to save the log files. If true, a .log file will be generated each for preprocessing and fitting
+# Default: true
+
 ## Preprocessing parameters
 # Below are the parameters used to configure preprocessing of DICOM files 
 # Skip these if you do not intend to run preprocessing
@@ -63,6 +73,10 @@ version = "3d"
 [output_pp]
 overwrite = true
 # Define to overwrite the processed folder and outputs of an already preprocessed case, if it exists
+# Default: true
+
+generate_plots = true
+# Define whether to generate html plots of exported contours after preprocessing. 
 # Default: true
 
 output_directory = ''
@@ -125,15 +139,6 @@ convex_problem = 1e6
 transmural = 0.01
 
 [output_fitting]
-show_logging = true
-# Change the log visibility.
-# If true, logs will show on the console.
-# Default: true
-
-generate_log_file = true
-# Decide whether or not to save the logs. If true, a .log file will be generated
-# Default: true
-
 export_control_mesh = false
 # Decide whether or not to save the coarse mesh. If true, the coarse mesh will be generated (format: mesh_format)
 # Default: false

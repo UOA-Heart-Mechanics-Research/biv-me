@@ -2,11 +2,9 @@ import os
 from pathlib import Path
 import sys
 import torch
-import shutil
 import time
+import shutil
 import datetime
-import argparse
-import tomli
 from loguru import logger
 
 import warnings
@@ -22,116 +20,106 @@ from bivme.preprocessing.dicom.export_guidepoints import export_guidepoints
 from bivme.plotting.plot_guidepoints import generate_html # for plotting guidepoints
 
 
-def run_preprocessing_pipeline(case, case_src, case_dst, model, states, option, version, output, plotting, my_logger):
-    start_time = time.time()
-    ## Step 0: Pre-preprocessing
-    my_logger.info(f'Finding cines...')
-    extract_cines(case_src, case_dst, my_logger)
-
-    case_src = os.path.join(case_dst, 'processed-dicoms') # Update source directory
-    my_logger.success(f'Pre-preprocessing complete. Cines extracted to {case_src}.')
-
-    ## Step 1: View selection
-    slice_info_df, num_phases, slice_mapping = select_views(case, case_src, case_dst, model, states, option, my_logger)
-
-    my_logger.success(f'View selection complete.')
-    my_logger.info(f'Number of phases: {num_phases}')
-
-    ## Step 2: Segmentation
-    seg_start_time = time.time()
-    my_logger.info(f'Starting segmentation with {version} version...')
-    segment_views(case, case_dst, model, slice_info_df, version, my_logger) # TODO: Find a way to suppress nnUnet output
-    seg_end_time = time.time()
-    my_logger.success(f'Segmentation complete. Time taken: {seg_end_time-seg_start_time} seconds ({version} version).')
-
-    ## Step 2.1: Correct phase mismatch (if required)
-    correct_phase_mismatch(case_dst, slice_info_df, num_phases, my_logger)
-
-    ## Step 3: Guide point extraction
-    slice_dict = generate_contours(case, case_dst, slice_info_df, num_phases, version, my_logger)
-    my_logger.success(f'Guide points generated successfully.')
-
-    ## Step 4: Export guide points
-    export_guidepoints(case, case_dst, output, slice_dict, slice_mapping)
-    my_logger.success(f'Guide points exported successfully.')
-    my_logger.success(f'Case {case} complete.')
-    my_logger.info(f'Total time taken: {time.time()-start_time} seconds.')
-
-    ## Step 5: Generate HTML (optional) of guide points for visualisation
-    gp_dir = os.path.join(output, case)
-    generate_html(gp_dir, out_dir=plotting, gp_suffix='', si_suffix='', frames_to_fit=[], my_logger=my_logger, model_path=None)
-
-    logger.info(f'Guidepoints plotted and saved in {plotting}.')
-
-def preprocess_cases(config, mylogger):
+def perform_preprocessing(case, config, mylogger):
     # Path: src/bivme/preprocessing/dicom/models
     MODEL_DIR = Path(os.path.dirname(__file__)) / 'models'
 
-    # Unpack config
-    src = config["input_pp"]["source"]
+    # Unpack config parameters
+    # Input
+    src = os.path.join(config["input_pp"]["source"], case)
 
-    assert os.path.exists(src), \
-        f'DICOM folder does not exist! Make sure to add the correct directory under "source" in the config file.'
-
-    batch_ID = config["input_pp"]["batch_ID"]
-    analyst_id = config["input_pp"]["analyst_id"]
-
-    dst = os.path.join(config["input_pp"]["processing"], batch_ID)
-    os.makedirs(dst, exist_ok=True)
-
-    states = os.path.join(config["input_pp"]["states"], batch_ID)
+    # Processing
+    dst = os.path.join(config["input_pp"]["processing"], config["input_pp"]["batch_ID"])
+    dst = os.path.join(dst, case) # destination directory for processed files
+    if os.path.exists(dst):
+        shutil.rmtree(dst) # remove existing directory
+    os.makedirs(dst, exist_ok=True) # create new directory
+    
+    states = os.path.join(config["input_pp"]["states"], config["input_pp"]["batch_ID"])
+    states = os.path.join(states, case, config["input_pp"]["analyst_id"]) # destination directory for view predictions which don't get overwritten
     os.makedirs(states, exist_ok=True)
 
-    overwrite = config["output_pp"]["overwrite"]
-
-    output = os.path.join(config["output_pp"]["output_directory"], batch_ID)
-    os.makedirs(output, exist_ok=True)
+    # Output
+    output = os.path.join(config["output_pp"]["output_directory"], config["input_pp"]["batch_ID"])
+    output = os.path.join(output, case) # output directory for guidepoints
+    if os.path.exists(output):
+        shutil.rmtree(output) # remove existing directory
+    os.makedirs(output, exist_ok=True) # create new directory
 
     plotting = dst # save the plotted htmls in processed directory
 
-    option = config["view-selection"]["option"]
-    version = config["segmentation"]["version"]
+    # Logging
+    if not config["logging"]["show_detailed_logging"]:
+        mylogger.remove()
 
-    # Define list of cases to process
-    caselist = os.listdir(src)
-
-    mylogger.info(f'{len(caselist)} case(s) found.')
-
-    # Set up logging
-    log_level = "DEBUG"
-    log_format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS zz}</green> | <level>{level: <8}</level> | <yellow>Line {line: >4} ({file}):</yellow> <b>{message}</b>"
+    if config["logging"]["generate_log_file"]:
+        log_level = "DEBUG"
+        log_format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS zz}</green> | <level>{level: <8}</level> | <yellow>Line {line: >4} ({file}):</yellow> <b>{message}</b>"
+        logger_id = mylogger.add(f'{output}/log_file_{datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.log', level=log_level, format=log_format,
+                    colorize=False, backtrace=True,
+                    diagnose=True)
 
     # Check if GPU is available (torch)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     mylogger.info(f'Using device: {device}')
 
-    try:
-        for i, case in enumerate(caselist):
-            mylogger.info(f'Processing case: {i+1}/{len(caselist)}')
-            case_src = os.path.join(src, case)
-            case_dst = os.path.join(dst, case)
-            case_states = os.path.join(states, case, analyst_id)
-            os.makedirs(case_states, exist_ok=True)
+    ## Step 0: Pre-preprocessing (separate cines from non-cines)
+    mylogger.info(f'Finding cines...')
+    extract_cines(src, dst, mylogger)
 
-            logger_id = mylogger.add(f'{case_states}/log_file_{datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.log', level=log_level, format=log_format,
-                colorize=False, backtrace=True,
-                diagnose=True)
+    src = os.path.join(dst, 'processed-dicoms') # Update source directory
+    mylogger.success(f'Pre-preprocessing complete. Cines extracted to {src}.')
 
-            if os.path.exists(case_dst):
-                if overwrite:
-                    mylogger.info(f'Overwriting case: {case}')
-                    shutil.rmtree(case_dst)
-                else:
-                    mylogger.info(f'Skipping already processed case: {case}')
-                    continue
-                    
-            mylogger.info(f'Processing case: {case}')
+    ## Step 1: View selection
+    slice_info_df, num_phases, slice_mapping = select_views(case, src, dst, MODEL_DIR, states, config["view-selection"]["option"], mylogger)
 
-            run_preprocessing_pipeline(case, case_src, case_dst, MODEL_DIR, case_states, option, version, output, plotting, mylogger)
+    mylogger.success(f'View selection complete.')
+    mylogger.info(f'Number of phases: {num_phases}')
 
-            mylogger.remove(logger_id)
+    ## Step 2: Segmentation
+    seg_start_time = time.time()
+    mylogger.info(f'Starting segmentation with {config["segmentation"]["version"]} version...')
+    segment_views(dst, MODEL_DIR, slice_info_df, config["segmentation"]["version"], mylogger) # TODO: Find a way to suppress nnUnet output
+    seg_end_time = time.time()
+    mylogger.success(f'Segmentation complete. Time taken: {seg_end_time-seg_start_time} seconds ({config["segmentation"]["version"]} version).')
 
-    except KeyboardInterrupt:
-        mylogger.info(f"Program interrupted by the user")
+    ## Step 2.1: Correct phase mismatch (if required)
+    correct_phase_mismatch(dst, slice_info_df, num_phases, mylogger)
+
+    ## Step 3: Guide point extraction
+    slice_dict = generate_contours(dst, slice_info_df, num_phases, config["segmentation"]["version"], mylogger)
+    mylogger.success(f'Guide points generated successfully.')
+
+    ## Step 4: Export guide points
+    export_guidepoints(dst, output, slice_dict, slice_mapping)
+    mylogger.success(f'Guide points exported successfully.')
+
+    ## Step 5: Generate HTML (optional) of guide points for visualisation
+    if config["output_pp"]["generate_plots"]:
+        generate_html(output, out_dir=plotting, gp_suffix='', si_suffix='', frames_to_fit=[], my_logger=mylogger, model_path=None)
+
+    mylogger.success(f'Guidepoints plotted and saved in {plotting}.')
+
+    if config["logging"]["generate_log_file"]:
+        mylogger.remove(logger_id)
+
+def validate_config(config, mylogger):
+    assert os.path.exists(config["input_pp"]["source"]), \
+        f'DICOM folder does not exist! Make sure to add the correct directory under "source" in the config file.'
+    
+    if not (config["view-selection"]["option"] == "default" or config["view-selection"]["option"] == "metadata-only" 
+            or config["view-selection"]["option"] == "image-only"  or config["view-selection"]["option"] == "load"):
+        mylogger.error(f'Invalid view selection option: {config["view-selection"]["option"]}. Must be "default", "metadata-only", "image-only", or "load".')
         sys.exit(0)
 
+    if not (config["segmentation"]["version"] == "2d" or config["segmentation"]["version"] == "3d"):
+        mylogger.error(f'Invalid segmentation version: {config["segmentation"]["version"]}. Must be "2d" or "3d".')
+        sys.exit(0)
+
+    if not (config["output_pp"]["overwrite"] == True or config["output_pp"]["overwrite"] == False):
+        mylogger.error(f'Invalid overwrite option: {config["output_pp"]["overwrite"]}. Must be true or false.')
+        sys.exit(0)
+
+    if not (config["output_pp"]["generate_plots"] == True or config["output_pp"]["generate_plots"] == False):
+        mylogger.error(f'Invalid generate_plots option: {config["output_pp"]["generate_plots"]}. Must be true or false.')
+        sys.exit(0)

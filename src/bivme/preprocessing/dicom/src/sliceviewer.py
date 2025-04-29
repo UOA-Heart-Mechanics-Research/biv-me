@@ -7,7 +7,7 @@ import bivme.preprocessing.dicom.src.contouring as contouring
 import bivme.preprocessing.dicom.src.guidepointprocessing as guidepointprocessing
 
 class SliceViewer:
-    def __init__(self, case, processed_folder, slice_info_df, view, sliceID, es_phase, num_phases, full_cycle=True, version='2d'):
+    def __init__(self, processed_folder, slice_info_df, view, sliceID, es_phase, num_phases, full_cycle=True, version='3d'):
         
         self.slice_info_df = slice_info_df
         self.view = view
@@ -19,7 +19,6 @@ class SliceViewer:
         else:
             self.phases = [0, self.es_phase]
         self.slice = self.slice_info_df[(self.slice_info_df['View'] == self.view) & (self.slice_info_df['Slice ID'] == self.sliceID)]
-        self.case = case
         self.image_folder = os.path.join(processed_folder, 'images') # Only for plotting & debugging
         self.segmentation_folder = os.path.join(processed_folder, 'segmentations')
         self.version = version  # 2D or 3D
