@@ -1,5 +1,5 @@
 import time
-from cvxopt import matrix, solvers
+import cvxpy as cp
 from .build_model_tools import *
 from plotly.offline import plot
 import plotly.graph_objs as go
@@ -46,6 +46,7 @@ def solve_convex_problem(
         ] = biv_model.compute_data_xi(weight_gp, data_set)
 
         data_points = data_set.points_coordinates[data_points_index]
+
     prior_position = np.dot(projected_points_basis_coeff, biv_model.control_mesh)
     w = w_out * np.identity(len(prior_position))
     WPG = np.dot(w, projected_points_basis_coeff)
@@ -56,10 +57,13 @@ def solve_convex_problem(
     Wd = np.dot(w, data_points - prior_position)
 
     previous_step_err = 0
-    tol = 1e-6
+    tol = 1e-3
     iteration = 0
     Q = 2 * A  # .T*A  # 2*A
-    quadratic_form = matrix(0.5 * (Q + Q.T), tc="d")  # to make it symmetrical.
+
+    #x, row, column = to_sparse(0.5 * (Q + Q.T))
+
+    #quadratic_form = spmatrix(x, row, column)  # to make it symmetrical.
     prev_displacement = np.zeros((biv_model.NUM_NODES, 3))
     step_err = np.linalg.norm(data_points - prior_position, axis=1)
     step_err = np.sqrt(np.sum(step_err) / len(prior_position))
@@ -70,38 +74,47 @@ def solve_convex_problem(
         my_logger.info(f"     Iteration {iteration + 1} Smoothing weight {low_smoothing_weight}	 ECF error {step_err}")
 
         previous_step_err = step_err
-        linear_part_x = matrix(
-            (2 * np.dot(prev_displacement[:, 0].T, A) - 2 * np.dot(Wd[:, 0].T, WPG).T),
-            tc="d",
-        )
-        linear_part_y = matrix(
-            (2 * np.dot(prev_displacement[:, 1].T, A) - 2 * np.dot(Wd[:, 1].T, WPG).T),
-            tc="d",
-        )
-        linear_part_z = matrix(
-            (2 * np.dot(prev_displacement[:, 2].T, A) - 2 * np.dot(Wd[:, 2].T, WPG).T),
-            tc="d",
-        )
+        linear_part_x = 2 * np.dot(prev_displacement[:, 0].T, A) - 2 * np.dot(Wd[:, 0].T, WPG).T
+        linear_part_y = 2 * np.dot(prev_displacement[:, 1].T, A) - 2 * np.dot(Wd[:, 1].T, WPG).T
+        linear_part_z = 2 * np.dot(prev_displacement[:, 2].T, A) - 2 * np.dot(Wd[:, 2].T, WPG).T
 
-        linear_constraints = matrix(generate_contraint_matrix(biv_model), tc="d")
+        linear_constraints = generate_contraint_matrix(biv_model)#matrix(generate_contraint_matrix(biv_model), tc="d")
         linear_constraints_neg = -linear_constraints
-        G = matrix(np.vstack((linear_constraints, linear_constraints_neg)))
+
         size = 2 * (3 * len(biv_model.mbder_dx))
-        bound = 1 / 3
-        h = matrix([bound] * size)
 
-        solvers.options["show_progress"] = False
-        #  Solver: solvers.qp(P,q,G,h)
-        #  see https://courses.csail.mit.edu/6.867/wiki/images/a/a7/Qp-cvxopt.pdf
-        #  for explanation
+        #options_scs = {
+        #    "max_iters": 1000000,
+        #    "verbose": True,
+        #    "use_indirect": True,
+        #    "eps": 1e-8,
+        #    "eps_abs": 1e-8,
+        #    "eps_rel": 1e-8,
+        #    "eps_infeas": 1e-8,
+        #    "acceleration_lookback": 0,
+        #}
 
-        solx = solvers.qp(quadratic_form, linear_part_x, G, h)
-        soly = solvers.qp(quadratic_form, linear_part_y, G, h)
-        solz = solvers.qp(quadratic_form, linear_part_z, G, h)
+        bound = 1.0# / 3.0
+        h = np.array([bound] * size)
+        G = np.vstack((linear_constraints, linear_constraints_neg)) * (3.0)
+        x = cp.Variable(biv_model.NUM_NODES)
+        prob = cp.Problem(cp.Minimize((1/2)*cp.quad_form(x, (Q + Q.T)) + linear_part_x.T @ x),
+                 [G @ x <= h])
+        prob.solve(solver=cp.CLARABEL, verbose=False, max_iter=20000)
+        sx = x.value
 
-        sx = [a for a in solx["x"]]  # LDT 15/11/21: this avoids .append()
-        sy = [a for a in soly["x"]]
-        sz = [a for a in solz["x"]]
+        x = cp.Variable(biv_model.NUM_NODES)
+        prob = cp.Problem(cp.Minimize((1/2)*cp.quad_form(x, (Q + Q.T)) + linear_part_y.T @ x),
+                 [G @ x <= h])
+        prob.solve(solver=cp.CLARABEL, verbose=False, max_iter=20000)
+        sy = x.value
+
+        x = cp.Variable(biv_model.NUM_NODES)
+        prob = cp.Problem(cp.Minimize((1/2)*cp.quad_form(x, (Q + Q.T)) + linear_part_z.T @ x),
+                 [G @ x <= h])
+        prob.solve(solver=cp.CLARABEL, verbose=False, max_iter=20000)
+        sz = x.value
+        
         displacement = np.column_stack(
             (sx, sy, sz)
         )  # LDT 15/11/21: this avoids to repeat three times np.asarray
