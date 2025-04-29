@@ -57,7 +57,7 @@ def solve_convex_problem(
     Wd = np.dot(w, data_points - prior_position)
 
     previous_step_err = 0
-    tol = 1e-3
+    tol = 1e-6
     iteration = 0
     Q = 2 * A  # .T*A  # 2*A
 
