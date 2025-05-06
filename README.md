@@ -1,39 +1,45 @@
 <div align="center">
 
 # Biventricular model fitting framework
+![Python version](https://img.shields.io/badge/python-3.11-blue)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![OSX](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/macos.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/macos.yml)
+[![Linux](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/linux.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/linux.yml) 
+[![Windows](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/windows.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/windows.yml)
 
 </div>
 
+This repository provides a full pipeline for generating **guide point files (GPFiles)** from DICOM data, fitting **biventricular models**, and computing **functional cardiac metrics** such as volumes, strains, and wall thickness.
 
-Platform | CI Status
----------|:---------
-OSX      | [![OSX Build Status](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/macos.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/macos.yml)
-Linux    | [![Linux Build Status](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/linux.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/linux.yml)
-Windows  | [![Windows Build status](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/windows.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/windows.yml)
+Example data is available in the `example/` folder, including input DICOMs, output GPFiles, configuration files, and results for testing and reference.
 
-This is an import of the KCL BiV modelling code (originally called BiV_Modelling).
+For a detailed description of the full pipeline, please refer to:
+*Dillon JR, Mauger C, Zhao D, Deng Y, Petersen SE, McCulloch AD, Young AA, Nash MP. An open-source end-to-end pipeline for generating 3D+t biventricular meshes from cardiac magnetic resonance imaging. In: Functional Imaging and Modeling of the Heart (FIMH) 2025. (in press)*
 
-This code performs patient-specific biventricular mesh customization.
+For a detailed description regarding the fitting, please refer to:
+*Mauger, C., Gilbert, K., Suinesiaputra, A., Pontre, B., Omens, J., McCulloch, A., & Young, A. (2018, July). An iterative diffeomorphic algorithm for registration of subdivision surfaces: application to congenital heart disease. In 2018 40th Annual International Conference of the IEEE Engineering in Medicine and Biology Society (EMBC) (pp. 596-599). IEEE.* [DOI: 10.1109/EMBC.2018.8512394](https://doi.org/10.1109/EMBC.2018.8512394)
 
-## Installation ![Python versions](https://img.shields.io/badge/python-3.11-blue)
-
+## 🚀 Installation Guide
 -----------------------------------------------
+
 The easiest way to get this repo setup is to use the provided conda environment (python 3.11).
 The conda environment named biv311 can be created and activated with
 
+### Step 1: Clone this repository
+```bash
+git clone https://github.com/UOA-Heart-Mechanics-Research/biv-me.git
 ```
+
+### Step 2: Setup the virtual environment
+```bash
 cd biv-me
 conda create -n bivme311 python=3.11
 conda activate bivme311
 ```
 
-Install the bivme package
-```
+### Step 3: Install the bivme packages
+```bash
 pip install -e .
-```
-
-Install pyezzi
-```
 python src/pyezzi/setup.py build_ext --inplace
 ```
 
@@ -249,6 +255,11 @@ def greet(name: str) -> str:
 ```
 
 
-Credits
+## Acknowledgments
 ------------------------------------
 Based on work by: Laura Dal Toso, Anna Mira, Liandong Lee, Richard Burns, Joshua Dillon, Charlene Mauger
+
+
+
+## Contact
+For questions or issues, please open an issue on GitHub or contact [joshua.dillon@auckland.ac.nz](joshua.dillon@auckland.ac.nz) or [charlene.1.mauger@kcl.ac.uk](charlene.1.mauger@kcl.ac.uk) 
