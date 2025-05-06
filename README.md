@@ -3,14 +3,12 @@
 # Biventricular model fitting framework
 ![Python version](https://img.shields.io/badge/python-3.11-blue)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-![macOS](https://img.shields.io/badge/Test-macOS-blue?logo=apple&labelColor=555)  
-[![macOS Status](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/macos.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/macos.yml)
 
-![Linux](https://img.shields.io/badge/Test-Linux-blue?logo=linux&labelColor=555)  
-[![Linux Status](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/linux.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/linux.yml)
+**Test macOS** [![macOS](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/macos.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/macos.yml)
 
-![Windows](https://img.shields.io/badge/Test-Windows-blue?logo=windows&labelColor=555)  
-[![Windows Status](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/windows.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/windows.yml)
+**Test Linux** [![Linux](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/linux.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/linux.yml)
+
+**Test Windows** [![Windows](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/windows.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/windows.yml)
 
 </div>
 
@@ -49,6 +47,9 @@ python src/pyezzi/setup.py build_ext --inplace
 ```
 
 ## Usage
+    - View detection
+    - Fitting
+[Analysis of biv-me models](#analysis-of-biv-me-models)
 
 -----------------------------------------------
 ### (Preprocessing) Create GP files from DICOM files
@@ -126,26 +127,43 @@ options:
 ```
 An example of a config file can be found in src/bivme/configs/config.toml. The gp_directory should contain one subfolder for each patient. Each subfolder should contain a set of GPFiles (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) and one SliceInfoFile.txt relative to one patient. See example in the example folder.
 
+
+## Analysis of biv-me models
+Several tools are provided for the analysis of biventricular models, including scripts for volume calculation, strain analysis (circumferential and longitudinal strains), and wall thickness measurement. Additionally, an experimental tool is available to refine the models by applying collision detection to prevent intersections between the RV septum and RVFW. While the diffeomorphic fitting ensures no intersection between the endocardial and epicardial surfaces, this tool specifically addresses any potential self-intersections within the endocardial surface.
+
 ### Calculate volumes from biv-me models
-The script for the volume calculation can be found in src/bivme/analysis
+The script for the volume calculation can be found in src/bivme/analysis.
 
-```
-usage: compute_volume.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_FILE] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-p PRECISION]
+To run the `compute_volume.py` script, use the following command:
 
-  -h, --help            show this help message and exit
-  -mdir MODEL_DIR, --model_dir MODEL_DIR
-                        path to biv models
-  -o OUTPUT_FILE, --output_file OUTPUT_FILE
-                        output path
-  -b BIV_MODEL_FOLDER, --biv_model_folder BIV_MODEL_FOLDER
-                        folder containing subdivision matrices (default: src/model) 
-  -pat PATTERNS, --patterns PATTERNS
-                        folder patterns to include (default '*')
-  -p PRECISION, --precision PRECISION
-                        Output precision (default: 2)
+```python
+usage: compute_volume.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_PATH] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-p PRECISION]
 ```
 
-Results will be saved in {OUTPUT_PATH}/lvrv_volumes.csv.
+| **Argument**          | **Description**                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------- |
+| `-h, --help`          | Displays the help message and exits.                                                          |
+| `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biventricular models.                      |
+| `-o OUTPUT_PATH`      | Specifies the directory where the output files will be saved.                                 |
+| `-b BIV_MODEL_FOLDER` | Path to the folder containing the subdivision matrices for the models (default: `src/model`). |
+| `-pat PATTERNS`       | The folder pattern to include for processing. You can use wildcards (default: `*`).           |
+| `-p PRECISION`        | Sets the output precision (default: 2 decimal places).                                        |
+
+
+Example data can be found in `example\fitted-models`. To compute the volumes using this example data, you can run the following command
+```python
+cd src\bivme\analysis
+python compute_volume.py -mdir ../../../example/fitted-models -p 1 -o example_volumes
+```
+Volumes are saved in `lvrv_volumes.csv`
+
+This command will process the biventricular models in the `../../../example/fitted-models`, save the results in the specified output directory `example_volumes`, with a precision of 1 decimal place. Here is what the file should look like:
+
+| **Name**     | **Frame** | **LV Volume (lv_vol)** | **LV Mass (lvm)** | **RV Volume (rv_vol)** | **RV Mass (rvm)** | **LV Epicardial Volume (lv_epivol)** | **RV Epicardial Volume (rv_epivol)** |
+|--------------|-----------|------------------------|-------------------|------------------------|-------------------|---------------------------------------|--------------------------------------|
+| patient_1    | 0         | 241.5                  | 218.3             | 220                    | 62.5              | 449.4                                 | 279.5                                |
+| patient_1    | 1         | 252.2                  | 223.8             | 225.9                  | 69.3              | 465.4                                 | 291.8                                |
+
 
 ### Calculate strains from biv-me models
 The script for strain calculation can be found in src/bivme/analysis. Geometric strain is defined as the change in geometric arc length from ED to ES using a set of predefined points and calculated using the Cauchy strain formula.
@@ -238,26 +256,20 @@ The config file should be the one used to fit the original models. Refitted mode
 
 Contribution - Notation
 -----------------------------------------------
-If you wish to contribute to this project, we ask you to follow the naming conventions below :
-- **Variable**: use lowercase word. A variable that use multiple words should be separated with an underscore (snake case)
-```sitename``` should be written as ```site_name```
-- **Function and Method**: function/method names should follow the PEP 8 naming conventions ```def MyFunction()``` should be written as ```def my_function()```
-- **Constant**: constant names should be written in uppercase letters with underscores separating words ```MYCONSTANT = 3.1416``` should be written ```MY_CONSTANT = 3.1416```
-- **Class**; class names should follow the CamelCase convention: ```class myclass:``` should be written as ```class MyClass:```
-- **Package and Module** : Avoid using underscores or hyphens in package names to maintain consistency with the Python standard library and third-party packages. ```my_package_name_with_underscores = ...``` should be written ```mypackage = ...```
-- **Type variable**: follow the convention of using CamelCase with a leading capital letter: ```def my_function(items: dict[int, str]):``` should be written as ```def my_function(items: Dict[int, str]):```
-- **Exception** exception names should have the suffix “Error.”: ```class MyCustomException:``` should be ```class MyCustomExceptionError:```
-- Stick to ASCII characters to ensure smooth collaboration and consistent code execution: avoid for example ```ç = 42```. Instead prefer ```count = 42```
-- Use type hints for code readability and prevent type-related errors.
-```
-def greet(name):
-    return "Hello, " + name
-```
-should be
-```
-def greet(name: str) -> str:
-    return "Hello, " + name
-```
+If you wish to contribute to this project, please follow the naming conventions outlined below:
+
+
+| **Category**         | **Naming Convention**                                               | **Example**                                               |
+|----------------------|---------------------------------------------------------------------|-----------------------------------------------------------|
+| **Variable**         | Lowercase letters, words separated by underscores (snake_case)      | `site_name` instead of `sitename`                         |
+| **Function/Method**  | Lowercase letters, words separated by underscores (snake_case)      | `def my_function()` instead of `def MyFunction()`          |
+| **Constant**         | Uppercase letters, words separated by underscores                   | `MY_CONSTANT = 3.1416` instead of `MYCONSTANT = 3.1416`    |
+| **Class**            | CamelCase                                                          | `class MyClass:` instead of `class myclass:`               |
+| **Package/Module**   | No underscores or hyphens, consistent with Python standard library | `mypackage` instead of `my_package_name_with_underscores`  |
+| **Type Variable**    | CamelCase with a leading capital letter                             | `Dict[int, str]` instead of `dict[int, str]`               |
+| **Exception**        | Ends with “Error” suffix                                           | `class MyCustomExceptionError:` instead of `class MyCustomException:` |
+| **Characters**       | Stick to ASCII characters                                          | `count = 42` instead of `ç = 42`                           |
+| **Type Hints**       | Always use type hints for code readability                          | `def greet(name: str) -> str:` instead of `def greet(name):` |
 
 
 ## Acknowledgments
