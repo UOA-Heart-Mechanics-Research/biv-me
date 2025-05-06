@@ -50,6 +50,7 @@ python src/pyezzi/setup.py build_ext --inplace
     - View detection
     - Fitting
 
+- [Fit a biv-me model to GP files](#fit-a-biv-me-model-to-gp-files)
 - [Analysis of biv-me models](#analysis-of-biv-me-models)  
   - [Calculating volumes from biv-me model](#calculate-volumes-from-biv-me-models)  
   - [Calculating strains from biv-me models](#calculate-strains-from-biv-me-models)  
@@ -115,24 +116,33 @@ An example of a config file can be found in src/bivme/preprocessing/dicom/config
 
 You can also run the preprocessing from a Jupyter notebook, in the same directory, named run_pipeline_interactive.ipynb. This notebook runs case by case. It is particularly useful if you would like some tighter supervision over certain aspects, such as the view selection. 
 
-### Fit a Biv-me model to GP files
+## Fit a biv-me model to GP files
 The script for the mesh fitting can be found in src/bivme/fitting
-```
+
+```bash
 usage: perform_fit.py [-h] [-config CONFIG_FILE]
-
-Biv-me
-
-options:
-  -h, --help            show this help message and exit
-  -config CONFIG_FILE, --config_file CONFIG_FILE
-                        Config file containing fitting parameters
-
 ```
-An example of a config file can be found in src/bivme/configs/config.toml. The gp_directory should contain one subfolder for each patient. Each subfolder should contain a set of GPFiles (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) and one SliceInfoFile.txt relative to one patient. See example in the example folder.
 
+| **Argument**          | **Description**                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------- |
+| `-h, --help`          | Displays the help message and exits.                                                          |
+| `-config CONFIG_FILE`     | Config file containing fitting parameters.                      |
+
+
+An example of a config file can be found in `src/bivme/configs/config.toml`. The gp_directory should contain one subfolder for each patient. Each subfolder should contain a set of GPFiles (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) and one SliceInfoFile.txt relative to one patient. See example in the example folder.
+
+#### **Example Usage** <br>
+Example data is available in `example/guidepoints`. To fit biv-me models to this data, run the following command:
+
+```python
+cd src/bivme/fitting
+python perform_fit.py -config ../configs/configs.toml
+```
+
+This will process the guidepoints files in the gp_directory defined in the config.toml file (default is `../../../example/guidepoints`) directory and save them in the output_directory defined in the config file (default is `./../../output/`). Each patient will have its own folder.
 
 ## Analysis of biv-me models
-Several tools are provided for the analysis of biventricular models, including scripts for volume calculation, strain analysis (circumferential and longitudinal strains), and wall thickness measurement. Additionally, an experimental tool is available to refine the models by applying collision detection to prevent intersections between the RV septum and RV free wall. While the diffeomorphic fitting ensures no intersection between the endocardial and epicardial surfaces, this tool specifically addresses any potential self-intersections within the endocardial surface.
+Several tools are provided for the analysis of biventricular models, including scripts for volume calculation, strain analysis (circumferential and longitudinal strains), and wall thickness measurement. 
 
 ### Calculate volumes from biv-me models <br>
 The script for calculating the volume of a mesh can be found in the `src/bivme/analysis` directory. It uses the tetrahedron method, which decomposes the mesh into tetrahedra and computes their volumes.
@@ -170,7 +180,6 @@ The output file will look like this:
 |--------------|-----------|------------------------|-------------------|------------------------|-------------------|---------------------------------------|--------------------------------------|
 | patient_1    | 0         | 241.5                  | 218.3             | 220                    | 62.5              | 449.4                                 | 279.5                                |
 | patient_1    | 1         | 252.2                  | 223.8             | 225.9                  | 69.3              | 465.4                                 | 291.8                                |
-
 
 
 ### Calculate strains from biv-me models <br>
@@ -220,7 +229,6 @@ The output file will look like this:
 | patient_1 | 1     | 0.019710907 | 0          | -0.00747012 | -0.011037528   | 0.005964215   | 0.034870641    | 0.038321168   | 0.032425422  | 0.0087241     |
 
 
-
 ### Calculating wall thickness from biv-me models <br>
 The script computing the wall thickness can be found in src/bivme/analysis. Wall thickness is calculated on binary 3D images using [pyezzi](https://pypi.org/project/pyezzi/) for both LV and RV separately. The septal wall is included in the LV calculation and excluded from the RV. 
 
@@ -232,7 +240,6 @@ usage: compute_global_circumferential_strain.py [-h] [-mdir MODEL_DIR] [-o OUTPU
 
 | **Argument**          | **Description**                                                                               |
 | --------------------- | --------------------------------------------------------------------------------------------- 
-
 | `-h, --help`          | Displays the help message and exits.                                                          |
 | `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biventricular models.                      |
 | `-o OUTPUT_PATH`      | Specifies the directory where the output files will be saved.                                 |
@@ -261,29 +268,33 @@ python compute_wall_thickness.py -mdir ../../../example/fitted-models -o example
 The output files will look like this in 3D Slicer:
 ![Wall_thickness](images/WallThickness.png)
 
-### Remove intersection from biv-me models (experimental feature)
-Diffeomorphic constraints are on the myocardium only. It can happend that the RV septum and RVFW intersect if the contours are too close. This script re-fit the models, using an extra collision detection step. An inital fit of the model is required as this will be used as guide points.
 
-The script for the mesh fitting can be found in src/bivme/postprocessing
-```
+## Postprecessing of biv-me models (experimental feature)
+An experimental tool is available to refine the models by applying collision detection to prevent intersections between the RV septum and RV free wall. While the diffeomorphic fitting ensures no intersection between the endocardial and epicardial surfaces, this tool specifically addresses any potential self-intersections within the endocardial surface.
+
+The script refitting a biv-me model with collision detection can be found in `src/bivme/postprocessing`. This script re-fit the models, using an extra collision detection step. An inital fit of the model is required as this will be used as guide points.
+
+To run the detect_intersection.py script, use the following command:
+
+```bash
 usage: detect_intersection.py [-h] [-config CONFIG_FILE]
+ ```
 
-Biv-me
-
-options:
-  -h, --help            show this help message and exit
-  -config CONFIG_FILE, --config_file CONFIG_FILE
-                        Config file containing fitting parameters
-
-```
+| **Argument**          | **Description**                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------- 
+| `-h, --help`          | Displays the help message and exits.                                                          |
+| `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biventricular models.                      |
+| `-o OUTPUT_PATH`      | Specifies the directory where the output files will be saved.                                 |
+| `-b BIV_MODEL_FOLDER` | Path to the folder containing the subdivision matrices for the models (default: `src/model`). |
+| `-pat PATTERNS`       | The folder pattern to include for processing. You can use wildcards (default: `*`).           |
+| `-r VOXEL_RESOLUTION`        | Voxel resolution to compute the masks.                                        |
+| `-s SAVE_SEGMENTATION_FLAG` | Boolean flag indicating whether to save 3D masks
 
 The config file should be the one used to fit the original models. Refitted models will be saved in config["output"]["output_directory"]/corrected_models.
 
-
-Contribution - Notation
+## Contribution - Notation
 -----------------------------------------------
 If you wish to contribute to this project, please follow the naming conventions outlined below:
-
 
 | **Category**         | **Naming Convention**                                               | **Example**                                               |
 |----------------------|---------------------------------------------------------------------|-----------------------------------------------------------|
@@ -300,9 +311,8 @@ If you wish to contribute to this project, please follow the naming conventions 
 
 ## Acknowledgments
 ------------------------------------
-Based on work by: Laura Dal Toso, Anna Mira, Liandong Lee, Richard Burns, Joshua Dillon, Charlene Mauger
-
-
+This work is based on contributions by:  
+**Laura Dal Toso**, **Anna Mira**, **Liandong Lee**, **Richard Burns**, **Joshua Dillon**, and **Charlene Mauger**.
 
 ## Contact
 For questions or issues, please open an issue on GitHub or contact [joshua.dillon@auckland.ac.nz](joshua.dillon@auckland.ac.nz) or [charlene.1.mauger@kcl.ac.uk](charlene.1.mauger@kcl.ac.uk) 
