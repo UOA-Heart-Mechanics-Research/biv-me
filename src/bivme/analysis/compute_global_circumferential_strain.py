@@ -38,7 +38,7 @@ def calculate_circumferential_strain(case_name: str, model_file: os.PathLike, bi
     frame_name = re.search(r'Frame_(\d+)\.txt', str(model_file), re.IGNORECASE)[1]
     # assign values to dict
     results_dict = {'case': case_name, 'frame': frame_name} | {
-        k: np.NaN for k in ['lv_gcs_apex', 'lv_gcs_mid', 'lv_gcs_base', 'rvfw_gcs_apex', 'rvfw_gcs_mid', 'rvfw_gcs_base', 'rvs_gcs_apex', 'rvs_gcs_mid', 'rvs_gcs_base']
+        k: np.nan for k in ['lv_gcs_apex', 'lv_gcs_mid', 'lv_gcs_base', 'rvfw_gcs_apex', 'rvfw_gcs_mid', 'rvfw_gcs_base', 'rvs_gcs_apex', 'rvs_gcs_mid', 'rvs_gcs_base']
     }
 
     subdivision_matrix_file = biv_model_folder / "subdivision_matrix_sparse.mat"
@@ -131,8 +131,8 @@ if __name__ == "__main__":
     assert args.model_dir.exists(), \
         f"model_dir does not exist."
 
-    assert args.output_path.exists(), \
-        f"output_path does not exist."
+    if not args.output_path.exists():
+        args.output_path.mkdir(parents=True, exist_ok=True) 
 
     folders = [p.name for p in Path(args.model_dir).glob(args.patterns) if os.path.isdir(p)]
     logger.info(f"Found {len(folders)} model folders.")

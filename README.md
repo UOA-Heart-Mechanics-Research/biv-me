@@ -51,6 +51,8 @@ python src/pyezzi/setup.py build_ext --inplace
     - Fitting
 [Analysis of biv-me models](#analysis-of-biv-me-models)
 
+[Calculate volumes from biv-me model](#calculate-volumes-from-biv-me-models)
+
 -----------------------------------------------
 ### (Preprocessing) Create GP files from DICOM files
 If you do not already have them, guidepoint files (GPFiles) for personalised biventricular mesh fitting can be generated directly from DICOM files.
@@ -129,14 +131,15 @@ An example of a config file can be found in src/bivme/configs/config.toml. The g
 
 
 ## Analysis of biv-me models
-Several tools are provided for the analysis of biventricular models, including scripts for volume calculation, strain analysis (circumferential and longitudinal strains), and wall thickness measurement. Additionally, an experimental tool is available to refine the models by applying collision detection to prevent intersections between the RV septum and RVFW. While the diffeomorphic fitting ensures no intersection between the endocardial and epicardial surfaces, this tool specifically addresses any potential self-intersections within the endocardial surface.
+Several tools are provided for the analysis of biventricular models, including scripts for volume calculation, strain analysis (circumferential and longitudinal strains), and wall thickness measurement. Additionally, an experimental tool is available to refine the models by applying collision detection to prevent intersections between the RV septum and RV free wall. While the diffeomorphic fitting ensures no intersection between the endocardial and epicardial surfaces, this tool specifically addresses any potential self-intersections within the endocardial surface.
 
-### Calculate volumes from biv-me models
-The script for the volume calculation can be found in src/bivme/analysis.
+### Calculate volumes from biv-me models <br>
+The script for calculating the volume of a mesh can be found in the `src/bivme/analysis` directory. It uses the tetrahedron method, which decomposes the mesh into tetrahedra and computes their volumes.
 
+#### **Running the script** <br>
 To run the `compute_volume.py` script, use the following command:
 
-```python
+```bash
 usage: compute_volume.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_PATH] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-p PRECISION]
 ```
 
@@ -149,15 +152,18 @@ usage: compute_volume.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_PATH] [-b BIV_MODEL_F
 | `-pat PATTERNS`       | The folder pattern to include for processing. You can use wildcards (default: `*`).           |
 | `-p PRECISION`        | Sets the output precision (default: 2 decimal places).                                        |
 
+#### **Example Usage** <br>
+Example data is available in `example/fitted-models`. To compute the volumes using this data, run the following command:
 
-Example data can be found in `example\fitted-models`. To compute the volumes using this example data, you can run the following command
 ```python
-cd src\bivme\analysis
+cd src/bivme/analysis
 python compute_volume.py -mdir ../../../example/fitted-models -p 1 -o example_volumes
 ```
-Volumes are saved in `lvrv_volumes.csv`
 
-This command will process the biventricular models in the `../../../example/fitted-models`, save the results in the specified output directory `example_volumes`, with a precision of 1 decimal place. Here is what the file should look like:
+This will process the biventricular models in the `../../../example/fitted-models` directory, compute the volumes with a precision of 1 decimal place, and save the results in the `example_volumes` directory. The volumes will be saved in the `lvrv_volumes.csv` file.
+
+**Sample Output** <br>
+The output file will look like this:
 
 | **Name**     | **Frame** | **LV Volume (lv_vol)** | **LV Mass (lvm)** | **RV Volume (rv_vol)** | **RV Mass (rvm)** | **LV Epicardial Volume (lv_epivol)** | **RV Epicardial Volume (rv_epivol)** |
 |--------------|-----------|------------------------|-------------------|------------------------|-------------------|---------------------------------------|--------------------------------------|
@@ -165,59 +171,54 @@ This command will process the biventricular models in the `../../../example/fitt
 | patient_1    | 1         | 252.2                  | 223.8             | 225.9                  | 69.3              | 465.4                                 | 291.8                                |
 
 
-### Calculate strains from biv-me models
-The script for strain calculation can be found in src/bivme/analysis. Geometric strain is defined as the change in geometric arc length from ED to ES using a set of predefined points and calculated using the Cauchy strain formula.
 
-**For global circumferential strain calculation**
+### Calculate strains from biv-me models <br>
+
+The script for calculating both global circumferential and global longitudinal strains of a mesh can be found in the `src/bivme/analysis` directory. Geometric strain is defined as the change in geometric arc length from ED to any other frame using a set of predefined points and calculated using the Cauchy strain formula. The global circuferential strains are calculated at three levels: apical, mid and basal. The global longitudinal strains are calculated on a 4Ch and a 2Ch view.
+
+#### **Running the scripts** <br>
+To run the `compute_global_circumferential_strain.py` and `compute_global_longitudinal_strain.py` scripts, use the following command:
+
+for circumferential strain:
+```bash
+usage: compute_global_circumferential_strain.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_PATH] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-p PRECISION] [-ed ED_FRAME]
+ ```
+
+for longitudinal strain:
+```bash
+usage: compute_global_longitudinal_strain.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_PATH] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-p PRECISION] [-ed ED_FRAME]
+ ```
+
+| **Argument**          | **Description**                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------- |
+| `-h, --help`          | Displays the help message and exits.                                                          |
+| `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biventricular models.                      |
+| `-o OUTPUT_PATH`      | Specifies the directory where the output files will be saved.                                 |
+| `-b BIV_MODEL_FOLDER` | Path to the folder containing the subdivision matrices for the models (default: `src/model`). |
+| `-pat PATTERNS`       | The folder pattern to include for processing. You can use wildcards (default: `*`).           |
+| `-p PRECISION`        | Sets the output precision (default: 2 decimal places).                                        |
+| `-ed ED_FRAME` | defines which frame is the ED frame. (default: 1st frame)
+
+
+#### **Example Usage** <br>
+Example data is available in `example/fitted-models`. To compute the circuferential strains using this data, run the following command:
+
+```python
+cd src/bivme/analysis
+python compute_global_circumferential_strain.py -mdir ../../../example/fitted-models -p 1 -o example_strains -ed 0
 ```
-usage: compute_global_circumferential_strain.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_PATH] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-ed ED_FRAME]
-                                                [-p PRECISION]
 
-Global circumferential strain calculation
+This will process the biventricular models in the `../../../example/fitted-models` directory, compute the global circumferential strain with a precision of 1 decimal place, and save the results in the `example_strains` directory. The GCS will be saved in the `global_circumferential_strain.csv.csv` file. The first frame will be used as ED. 
 
-options:
-  -h, --help            show this help message and exit
-  -mdir MODEL_DIR, --model_dir MODEL_DIR
-                        path to biv models
-  -o OUTPUT_PATH, --output_path OUTPUT_PATH
-                        output path
-  -b BIV_MODEL_FOLDER, --biv_model_folder BIV_MODEL_FOLDER
-                        folder containing subdivision matrices
-  -pat PATTERNS, --patterns PATTERNS
-                        folder patterns to include (default '*')
-  -ed ED_FRAME, --ed_frame ED_FRAME
-                        ED frame
-  -p PRECISION, --precision PRECISION
-                        Output precision
+**Sample Output** <br>
+The output file will look like this:
+
+| **name**       | **frame** | **lv_gcs_apex** | **lv_gcs_mid** | **lv_gcs_base** | **rvfw_gcs_apex** | **rvfw_gcs_mid** | **rvfw_gcs_base** | **rvs_gcs_apex** | **rvs_gcs_mid** | **rvs_gcs_base** |
+|------------|-------|-------------|------------|-------------|----------------|---------------|----------------|---------------|--------------|---------------|
+| patient_1 | 0     | 0           | 0          | 0           | 0              | 0             | 0              | 0             | 0            | 0             |
+| patient_1 | 1     | 0.019710907 | 0          | -0.00747012 | -0.011037528   | 0.005964215   | 0.034870641    | 0.038321168   | 0.032425422  | 0.0087241     |
 
 
-```
-Results will be saved in {OUTPUT_PATH}/global_circumferential_strain.csv
-
-**For global longitudinal strain calculation**
-```
-usage: compute_global_longitudinal_strain.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_PATH] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-ed ED_FRAME]
-                                             [-p PRECISION]
-
-Global longitudinal strain calculation
-
-options:
-  -h, --help            show this help message and exit
-  -mdir MODEL_DIR, --model_dir MODEL_DIR
-                        path to biv models
-  -o OUTPUT_PATH, --output_path OUTPUT_PATH
-                        output path
-  -b BIV_MODEL_FOLDER, --biv_model_folder BIV_MODEL_FOLDER
-                        folder containing subdivision matrices
-  -pat PATTERNS, --patterns PATTERNS
-                        folder patterns to include (default '*')
-  -ed ED_FRAME, --ed_frame ED_FRAME
-                        ED frame
-  -p PRECISION, --precision PRECISION
-                        Output precision
-
-```
-Results will be saved in {OUTPUT_PATH}/global_longitudinal_strain.csv
 
 ### Compute wall thickness
 The script for computing the wall thickness can be found in src/bivme/analysis. Wall thickness is calculated on binary 3D images using [pyezzi](https://pypi.org/project/pyezzi/) for both LV and RV separately. The septal wall is included in the LV calculation and excluded from the RV 
