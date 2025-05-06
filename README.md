@@ -47,19 +47,19 @@ python src/pyezzi/setup.py build_ext --inplace
 ```
 
 ## Table of Contents
-    - View detection
-    - Fitting
-
+- [Preprocessing DICOM data](#preprocessing-dicom-data)
 - [Fit a biv-me model to GP files](#fit-a-biv-me-model-to-gp-files)
-- [Analysis of biv-me models](#analysis-of-biv-me-models)  
-  - [Calculating volumes from biv-me model](#calculate-volumes-from-biv-me-models)  
-  - [Calculating strains from biv-me models](#calculate-strains-from-biv-me-models)  
-  - [Calculating wall thickness from biv-me models](#calculating-wall-thickness-from-biv-me-models)
+- [Analysis of models](#analysis-of-models)  
+  - [Calculating volumes from models](#calculating-volumes-from-models)  
+  - [Calculating strains from models](#calculating-strains-from-models)  
+  - [Calculating wall thickness from models](#calculating-wall-thickness-from-models)
+- [Postprocessing of models](#postprocessing-of-models)  
+
 -----------------------------------------------
-### (Preprocessing) Create GP files from DICOM files
+## Preprocessing DICOM data
 If you do not already have them, guidepoint files (GPFiles) for personalised biventricular mesh fitting can be generated directly from DICOM files.
 
-## Download models
+### Download models
 The preprocessing pipeline uses deep learning models for view prediction and segmentation. These can be downloaded from ([here](https://www.dropbox.com/scl/fo/54662zpqpb0ibmoysqy54/AF4eN0-Bzmb7O-l1lJ6WCZI?rlkey=wxahs4jcepd8ryhh0nfersne2&st=75oy73u9&dl=0)). They should be placed in the biv-me repository like so:
 
     ```
@@ -72,10 +72,10 @@ The preprocessing pipeline uses deep learning models for view prediction and seg
                     └─── ViewSelection
     ```
 
-## Import libraries
+### Import libraries
 This preprocessing pipeline utilises PyTorch and nnU-Net. The default biv-me conda environment currently doesn't install either of these for you. To set these up, activate the biv-me conda environment, like so:
 
-```
+```bash
 conda activate bivme311
 ```
 
@@ -83,11 +83,11 @@ Then, find the PyTorch right version for your GPU and OS ([here](https://pytorch
 
 After PyTorch has been installed, install nnU-Net like so:
 
-```
+```bash
 pip install nnunetv2
 ```
 
-## Run preprocessing pipeline
+### Run preprocessing pipeline
 The main script for running the preprocessing pipeline can be found in src/bivme/preprocessing/dicom. This runs the pipeline on the DICOM directory you provide it. No prior organisation of DICOM files are required, other than to separate into one folder per case, like so:
 
     ```
@@ -101,7 +101,7 @@ The main script for running the preprocessing pipeline can be found in src/bivme
 
 The output is a set of GPFiles (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) for each frame of each case, which can be used for fitting (see next section).
 
-```
+```python
 usage: run_pipeline.py [-h] [-config CONFIG_FILE]
 
 Preprocess DICOM files for fitting
@@ -141,10 +141,10 @@ python perform_fit.py -config ../configs/configs.toml
 
 This will process the guidepoints files in the gp_directory defined in the config.toml file (default is `../../../example/guidepoints`) directory and save them in the output_directory defined in the config file (default is `./../../output/`). Each patient will have its own folder.
 
-## Analysis of biv-me models
+## Analysis of models
 Several tools are provided for the analysis of biventricular models, including scripts for volume calculation, strain analysis (circumferential and longitudinal strains), and wall thickness measurement. 
 
-### Calculate volumes from biv-me models <br>
+### Calculating volumes from models <br>
 The script for calculating the volume of a mesh can be found in the `src/bivme/analysis` directory. It uses the tetrahedron method, which decomposes the mesh into tetrahedra and computes their volumes.
 
 #### **Running the script** <br>
@@ -182,7 +182,7 @@ The output file will look like this:
 | patient_1    | 1         | 252.2                  | 223.8             | 225.9                  | 69.3              | 465.4                                 | 291.8                                |
 
 
-### Calculate strains from biv-me models <br>
+### Calculating strains from models <br>
 
 The script for calculating both global circumferential and global longitudinal strains of a mesh can be found in the `src/bivme/analysis` directory. Geometric strain is defined as the change in geometric arc length from ED to any other frame using a set of predefined points and calculated using the Cauchy strain formula. The global circuferential strains are calculated at three levels: apical, mid and basal. The global longitudinal strains are calculated on a 4Ch and a 2Ch view.
 
@@ -229,7 +229,7 @@ The output file will look like this:
 | patient_1 | 1     | 0.019710907 | 0          | -0.00747012 | -0.011037528   | 0.005964215   | 0.034870641    | 0.038321168   | 0.032425422  | 0.0087241     |
 
 
-### Calculating wall thickness from biv-me models <br>
+### Calculating wall thickness from models <br>
 The script computing the wall thickness can be found in src/bivme/analysis. Wall thickness is calculated on binary 3D images using [pyezzi](https://pypi.org/project/pyezzi/) for both LV and RV separately. The septal wall is included in the LV calculation and excluded from the RV. 
 
 To run the `compute_wall_thickness.py` script, use the following command:
@@ -269,7 +269,7 @@ The output files will look like this in 3D Slicer:
 ![Wall_thickness](images/WallThickness.png)
 
 
-## Postprecessing of biv-me models (experimental feature)
+## Postprocessing of models
 An experimental tool is available to refine the models by applying collision detection to prevent intersections between the RV septum and RV free wall. While the diffeomorphic fitting ensures no intersection between the endocardial and epicardial surfaces, this tool specifically addresses any potential self-intersections within the endocardial surface.
 
 The script refitting a biv-me model with collision detection can be found in `src/bivme/postprocessing`. This script re-fit the models, using an extra collision detection step. An inital fit of the model is required as this will be used as guide points.

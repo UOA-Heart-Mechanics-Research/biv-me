@@ -7,8 +7,9 @@ Usage
 -----------------------------------------------
 
 ### Visualise GPFile
-GPFiles and fitted models can be visualise with plot_guidepoints located in src/bivme/ploting. 
+GPFiles and fitted models can be visualise with plot_guidepoints.py located in src/bivme/ploting. 
 
+```
 usage: plot_guidepoints.py [-h] [-o OUTPUT_FOLDER] [-gp GP_DIRECTORY] [--gp_suffix GP_SUFFIX] [--si_suffix SI_SUFFIX] [-mdir MODEL_DIRECTORY]
 
 This function plots a GPFile and its fitted model (if available)
@@ -25,4 +26,4 @@ options:
                         Define slice info to use if multiple SliceInfo.txt file are available
   -mdir MODEL_DIRECTORY, --model_directory MODEL_DIRECTORY
                         Define the directory containing the model files
-
+```
