@@ -144,10 +144,10 @@ This will process the guidepoints files in the gp_directory defined in the confi
 ## Analysis of models
 Several tools are provided for the analysis of biventricular models, including scripts for volume calculation, strain analysis (circumferential and longitudinal strains), and wall thickness measurement. 
 
-### Calculating volumes from models <br>
+### Calculating volumes from models 
 The script for calculating the volume of a mesh can be found in the `src/bivme/analysis` directory. It uses the tetrahedron method, which decomposes the mesh into tetrahedra and computes their volumes.
 
-#### **Running the script** <br>
+#### **Running the script** 
 To run the `compute_volume.py` script, use the following command:
 
 ```bash
@@ -163,7 +163,7 @@ usage: compute_volume.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_PATH] [-b BIV_MODEL_F
 | `-pat PATTERNS`       | The folder pattern to include for processing. You can use wildcards (default: `*`).           |
 | `-p PRECISION`        | Sets the output precision (default: 2 decimal places).                                        |
 
-#### **Example Usage** <br>
+#### **Example Usage** 
 Example data is available in `example/fitted-models`. To compute the volumes using this data, run the following command:
 
 ```python
@@ -173,7 +173,7 @@ python compute_volume.py -mdir ../../../example/fitted-models -p 1 -o example_vo
 
 This will process the biventricular models in the `../../../example/fitted-models` directory, compute the volumes with a precision of 1 decimal place, and save the results in the `example_volumes` directory. The volumes will be saved in the `lvrv_volumes.csv` file.
 
-**Sample Output** <br>
+**Sample Output** <br> 
 The output file will look like this:
 
 | **Name**     | **Frame** | **LV Volume (lv_vol)** | **LV Mass (lvm)** | **RV Volume (rv_vol)** | **RV Mass (rvm)** | **LV Epicardial Volume (lv_epivol)** | **RV Epicardial Volume (rv_epivol)** |
@@ -182,11 +182,11 @@ The output file will look like this:
 | patient_1    | 1         | 252.2                  | 223.8             | 225.9                  | 69.3              | 465.4                                 | 291.8                                |
 
 
-### Calculating strains from models <br>
+### Calculating strains from models 
 
 The script for calculating both global circumferential and global longitudinal strains of a mesh can be found in the `src/bivme/analysis` directory. Geometric strain is defined as the change in geometric arc length from ED to any other frame using a set of predefined points and calculated using the Cauchy strain formula. The global circuferential strains are calculated at three levels: apical, mid and basal. The global longitudinal strains are calculated on a 4Ch and a 2Ch view.
 
-#### **Running the scripts** <br>
+#### **Running the scripts** 
 To run the `compute_global_circumferential_strain.py` and `compute_global_longitudinal_strain.py` scripts, use the following command:
 
 for circumferential strain:
@@ -210,7 +210,7 @@ usage: compute_global_longitudinal_strain.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_P
 | `-ed ED_FRAME` | defines which frame is the ED frame. (default: 1st frame)
 
 
-#### **Example Usage** <br>
+#### **Example Usage**
 Example data is available in `example/fitted-models`. To compute the circuferential strains using this data, run the following command:
 
 ```python
