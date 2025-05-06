@@ -46,13 +46,14 @@ pip install -e .
 python src/pyezzi/setup.py build_ext --inplace
 ```
 
-## Usage
+## Table of Contents
     - View detection
     - Fitting
-[Analysis of biv-me models](#analysis-of-biv-me-models)
 
-[Calculate volumes from biv-me model](#calculate-volumes-from-biv-me-models)
-
+- [Analysis of biv-me models](#analysis-of-biv-me-models)  
+  - [Calculating volumes from biv-me model](#calculate-volumes-from-biv-me-models)  
+  - [Calculating strains from biv-me models](#calculate-strains-from-biv-me-models)  
+  - [Calculating wall thickness from biv-me models](#calculating-wall-thickness-from-biv-me-models)
 -----------------------------------------------
 ### (Preprocessing) Create GP files from DICOM files
 If you do not already have them, guidepoint files (GPFiles) for personalised biventricular mesh fitting can be generated directly from DICOM files.
@@ -220,20 +221,44 @@ The output file will look like this:
 
 
 
-### Compute wall thickness
-The script for computing the wall thickness can be found in src/bivme/analysis. Wall thickness is calculated on binary 3D images using [pyezzi](https://pypi.org/project/pyezzi/) for both LV and RV separately. The septal wall is included in the LV calculation and excluded from the RV 
+### Calculating wall thickness from biv-me models <br>
+The script computing the wall thickness can be found in src/bivme/analysis. Wall thickness is calculated on binary 3D images using [pyezzi](https://pypi.org/project/pyezzi/) for both LV and RV separately. The septal wall is included in the LV calculation and excluded from the RV. 
 
-The following command generate 2 .vtk files (one for the LV chamber and the other for the RV chamber) per input model in `path/to/my/fitted/model/directory/wall_thickness`. Each case will have its own subfolder. Wall thickness is sampled and saved at the location of each vertex and can be visualised in Paraview as vertex color.
+To run the `compute_wall_thickness.py` script, use the following command:
+
+```bash
+usage: compute_global_circumferential_strain.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_PATH] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-r VOXEL_RESOLUTION] [-s SAVE_SEGMENTATION_FLAG]
+ ```
+
+| **Argument**          | **Description**                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------- 
+
+| `-h, --help`          | Displays the help message and exits.                                                          |
+| `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biventricular models.                      |
+| `-o OUTPUT_PATH`      | Specifies the directory where the output files will be saved.                                 |
+| `-b BIV_MODEL_FOLDER` | Path to the folder containing the subdivision matrices for the models (default: `src/model`). |
+| `-pat PATTERNS`       | The folder pattern to include for processing. You can use wildcards (default: `*`).           |
+| `-r VOXEL_RESOLUTION`        | Voxel resolution to compute the masks.                                        |
+| `-s SAVE_SEGMENTATION_FLAG` | Boolean flag indicating whether to save 3D masks
+
+
+#### **Example Usage** <br>
+Example data is available in `example/fitted-models`. To compute the wall thickness using this data, run the following command:
 
 ```
-python compute_wall_thickness.py -mdir path/to/my/fitted/model/directory -o path/to/my/output/folder
+python compute_wall_thickness.py -mdir ../../../example/fitted-models -o example_thickness
 ```
+
+This will process the biventricular models in the `../../../example/fitted-models` directory, compute the wall thickness at a resolution of 1mm, and save the results in the `example_thickness` directory. Wall thickness is sampled and saved at the location of each vertex and can be visualised in Paraview as vertex color or in 3D slicer.
 
 Adding the `-s` flag to the above command will also generate 4 extra nifti files per model: 2 3D masks with background=0, cavity=1, and wall=2 (`labeled_image_lv*.nii` and `labeled_image_lv*.nii`) and 2 3D mask containing thickness values at each voxel (`lv_thickness*.nii` and `rv_thickness*.nii`).
+
 ```
-python compute_wall_thickness.py -mdir path/to/my/fitted/model/directory -o path/to/my/output/folder -s
+python compute_wall_thickness.py -mdir ../../../example/fitted-models -o example_thickness -s
 ```
 
+**Sample Output** <br>
+The output files will look like this in 3D Slicer:
 ![Wall_thickness](images/WallThickness.png)
 
 ### Remove intersection from biv-me models (experimental feature)
