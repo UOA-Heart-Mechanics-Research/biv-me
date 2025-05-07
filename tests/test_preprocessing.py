@@ -108,8 +108,8 @@ def test_contouring():
     output = [slice_id, filename, view, image_position_patient, image_orientation_patient, pixel_spacing, img]
     slice_info_df = pd.DataFrame([output], columns=['Slice ID', 'File', 'View', 'ImagePositionPatient', 'ImageOrientationPatient', 'Pixel Spacing', 'Img'])
 
-    test_dst = os.path.join(root, 'patient1')
-    test_output = os.path.join(root, 'output', 'patient1')
+    test_dst = os.path.join(root, case)
+    test_output = os.path.join(root, 'output', case)
     os.makedirs(test_output, exist_ok=True)
 
     # Write slice info file
@@ -120,12 +120,12 @@ def test_contouring():
     assert os.path.exists(slice_info_file), 'SliceInfoFile not generated.'
 
     # Generate contours
-    slice_dict = generate_contours(case, test_dst, slice_info_df, 27, '3d', logger)
+    slice_dict = generate_contours(test_dst, slice_info_df, 27, '3d', logger)
 
     assert len(slice_dict.keys()) == 1, 'Contours not generated.'
 
     # Export contours as GP files
-    export_guidepoints(case, test_dst, os.path.join(root,'output'), slice_dict, slice_mapping)
+    export_guidepoints(test_dst, test_output, slice_dict, slice_mapping)
 
     # Find the GP files
     gp_files = [f for f in os.listdir(test_output) if 'GPFile' in f]

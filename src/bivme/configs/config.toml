@@ -6,7 +6,7 @@ version = "1.0.0" # for semantic versioning - Major.Minor.Patch sequence
 # When a developer fixes a bug in that version, the next version release is named version 2.3.2.
 
 [modules]
-preprocessing = true
+preprocessing = false
 fitting = true
 # Define which modules you want to run. 
 # preprocessing generates GPFiles and SliceInfo files for biv model fitting directly from a DICOM directory
@@ -29,7 +29,24 @@ generate_log_file = true
 # Decide whether or not to save the log files. If true, a .log file will be generated each for preprocessing and fitting
 # Default: true
 
-## Preprocessing parameters
+#
+#
+#
+#
+#
+#
+#
+#
+###### Preprocessing parameters
+#
+#
+#
+#
+#
+#
+#
+#
+
 # Below are the parameters used to configure preprocessing of DICOM files 
 # Skip these if you do not intend to run preprocessing
 [input_pp]
@@ -84,7 +101,24 @@ output_directory = ''
 # If fitting and preprocessing are both enabled, this output_directory will also be the gp_directory used for fitting (see below)
 # Default: ''
 
-## Fitting parameters
+#
+#
+#
+#
+#
+#
+#
+#
+###### Fitting parameters
+#
+#
+#
+#
+#
+#
+#
+#
+
 # Below are the parameters used to configure biv model fitting 
 [input_fitting]
 gp_directory = "./../../../example/guidepoints"
@@ -152,7 +186,7 @@ mesh_format = ".vtk"
 
 closed_mesh = false
 # Option to export mesh object as closed or not closed
-# Default: "false"
+# Default: false
 
 output_meshes = ["LV_ENDOCARDIAL", "RV_ENDOCARDIAL", "EPICARDIAL"]
 # Allowed values:
@@ -162,6 +196,7 @@ output_meshes = ["LV_ENDOCARDIAL", "RV_ENDOCARDIAL", "EPICARDIAL"]
 
 overwrite = true
 # Define to overwrite the output mesh if it exists
+# Default: true
 
 output_directory = "./../../output/"
 # Define where to save the fitted models and files
