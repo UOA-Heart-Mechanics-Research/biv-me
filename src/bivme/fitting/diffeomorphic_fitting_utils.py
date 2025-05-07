@@ -1,17 +1,16 @@
 import time
-from cvxopt import matrix, solvers
+import cvxpy as cp
 from .build_model_tools import *
 from plotly.offline import plot
 import plotly.graph_objs as go
 import os
-import gzip
-import shutil
 from bivme.fitting import BiventricularModel
 from bivme.fitting import GPDataSet
 import numpy as np
 from loguru import logger
 from copy import deepcopy
 from .surface_enum import Surface
+import scipy.sparse as sp
 
 def solve_convex_problem(
     biv_model: BiventricularModel, data_set: GPDataSet, weight_gp: float, low_smoothing_weight: float, transmural_weight: float, my_logger: logger, collision_detection = False, model_prior : BiventricularModel = None
@@ -46,82 +45,95 @@ def solve_convex_problem(
         ] = biv_model.compute_data_xi(weight_gp, data_set)
 
         data_points = data_set.points_coordinates[data_points_index]
+
     prior_position = np.dot(projected_points_basis_coeff, biv_model.control_mesh)
     w = w_out * np.identity(len(prior_position))
     WPG = np.dot(w, projected_points_basis_coeff)
     GTPTWTWPG = np.dot(WPG.T, WPG)
+
     A = GTPTWTWPG + low_smoothing_weight * (
         biv_model.gtstsg_x + biv_model.gtstsg_y + transmural_weight * biv_model.gtstsg_z
     )
     Wd = np.dot(w, data_points - prior_position)
 
     previous_step_err = 0
-    tol = 1e-6
+    tol = tol = 5e-4# 1e-6
     iteration = 0
-    Q = 2 * A  # .T*A  # 2*A
-    quadratic_form = matrix(0.5 * (Q + Q.T), tc="d")  # to make it symmetrical.
     prev_displacement = np.zeros((biv_model.NUM_NODES, 3))
     step_err = np.linalg.norm(data_points - prior_position, axis=1)
     step_err = np.sqrt(np.sum(step_err) / len(prior_position))
 
+    Q = 2 * A  # .T*A  # 2*A
+    Q = sp.csc_matrix(Q + Q.T)  # Precompute symmetric matrix
+
     residuals = -1
     collision_iteration = 1
-    while abs(step_err - previous_step_err) > tol and iteration < 10 and collision_iteration < 3:
+
+    solver_params = {'solver':'OSQP', 
+                    'verbose':False, 
+                    'max_iter':8000, 
+                    'eps_abs':1e-3,       
+                    'eps_rel':1e-3,   
+                    'adaptive_rho':True,  # Can improve convergence    
+                    'polish':False,
+                    'warm_start':True}
+
+    # precompute the G and h matrix
+    size = 2 * (3 * len(biv_model.mbder_dx))
+    bound = 1.0
+    h = np.array([bound] * size)   
+
+    G_rows = 6 * biv_model.mbder_dx.shape[0]
+
+    G_param = cp.Parameter((G_rows, biv_model.NUM_NODES))
+    h_param = cp.Parameter(G_rows)
+    q_param = [cp.Parameter(biv_model.NUM_NODES) for _ in range(3)]
+
+    variables = [cp.Variable(biv_model.NUM_NODES) for _ in range(3)]
+    problems = [
+        cp.Problem(cp.Minimize(0.5 * cp.quad_form(var, Q) + q.T @ var), [G_param @ var <= h_param])
+        for q, var in zip(q_param, variables)
+    ]
+
+    while abs(step_err - previous_step_err) / (previous_step_err + 1e-8) > tol and iteration < 10 and collision_iteration < 3:
         my_logger.info(f"     Iteration {iteration + 1} Smoothing weight {low_smoothing_weight}	 ECF error {step_err}")
 
         previous_step_err = step_err
-        linear_part_x = matrix(
-            (2 * np.dot(prev_displacement[:, 0].T, A) - 2 * np.dot(Wd[:, 0].T, WPG).T),
-            tc="d",
-        )
-        linear_part_y = matrix(
-            (2 * np.dot(prev_displacement[:, 1].T, A) - 2 * np.dot(Wd[:, 1].T, WPG).T),
-            tc="d",
-        )
-        linear_part_z = matrix(
-            (2 * np.dot(prev_displacement[:, 2].T, A) - 2 * np.dot(Wd[:, 2].T, WPG).T),
-            tc="d",
-        )
 
-        linear_constraints = matrix(generate_contraint_matrix(biv_model), tc="d")
+        linear_constraints = generate_contraint_matrix(biv_model)
         linear_constraints_neg = -linear_constraints
-        G = matrix(np.vstack((linear_constraints, linear_constraints_neg)))
-        size = 2 * (3 * len(biv_model.mbder_dx))
-        bound = 1 / 3
-        h = matrix([bound] * size)
 
-        solvers.options["show_progress"] = False
-        #  Solver: solvers.qp(P,q,G,h)
-        #  see https://courses.csail.mit.edu/6.867/wiki/images/a/a7/Qp-cvxopt.pdf
-        #  for explanation
+        G = np.vstack((linear_constraints, linear_constraints_neg)) * 3.0
+        G = sp.csc_matrix(G)
 
-        solx = solvers.qp(quadratic_form, linear_part_x, G, h)
-        soly = solvers.qp(quadratic_form, linear_part_y, G, h)
-        solz = solvers.qp(quadratic_form, linear_part_z, G, h)
+        linear_part_x = 2 * np.dot(prev_displacement[:, 0].T, A) - 2 * np.dot(Wd[:, 0].T, WPG).T
+        linear_part_y = 2 * np.dot(prev_displacement[:, 1].T, A) - 2 * np.dot(Wd[:, 1].T, WPG).T
+        linear_part_z = 2 * np.dot(prev_displacement[:, 2].T, A) - 2 * np.dot(Wd[:, 2].T, WPG).T
 
-        sx = [a for a in solx["x"]]  # LDT 15/11/21: this avoids .append()
-        sy = [a for a in soly["x"]]
-        sz = [a for a in solz["x"]]
-        displacement = np.column_stack(
-            (sx, sy, sz)
-        )  # LDT 15/11/21: this avoids to repeat three times np.asarray
+        linear_part_x = sp.csc_matrix(linear_part_x.reshape(-1, 1))  # Column vector
+        linear_part_y = sp.csc_matrix(linear_part_y.reshape(-1, 1))
+        linear_part_z = sp.csc_matrix(linear_part_z.reshape(-1, 1))
 
-        """        solx = solvers.qp(quadratic_form, linear_part_x, G, h)
-        soly = solvers.qp(quadratic_form, linear_part_y, G, h)
-        solz = solvers.qp(quadratic_form, linear_part_z, G, h)
-        sx = []
-        sy = []
-        sz = []
-        for a in solx['x']:
-            sx.append(a)
-        for a in soly['x']:
-            sy.append(a)
-        for a in solz['x']:
-            sz.append(a)
-        displacement = np.zeros((biv_model.numNodes, 3))
-        displacement[:, 0] = np.asarray(sx)
-        displacement[:, 1] = np.asarray(sy)
-        displacement[:, 2] = np.asarray(sz)"""
+        # Update the parameters
+        G_param.value = G
+        h_param.value = h   
+        q_param[0].value = linear_part_x.toarray().flatten()
+        q_param[1].value = linear_part_y.toarray().flatten()
+        q_param[2].value = linear_part_z.toarray().flatten()
+
+        # Solve all problems
+        #t3 = time.time()
+        for prob in problems:
+            prob.solve(**solver_params, ignore_dpp=True)
+        #print("Time taken to solve the optimization problem:", time.time() - t3)    
+
+        # Combine results
+        displacement = np.column_stack([var.value for var in variables])
+
+        #print("Norm of disp:", np.linalg.norm(displacement))  
+        # Adding ealry stopping condition to avoid unnecessary iterations
+        if np.linalg.norm(displacement) < 1e-4:
+            break
 
         # check if diffeomorphic
         Isdiffeo = biv_model.is_diffeomorphic(
@@ -148,9 +160,9 @@ def solve_convex_problem(
                     step_err = -1
 
                 else:
-                    prev_displacement[:, 0] = prev_displacement[:, 0] + sx
-                    prev_displacement[:, 1] = prev_displacement[:, 1] + sy
-                    prev_displacement[:, 2] = prev_displacement[:, 2] + sz
+                    prev_displacement[:, 0] = prev_displacement[:, 0] + displacement[:, 0]
+                    prev_displacement[:, 1] = prev_displacement[:, 1] + displacement[:, 1]
+                    prev_displacement[:, 2] = prev_displacement[:, 2] + displacement[:, 2]
                     biv_model.update_control_mesh(biv_model.control_mesh + displacement)
 
                     prior_position = np.dot(
@@ -161,17 +173,13 @@ def solve_convex_problem(
                     iteration = iteration + 1
 
             else:
-                prev_displacement[:, 0] = prev_displacement[:, 0] + sx
-                prev_displacement[:, 1] = prev_displacement[:, 1] + sy
-                prev_displacement[:, 2] = prev_displacement[:, 2] + sz
+                prev_displacement += displacement
                 biv_model.update_control_mesh(biv_model.control_mesh + displacement)
 
-                prior_position = np.dot(
-                    projected_points_basis_coeff, biv_model.control_mesh
-                )
+                prior_position = np.dot(projected_points_basis_coeff, biv_model.control_mesh)
                 step_err = np.linalg.norm(data_points - prior_position, axis=1)
                 step_err = np.sqrt(np.sum(step_err) / len(prior_position))
-                iteration = iteration + 1
+                iteration += 1
 
     residuals = step_err
 
@@ -271,6 +279,7 @@ def solve_least_squares_problem(biv_model : BiventricularModel, weight_gp: float
         isdiffeo = biv_model.is_diffeomorphic(
             np.add(biv_model.control_mesh, displacement), min_jacobian
         )
+
         if isdiffeo == 1:
             if collision_detection:
                 updated_model = deepcopy(biv_model)
@@ -310,254 +319,48 @@ def solve_least_squares_problem(biv_model : BiventricularModel, weight_gp: float
 
     return high_weight
 
-
 def generate_contraint_matrix(mesh):
-    """This function generates constraints matrix to be given to cvxopt
-
-    Parameters
-    ----------
-
-        mesh
-
-    Returns
-    --------
-
-    constraints: constraints matrix
-
+    """
+    Constraint matrix generator.
+    Assumes:
+        mesh.mbder_dx, mbder_dy, mbder_dz: (N, number_of_control_points)
+        mesh.control_mesh: (number_of_control_points, 3)
     """
 
-    constraints = []
-    for i in range(len(mesh.mbder_dx)):  # rows and colums will always be the same so
-        # we just need to precompute this and then calculate the values...
+    mbdx, mbdy, mbdz = mesh.mbder_dx, mesh.mbder_dy, mesh.mbder_dz
+    ctrl = mesh.control_mesh   # shape: (388, 3)
+    N, K = mbdx.shape
 
-        dXdxi = np.zeros((3, 3), dtype="float")
+    dXdxi = np.empty((N, 3, 3), dtype=np.float64)
+    dXdxi[:, 0, :] = mbdx @ ctrl  # each row: (388,) @ (388,3) = (3,)
+    dXdxi[:, 1, :] = mbdy @ ctrl
+    dXdxi[:, 2, :] = mbdz @ ctrl
 
-        dXdxi[:, 0] = np.dot(mesh.mbder_dx[i, :], mesh.control_mesh)
-        dXdxi[:, 1] = np.dot(mesh.mbder_dy[i, :], mesh.control_mesh)
-        dXdxi[:, 2] = np.dot(mesh.mbder_dz[i, :], mesh.control_mesh)
+    g_inv = np.linalg.inv(dXdxi)  # shape (N, 3, 3)
 
-        g = np.linalg.inv(dXdxi)
-
-        Gx = (
-            np.dot(mesh.mbder_dx[i, :], g[0, 0])
-            + np.dot(mesh.mbder_dy[i, :], g[1, 0])
-            + np.dot(mesh.mbder_dz[i, :], g[2, 0])
-        )
-        constraints.append(Gx)
-
-        Gy = (
-            np.dot(mesh.mbder_dx[i, :], g[0, 1])
-            + np.dot(mesh.mbder_dy[i, :], g[1, 1])
-            + np.dot(mesh.mbder_dz[i, :], g[2, 1])
-        )
-        constraints.append(Gy)
-
-        Gz = (
-            np.dot(mesh.mbder_dx[i, :], g[0, 2])
-            + np.dot(mesh.mbder_dy[i, :], g[1, 2])
-            + np.dot(mesh.mbder_dz[i, :], g[2, 2])
-        )
-        constraints.append(Gz)
-
-    return np.asarray(constraints)
-
-
-def calc_smoothing_matrix_DAffine(model, e_weights, e_groups=None):
-    """Changed by A.Mira to allow elements grouping with different
-    weights.
-
-    Parameters
-    ----------
-    `e_groups`  list of list with index of elements defining element group
-
-    `e_weight`  nx3 array were n is the number of groups, defining the
-    weights for each group of elements
-    """
-
-    # function that compiles the S'S matrix using D affine weights is a
-    # 3 x1 vector containing the desired weight alog u, v and w
-    # direction(element coordinates system)
-    # Adaptation from calcDefSmoothingMatrix_RVLV3D.m
-    if not model.build_mode:
-        print(
-            "To compute the smoothing matrix the model should be "
-            "built with build_mode=True"
-        )
-        return
-    if e_groups == None:
-        e_groups = [list(range(model.numElements))]
-
-    e_weights = np.array(e_weights)
-    if np.isscalar(e_groups[0]):
-        e_groups = [e_groups]
-    if len(e_weights.shape) == 1:
-        e_weights = np.array([e_weights])
-    # Creation of Gauss points
-
-    xig, wg = generate_gauss_points(4)
-    ngt = xig.shape[0]
-    nft = 3
-    nDeriv = [0, 1, 5]
-    # d / dxi1, d / dxi2, d / dxi3 in position  1, 2 and 6
-    dxi = 0.01
-    # step in x space for finite difference calculation
-    dxi1 = np.concatenate(
-        (np.ones((ngt, 1)) * dxi, np.zeros((ngt, 1)), np.zeros((ngt, 1))), axis=1
+    Gx = (
+        g_inv[:, 0, 0][:, None] * mbdx +
+        g_inv[:, 0, 1][:, None] * mbdy +
+        g_inv[:, 0, 2][:, None] * mbdz
     )
-    dxi2 = np.concatenate(
-        (np.zeros((ngt, 1)), np.ones((ngt, 1)) * dxi, np.zeros((ngt, 1))), axis=1
+    Gy = (
+        g_inv[:, 1, 0][:, None] * mbdx +
+        g_inv[:, 1, 1][:, None] * mbdy +
+        g_inv[:, 1, 2][:, None] * mbdz
     )
-    dxi3 = np.concatenate(
-        (np.zeros((ngt, 1)), np.zeros((ngt, 1)), np.ones((ngt, 1)) * dxi), axis=1
+    Gz = (
+        g_inv[:, 2, 0][:, None] * mbdx +
+        g_inv[:, 2, 1][:, None] * mbdy +
+        g_inv[:, 2, 2][:, None] * mbdz
     )
 
-    STSfull = np.zeros((model.numNodes, model.numNodes))
-    Gx = np.zeros((model.numNodes, model.numNodes))
-    Gy = np.zeros((model.numNodes, model.numNodes))
-    Gz = np.zeros((model.numNodes, model.numNodes))
+    # Stack without vstack overhead
+    out = np.empty((3 * N, K), dtype=np.float64)
+    out[0::3, :] = Gx
+    out[1::3, :] = Gy
+    out[2::3, :] = Gz
 
-    dXdxi = np.zeros((3, 3))
-    dXdxi11 = np.zeros((3, 3))
-    dXdxi12 = np.zeros((3, 3))
-    dXdxi21 = np.zeros((3, 3))
-    dXdxi22 = np.zeros((3, 3))
-    dXdxi31 = np.zeros((3, 3))
-    dXdxi32 = np.zeros((3, 3))
-
-    mbder = np.zeros((ngt, model.numNodes, 10))
-    mbder11 = np.zeros((ngt, model.numNodes, 10))
-    mbder12 = np.zeros((ngt, model.numNodes, 10))
-    mbder21 = np.zeros((ngt, model.numNodes, 10))
-    mbder22 = np.zeros((ngt, model.numNodes, 10))
-    mbder31 = np.zeros((ngt, model.numNodes, 10))
-    mbder32 = np.zeros((ngt, model.numNodes, 10))
-    for et_index, et in enumerate(e_groups):
-        weights = e_weights[et_index]
-        for ne in et:
-            nr = 0
-            Sk = np.zeros(
-                (3 * ngt * nft, model.numNodes, 3)
-            )  # storage for smoothing arrays
-
-            # gauss points ' basis functions
-
-            for j in range(ngt):
-                _, mbder[j, :, :], _ = model.evaluate_basis_matrix(
-                    xig[j, 0], xig[j, 1], xig[j, 2], ne, 0, 0, 0
-                )
-                _, mbder11[j, :, :], _ = model.evaluate_basis_matrix(
-                    xig[j, 0],
-                    xig[j, 1],
-                    xig[j, 2],
-                    ne,
-                    dxi1[j, 0],
-                    dxi1[j, 1],
-                    dxi1[j, 2],
-                )
-                _, mbder12[j, :, :], _ = model.evaluate_basis_matrix(
-                    xig[j, 0],
-                    xig[j, 1],
-                    xig[j, 2],
-                    ne,
-                    -dxi1[j, 0],
-                    -dxi1[j, 1],
-                    -dxi1[j, 2],
-                )
-                _, mbder21[j, :, :], _ = model.evaluate_basis_matrix(
-                    xig[j, 0],
-                    xig[j, 1],
-                    xig[j, 2],
-                    ne,
-                    dxi2[j, 0],
-                    dxi2[j, 1],
-                    dxi2[j, 2],
-                )
-                _, mbder22[j, :, :], _ = model.evaluate_basis_matrix(
-                    xig[j, 0],
-                    xig[j, 1],
-                    xig[j, 2],
-                    ne,
-                    -dxi2[j, 0],
-                    -dxi2[j, 1],
-                    -dxi2[0, 2],
-                )
-                _, mbder31[j, :, :], _ = model.evaluate_basis_matrix(
-                    xig[j, 0],
-                    xig[j, 1],
-                    xig[j, 2],
-                    ne,
-                    dxi3[j, 0],
-                    dxi3[j, 1],
-                    dxi3[j, 2],
-                )
-                _, mbder32[j, :, :], _ = model.evaluate_basis_matrix(
-                    xig[j, 0],
-                    xig[j, 1],
-                    xig[j, 2],
-                    ne,
-                    -dxi3[j, 0],
-                    -dxi3[j, 1],
-                    -dxi3[j, 2],
-                )
-
-            # for all gauss pts ng
-            for ng in range(ngt):
-                # calculate dX / dxi at Gauss pt and surrounding.
-                for nk, deriv in enumerate(nDeriv):
-                    dXdxi[:, nk] = np.dot(mbder[ng, :, deriv], model.control_mesh)
-                    dXdxi11[:, nk] = np.dot(mbder11[ng, :, deriv], model.control_mesh)
-                    dXdxi12[:, nk] = np.dot(mbder12[ng, :, deriv], model.control_mesh)
-                    dXdxi21[:, nk] = np.dot(mbder21[ng, :, deriv], model.control_mesh)
-                    dXdxi22[:, nk] = np.dot(mbder22[ng, :, deriv], model.control_mesh)
-                    dXdxi31[:, nk] = np.dot(mbder31[ng, :, deriv], model.control_mesh)
-                    dXdxi32[:, nk] = np.dot(mbder32[ng, :, deriv], model.control_mesh)
-
-                g = np.linalg.inv(dXdxi)
-                g11 = np.linalg.inv(dXdxi11)
-                g12 = np.linalg.inv(dXdxi12)
-                g21 = np.linalg.inv(dXdxi21)
-                g22 = np.linalg.inv(dXdxi22)
-                g31 = np.linalg.inv(dXdxi31)
-                g32 = np.linalg.inv(dXdxi32)
-                h = np.zeros((3, 3, 3))
-                h[:, :, 0] = (g11 - g12) / (2 * dxi)
-                h[:, :, 1] = (g21 - g22) / (2 * dxi)
-                h[:, :, 2] = (g31 - g32) / (2 * dxi)
-
-                # 2 nd order derivatives[uu, uv, uw; uv, vv, vw; uw vw, ww]
-                pindex = np.array([[3, 2, 7], [2, 4, 6], [7, 6, 8]])
-
-                for nk in range(3):  # derivatives
-                    for nj in range(nft):
-                        try:
-                            Sk[nr, :, nk] = wg[ng] * (
-                                g[0, nj] * mbder[ng, :, pindex[nk, 0]]
-                                + g[1, nj] * mbder[ng, :, pindex[nk, 1]]
-                                + g[2, nj] * mbder[ng, :, pindex[nk, 2]]
-                                + h[0, nj, nk] * mbder[ng, :, 0]
-                                + h[1, nj, nk] * mbder[ng, :, 1]
-                                + h[2, nj, nk] * mbder[ng, :, 5]
-                            )
-                        except:
-                            print("stop")
-                        nr = nr + 1
-
-            STS1 = np.dot(Sk[:, :, 0].T, Sk[:, :, 0])
-            STS2 = np.dot(Sk[:, :, 1].T, Sk[:, :, 1])
-            STS3 = np.dot(Sk[:, :, 2].T, Sk[:, :, 2])
-
-            STS = (weights[0] * STS1) + (weights[1] * STS2) + (weights[2] * STS3)
-            Gx = Gx + weights[0] * STS1
-            Gy = Gy + weights[1] * STS2
-            Gz = Gz + weights[2] * STS3
-
-            # stiffness matrix
-            STSfull = STSfull + STS
-
-    gtstsg = STSfull  # I've already included G
-
-    return gtstsg, Gx, Gy, Gz
-
+    return out
 
 def plot_timeseries(dataset, folder, filename):
     fig = go.Figure(dataset[0][0])
@@ -630,10 +433,6 @@ def plot_timeseries(dataset, folder, filename):
             len=1.0,
         )  # slider length
     ]
-
-    # print(fig.data[0])
-
-    # [print(list(filter(None, k['x']))) for k in fig.data ]
 
     min_x = np.min(
         [
