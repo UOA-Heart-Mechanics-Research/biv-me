@@ -1,49 +1,65 @@
 <div align="center">
 
 # Biventricular model fitting framework
+![Python version](https://img.shields.io/badge/python-3.11-blue)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+**Test macOS** [![macOS](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/macos.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/macos.yml)
+
+**Test Linux** [![Linux](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/linux.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/linux.yml)
+
+**Test Windows** [![Windows](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/windows.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/windows.yml)
 
 </div>
 
+This repository provides a full pipeline for generating **guide point files (GPFiles)** from DICOM data, fitting **biventricular models**, and computing **functional cardiac metrics** such as volumes, strains, and wall thickness.
 
-Platform | CI Status
----------|:---------
-OSX      | [![OSX Build Status](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/macos.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/macos.yml)
-Linux    | [![Linux Build Status](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/linux.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/linux.yml)
-Windows  | [![Windows Build status](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/windows.yml/badge.svg)](https://github.com/UOA-Heart-Mechanics-Research/biv-me/actions/workflows/windows.yml)
+Example data is available in the `example/` folder, including input DICOMs, output GPFiles, configuration files, and results for testing and reference.
 
-This is an import of the KCL BiV modelling code (originally called BiV_Modelling).
+For a detailed description of the full pipeline, please refer to:
+**Dillon JR, Mauger C, Zhao D, Deng Y, Petersen SE, McCulloch AD, Young AA, Nash MP. An open-source end-to-end pipeline for generating 3D+t biventricular meshes from cardiac magnetic resonance imaging. In: Functional Imaging and Modeling of the Heart (FIMH) 2025. (in press)**
 
-This code performs patient-specific biventricular mesh customization.
+For a detailed description regarding the fitting of the biventricular model, please refer to:
+**Mauger, C., Gilbert, K., Suinesiaputra, A., Pontre, B., Omens, J., McCulloch, A., & Young, A. (2018, July). An iterative diffeomorphic algorithm for registration of subdivision surfaces: application to congenital heart disease. In 2018 40th Annual International Conference of the IEEE Engineering in Medicine and Biology Society (EMBC) (pp. 596-599). IEEE.** [DOI: 10.1109/EMBC.2018.8512394](https://doi.org/10.1109/EMBC.2018.8512394)
 
-## Installation ![Python versions](https://img.shields.io/badge/python-3.11-blue)
-
+## 🚀 Installation Guide
 -----------------------------------------------
+
 The easiest way to get this repo setup is to use the provided conda environment (python 3.11).
 The conda environment named biv311 can be created and activated with
 
+### Step 1: Clone this repository
+```bash
+git clone https://github.com/UOA-Heart-Mechanics-Research/biv-me.git
 ```
+
+### Step 2: Setup the virtual environment
+```bash
 cd biv-me
 conda create -n bivme311 python=3.11
 conda activate bivme311
 ```
 
-Install the bivme package
-```
+### Step 3: Install the bivme packages
+```bash
 pip install -e .
-```
-
-Install pyezzi
-```
 python src/pyezzi/setup.py build_ext --inplace
 ```
 
-## Usage
+## Table of Contents
+- [Preprocessing DICOM data](#preprocessing-dicom-data)
+- [Fit a biv-me model to GP files](#fit-a-biv-me-model-to-gp-files)
+- [Analysis of models](#analysis-of-models)  
+  - [Calculating volumes from models](#calculating-volumes-from-models)  
+  - [Calculating strains from models](#calculating-strains-from-models)  
+  - [Calculating wall thickness from models](#calculating-wall-thickness-from-models)
+- [Postprocessing of models](#postprocessing-of-models)  
 
 -----------------------------------------------
-### (Preprocessing) Create GP files from DICOM files
+## Preprocessing DICOM data
 If you do not already have them, guidepoint files (GPFiles) for personalised biventricular mesh fitting can be generated directly from DICOM files.
 
-## Download models
+### Download models
 The preprocessing pipeline uses deep learning models for view prediction and segmentation. These can be downloaded from ([here](https://www.dropbox.com/scl/fo/54662zpqpb0ibmoysqy54/AF4eN0-Bzmb7O-l1lJ6WCZI?rlkey=wxahs4jcepd8ryhh0nfersne2&st=75oy73u9&dl=0)). They should be placed in the biv-me repository like so:
 
     ```
@@ -56,10 +72,10 @@ The preprocessing pipeline uses deep learning models for view prediction and seg
                     └─── ViewSelection
     ```
 
-## Import libraries
+### Import libraries
 This preprocessing pipeline utilises PyTorch and nnU-Net. The default biv-me conda environment currently doesn't install either of these for you. To set these up, activate the biv-me conda environment, like so:
 
-```
+```bash
 conda activate bivme311
 ```
 
@@ -67,11 +83,11 @@ Then, find the PyTorch right version for your GPU and OS ([here](https://pytorch
 
 After PyTorch has been installed, install nnU-Net like so:
 
-```
+```bash
 pip install nnunetv2
 ```
 
-## Run preprocessing pipeline
+### Run preprocessing pipeline
 The main script for running the preprocessing pipeline can be found in src/bivme/preprocessing/dicom. This runs the pipeline on the DICOM directory you provide it. No prior organisation of DICOM files are required, other than to separate into one folder per case, like so:
 
     ```
@@ -85,7 +101,7 @@ The main script for running the preprocessing pipeline can be found in src/bivme
 
 The output is a set of GPFiles (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) for each frame of each case, which can be used for fitting (see next section).
 
-```
+```python
 usage: run_pipeline.py [-h] [-config CONFIG_FILE]
 
 Preprocess DICOM files for fitting
@@ -100,155 +116,203 @@ An example of a config file can be found in src/bivme/preprocessing/dicom/config
 
 You can also run the preprocessing from a Jupyter notebook, in the same directory, named run_pipeline_interactive.ipynb. This notebook runs case by case. It is particularly useful if you would like some tighter supervision over certain aspects, such as the view selection. 
 
-### Fit a Biv-me model to GP files
+## Fit a biv-me model to GP files
 The script for the mesh fitting can be found in src/bivme/fitting
-```
+
+```bash
 usage: perform_fit.py [-h] [-config CONFIG_FILE]
-
-Biv-me
-
-options:
-  -h, --help            show this help message and exit
-  -config CONFIG_FILE, --config_file CONFIG_FILE
-                        Config file containing fitting parameters
-
-```
-An example of a config file can be found in src/bivme/configs/config.toml. The gp_directory should contain one subfolder for each patient. Each subfolder should contain a set of GPFiles (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) and one SliceInfoFile.txt relative to one patient. See example in the example folder.
-
-### Calculate volumes from biv-me models
-The script for the volume calculation can be found in src/bivme/analysis
-
-```
-usage: compute_volume.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_FILE] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-p PRECISION]
-
-  -h, --help            show this help message and exit
-  -mdir MODEL_DIR, --model_dir MODEL_DIR
-                        path to biv models
-  -o OUTPUT_FILE, --output_file OUTPUT_FILE
-                        output path
-  -b BIV_MODEL_FOLDER, --biv_model_folder BIV_MODEL_FOLDER
-                        folder containing subdivision matrices (default: src/model) 
-  -pat PATTERNS, --patterns PATTERNS
-                        folder patterns to include (default '*')
-  -p PRECISION, --precision PRECISION
-                        Output precision (default: 2)
 ```
 
-Results will be saved in {OUTPUT_PATH}/lvrv_volumes.csv.
+| **Argument**          | **Description**                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------- |
+| `-h, --help`          | Displays the help message and exits.                                                          |
+| `-config CONFIG_FILE`     | Config file containing fitting parameters.                      |
 
-### Calculate strains from biv-me models
-The script for strain calculation can be found in src/bivme/analysis. Geometric strain is defined as the change in geometric arc length from ED to ES using a set of predefined points and calculated using the Cauchy strain formula.
 
-**For global circumferential strain calculation**
+An example of a config file can be found in `src/bivme/configs/config.toml`. The gp_directory should contain one subfolder for each patient. Each subfolder should contain a set of GPFiles (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) and one SliceInfoFile.txt relative to one patient. See example in the example folder.
+
+#### **Example Usage** <br>
+Example data is available in `example/guidepoints`. To fit biv-me models to this data, run the following command:
+
+```python
+cd src/bivme/fitting
+python perform_fit.py -config ../configs/configs.toml
 ```
-usage: compute_global_circumferential_strain.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_PATH] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-ed ED_FRAME]
-                                                [-p PRECISION]
 
-Global circumferential strain calculation
+This will process the guidepoints files in the gp_directory defined in the config.toml file (default is `../../../example/guidepoints`) directory and save them in the output_directory defined in the config file (default is `./../../output/`). Each patient will have its own folder.
 
-options:
-  -h, --help            show this help message and exit
-  -mdir MODEL_DIR, --model_dir MODEL_DIR
-                        path to biv models
-  -o OUTPUT_PATH, --output_path OUTPUT_PATH
-                        output path
-  -b BIV_MODEL_FOLDER, --biv_model_folder BIV_MODEL_FOLDER
-                        folder containing subdivision matrices
-  -pat PATTERNS, --patterns PATTERNS
-                        folder patterns to include (default '*')
-  -ed ED_FRAME, --ed_frame ED_FRAME
-                        ED frame
-  -p PRECISION, --precision PRECISION
-                        Output precision
+## Analysis of models
+Several tools are provided for the analysis of biventricular models, including scripts for volume calculation, strain analysis (circumferential and longitudinal strains), and wall thickness measurement. 
 
+### Calculating volumes from models 
+The script for calculating the volume of a mesh can be found in the `src/bivme/analysis` directory. It uses the tetrahedron method, which decomposes the mesh into tetrahedra and computes their volumes.
+
+#### **Running the script** 
+To run the `compute_volume.py` script, use the following command:
+
+```bash
+usage: compute_volume.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_PATH] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-p PRECISION]
+```
+
+| **Argument**          | **Description**                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------- |
+| `-h, --help`          | Displays the help message and exits.                                                          |
+| `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biventricular models.                      |
+| `-o OUTPUT_PATH`      | Specifies the directory where the output files will be saved.                                 |
+| `-b BIV_MODEL_FOLDER` | Path to the folder containing the subdivision matrices for the models (default: `src/model`). |
+| `-pat PATTERNS`       | The folder pattern to include for processing. You can use wildcards (default: `*`).           |
+| `-p PRECISION`        | Sets the output precision (default: 2 decimal places).                                        |
+
+#### **Example Usage** 
+Example data is available in `example/fitted-models`. To compute the volumes using this data, run the following command:
+
+```python
+cd src/bivme/analysis
+python compute_volume.py -mdir ../../../example/fitted-models -p 1 -o example_volumes
+```
+
+This will process the biventricular models in the `../../../example/fitted-models` directory, compute the volumes with a precision of 1 decimal place, and save the results in the `example_volumes` directory. The volumes will be saved in the `lvrv_volumes.csv` file.
+
+**Sample Output** <br> 
+The output file will look like this:
+
+| **Name**     | **Frame** | **LV Volume (lv_vol)** | **LV Mass (lvm)** | **RV Volume (rv_vol)** | **RV Mass (rvm)** | **LV Epicardial Volume (lv_epivol)** | **RV Epicardial Volume (rv_epivol)** |
+|--------------|-----------|------------------------|-------------------|------------------------|-------------------|---------------------------------------|--------------------------------------|
+| patient_1    | 0         | 241.5                  | 218.3             | 220                    | 62.5              | 449.4                                 | 279.5                                |
+| patient_1    | 1         | 252.2                  | 223.8             | 225.9                  | 69.3              | 465.4                                 | 291.8                                |
+
+
+### Calculating strains from models 
+
+The script for calculating both global circumferential and global longitudinal strains of a mesh can be found in the `src/bivme/analysis` directory. Geometric strain is defined as the change in geometric arc length from ED to any other frame using a set of predefined points and calculated using the Cauchy strain formula. The global circuferential strains are calculated at three levels: apical, mid and basal. The global longitudinal strains are calculated on a 4Ch and a 2Ch view.
+
+#### **Running the scripts** 
+To run the `compute_global_circumferential_strain.py` and `compute_global_longitudinal_strain.py` scripts, use the following command:
+
+for circumferential strain:
+```bash
+usage: compute_global_circumferential_strain.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_PATH] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-p PRECISION] [-ed ED_FRAME]
+ ```
+
+for longitudinal strain:
+```bash
+usage: compute_global_longitudinal_strain.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_PATH] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-p PRECISION] [-ed ED_FRAME]
+ ```
+
+| **Argument**          | **Description**                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------- |
+| `-h, --help`          | Displays the help message and exits.                                                          |
+| `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biventricular models.                      |
+| `-o OUTPUT_PATH`      | Specifies the directory where the output files will be saved.                                 |
+| `-b BIV_MODEL_FOLDER` | Path to the folder containing the subdivision matrices for the models (default: `src/model`). |
+| `-pat PATTERNS`       | The folder pattern to include for processing. You can use wildcards (default: `*`).           |
+| `-p PRECISION`        | Sets the output precision (default: 2 decimal places).                                        |
+| `-ed ED_FRAME` | defines which frame is the ED frame. (default: 1st frame)
+
+
+#### **Example Usage**
+Example data is available in `example/fitted-models`. To compute the circuferential strains using this data, run the following command:
+
+```python
+cd src/bivme/analysis
+python compute_global_circumferential_strain.py -mdir ../../../example/fitted-models -p 1 -o example_strains -ed 0
+```
+
+This will process the biventricular models in the `../../../example/fitted-models` directory, compute the global circumferential strain with a precision of 1 decimal place, and save the results in the `example_strains` directory. The GCS will be saved in the `global_circumferential_strain.csv.csv` file. The first frame will be used as ED. 
+
+**Sample Output** <br>
+The output file will look like this:
+
+| **name**       | **frame** | **lv_gcs_apex** | **lv_gcs_mid** | **lv_gcs_base** | **rvfw_gcs_apex** | **rvfw_gcs_mid** | **rvfw_gcs_base** | **rvs_gcs_apex** | **rvs_gcs_mid** | **rvs_gcs_base** |
+|------------|-------|-------------|------------|-------------|----------------|---------------|----------------|---------------|--------------|---------------|
+| patient_1 | 0     | 0           | 0          | 0           | 0              | 0             | 0              | 0             | 0            | 0             |
+| patient_1 | 1     | 0.019710907 | 0          | -0.00747012 | -0.011037528   | 0.005964215   | 0.034870641    | 0.038321168   | 0.032425422  | 0.0087241     |
+
+
+### Calculating wall thickness from models <br>
+The script computing the wall thickness can be found in src/bivme/analysis. Wall thickness is calculated on binary 3D images using [pyezzi](https://pypi.org/project/pyezzi/) for both LV and RV separately. The septal wall is included in the LV calculation and excluded from the RV. 
+
+To run the `compute_wall_thickness.py` script, use the following command:
+
+```bash
+usage: compute_global_circumferential_strain.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_PATH] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-r VOXEL_RESOLUTION] [-s SAVE_SEGMENTATION_FLAG]
+ ```
+
+| **Argument**          | **Description**                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------- 
+| `-h, --help`          | Displays the help message and exits.                                                          |
+| `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biventricular models.                      |
+| `-o OUTPUT_PATH`      | Specifies the directory where the output files will be saved.                                 |
+| `-b BIV_MODEL_FOLDER` | Path to the folder containing the subdivision matrices for the models (default: `src/model`). |
+| `-pat PATTERNS`       | The folder pattern to include for processing. You can use wildcards (default: `*`).           |
+| `-r VOXEL_RESOLUTION`        | Voxel resolution to compute the masks.                                        |
+| `-s SAVE_SEGMENTATION_FLAG` | Boolean flag indicating whether to save 3D masks
+
+
+#### **Example Usage** <br>
+Example data is available in `example/fitted-models`. To compute the wall thickness using this data, run the following command:
 
 ```
-Results will be saved in {OUTPUT_PATH}/global_circumferential_strain.csv
-
-**For global longitudinal strain calculation**
+python compute_wall_thickness.py -mdir ../../../example/fitted-models -o example_thickness
 ```
-usage: compute_global_longitudinal_strain.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_PATH] [-b BIV_MODEL_FOLDER] [-pat PATTERNS] [-ed ED_FRAME]
-                                             [-p PRECISION]
 
-Global longitudinal strain calculation
-
-options:
-  -h, --help            show this help message and exit
-  -mdir MODEL_DIR, --model_dir MODEL_DIR
-                        path to biv models
-  -o OUTPUT_PATH, --output_path OUTPUT_PATH
-                        output path
-  -b BIV_MODEL_FOLDER, --biv_model_folder BIV_MODEL_FOLDER
-                        folder containing subdivision matrices
-  -pat PATTERNS, --patterns PATTERNS
-                        folder patterns to include (default '*')
-  -ed ED_FRAME, --ed_frame ED_FRAME
-                        ED frame
-  -p PRECISION, --precision PRECISION
-                        Output precision
-
-```
-Results will be saved in {OUTPUT_PATH}/global_longitudinal_strain.csv
-
-### Compute wall thickness
-The script for computing the wall thickness can be found in src/bivme/analysis. Wall thickness is calculated on binary 3D images using [pyezzi](https://pypi.org/project/pyezzi/) for both LV and RV separately. The septal wall is included in the LV calculation and excluded from the RV 
-
-The following command generate 2 .vtk files (one for the LV chamber and the other for the RV chamber) per input model in `path/to/my/fitted/model/directory/wall_thickness`. Each case will have its own subfolder. Wall thickness is sampled and saved at the location of each vertex and can be visualised in Paraview as vertex color.
-
-```
-python compute_wall_thickness.py -mdir path/to/my/fitted/model/directory -o path/to/my/output/folder
-```
+This will process the biventricular models in the `../../../example/fitted-models` directory, compute the wall thickness at a resolution of 1mm, and save the results in the `example_thickness` directory. Wall thickness is sampled and saved at the location of each vertex and can be visualised in Paraview as vertex color or in 3D slicer.
 
 Adding the `-s` flag to the above command will also generate 4 extra nifti files per model: 2 3D masks with background=0, cavity=1, and wall=2 (`labeled_image_lv*.nii` and `labeled_image_lv*.nii`) and 2 3D mask containing thickness values at each voxel (`lv_thickness*.nii` and `rv_thickness*.nii`).
+
 ```
-python compute_wall_thickness.py -mdir path/to/my/fitted/model/directory -o path/to/my/output/folder -s
+python compute_wall_thickness.py -mdir ../../../example/fitted-models -o example_thickness -s
 ```
 
+**Sample Output** <br>
+The output files will look like this in 3D Slicer:
 ![Wall_thickness](images/WallThickness.png)
 
-### Remove intersection from biv-me models (experimental feature)
-Diffeomorphic constraints are on the myocardium only. It can happend that the RV septum and RVFW intersect if the contours are too close. This script re-fit the models, using an extra collision detection step. An inital fit of the model is required as this will be used as guide points.
 
-The script for the mesh fitting can be found in src/bivme/postprocessing
-```
+## Postprocessing of models
+An experimental tool is available to refine the models by applying collision detection to prevent intersections between the RV septum and RV free wall. While the diffeomorphic fitting ensures no intersection between the endocardial and epicardial surfaces, this tool specifically addresses any potential self-intersections within the endocardial surface.
+
+The script refitting a biv-me model with collision detection can be found in `src/bivme/postprocessing`. This script re-fit the models, using an extra collision detection step. An inital fit of the model is required as this will be used as guide points.
+
+To run the detect_intersection.py script, use the following command:
+
+```bash
 usage: detect_intersection.py [-h] [-config CONFIG_FILE]
+ ```
 
-Biv-me
-
-options:
-  -h, --help            show this help message and exit
-  -config CONFIG_FILE, --config_file CONFIG_FILE
-                        Config file containing fitting parameters
-
-```
+| **Argument**          | **Description**                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------- 
+| `-h, --help`          | Displays the help message and exits.                                                          |
+| `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biventricular models.                      |
+| `-o OUTPUT_PATH`      | Specifies the directory where the output files will be saved.                                 |
+| `-b BIV_MODEL_FOLDER` | Path to the folder containing the subdivision matrices for the models (default: `src/model`). |
+| `-pat PATTERNS`       | The folder pattern to include for processing. You can use wildcards (default: `*`).           |
+| `-r VOXEL_RESOLUTION`        | Voxel resolution to compute the masks.                                        |
+| `-s SAVE_SEGMENTATION_FLAG` | Boolean flag indicating whether to save 3D masks
 
 The config file should be the one used to fit the original models. Refitted models will be saved in config["output"]["output_directory"]/corrected_models.
 
-
-Contribution - Notation
+## Contribution - Notation
 -----------------------------------------------
-If you wish to contribute to this project, we ask you to follow the naming conventions below :
-- **Variable**: use lowercase word. A variable that use multiple words should be separated with an underscore (snake case)
-```sitename``` should be written as ```site_name```
-- **Function and Method**: function/method names should follow the PEP 8 naming conventions ```def MyFunction()``` should be written as ```def my_function()```
-- **Constant**: constant names should be written in uppercase letters with underscores separating words ```MYCONSTANT = 3.1416``` should be written ```MY_CONSTANT = 3.1416```
-- **Class**; class names should follow the CamelCase convention: ```class myclass:``` should be written as ```class MyClass:```
-- **Package and Module** : Avoid using underscores or hyphens in package names to maintain consistency with the Python standard library and third-party packages. ```my_package_name_with_underscores = ...``` should be written ```mypackage = ...```
-- **Type variable**: follow the convention of using CamelCase with a leading capital letter: ```def my_function(items: dict[int, str]):``` should be written as ```def my_function(items: Dict[int, str]):```
-- **Exception** exception names should have the suffix “Error.”: ```class MyCustomException:``` should be ```class MyCustomExceptionError:```
-- Stick to ASCII characters to ensure smooth collaboration and consistent code execution: avoid for example ```ç = 42```. Instead prefer ```count = 42```
-- Use type hints for code readability and prevent type-related errors.
-```
-def greet(name):
-    return "Hello, " + name
-```
-should be
-```
-def greet(name: str) -> str:
-    return "Hello, " + name
-```
+If you wish to contribute to this project, please follow the naming conventions outlined below:
+
+| **Category**         | **Naming Convention**                                               | **Example**                                               |
+|----------------------|---------------------------------------------------------------------|-----------------------------------------------------------|
+| **Variable**         | Lowercase letters, words separated by underscores (snake_case)      | `site_name` instead of `sitename`                         |
+| **Function/Method**  | Lowercase letters, words separated by underscores (snake_case)      | `def my_function()` instead of `def MyFunction()`          |
+| **Constant**         | Uppercase letters, words separated by underscores                   | `MY_CONSTANT = 3.1416` instead of `MYCONSTANT = 3.1416`    |
+| **Class**            | CamelCase                                                          | `class MyClass:` instead of `class myclass:`               |
+| **Package/Module**   | No underscores or hyphens, consistent with Python standard library | `mypackage` instead of `my_package_name_with_underscores`  |
+| **Type Variable**    | CamelCase with a leading capital letter                             | `Dict[int, str]` instead of `dict[int, str]`               |
+| **Exception**        | Ends with “Error” suffix                                           | `class MyCustomExceptionError:` instead of `class MyCustomException:` |
+| **Characters**       | Stick to ASCII characters                                          | `count = 42` instead of `ç = 42`                           |
+| **Type Hints**       | Always use type hints for code readability                          | `def greet(name: str) -> str:` instead of `def greet(name):` |
 
 
-Credits
+## Acknowledgments
 ------------------------------------
-Based on work by: Laura Dal Toso, Anna Mira, Liandong Lee, Richard Burns, Joshua Dillon, Charlene Mauger
+This work is based on contributions by:  
+**Laura Dal Toso**, **Anna Mira**, **Liandong Lee**, **Richard Burns**, **Joshua Dillon**, and **Charlene Mauger**.
+
+## Contact
+For questions or issues, please open an issue on GitHub or contact [joshua.dillon@auckland.ac.nz](joshua.dillon@auckland.ac.nz) or [charlene.1.mauger@kcl.ac.uk](charlene.1.mauger@kcl.ac.uk) 

@@ -255,10 +255,10 @@ if __name__ == "__main__":
     assert args.model_dir.exists(), \
         f"model_dir does not exist."
 
-    assert args.output_folder.exists(), \
-        f"output_path does not exist."
+    if not args.output_folder.exists():
+        args.output_folder.mkdir(parents=True, exist_ok=True) 
 
-    output_folder = Path(args.output_folder) / "wall_thickness"
+    output_folder = Path(args.output_folder)
     output_folder.mkdir(exist_ok=True)
 
     folders = [p.name for p in Path(args.model_dir).glob(args.patterns) if os.path.isdir(p)]

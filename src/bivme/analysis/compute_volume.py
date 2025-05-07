@@ -180,8 +180,8 @@ if __name__ == "__main__":
     assert args.model_dir.exists(), \
         f"model_dir does not exist."
 
-    assert args.output_path.exists(), \
-        f"output_path does not exist."
+    if not args.output_path.exists():
+        args.output_path.mkdir(parents=True, exist_ok=True) 
 
     folders = [p.name for p in Path(args.model_dir).glob(args.patterns) if os.path.isdir(p)]
     logger.info(f"Found {len(folders)} model folders.")
