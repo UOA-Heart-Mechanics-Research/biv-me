@@ -1,6 +1,6 @@
 <div align="center">
 
-# Biventricular model fitting framework
+# Biventricular modelling pipeline (biv-me)
 ![Python version](https://img.shields.io/badge/python-3.11-blue)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -12,11 +12,11 @@
 
 </div>
 
-This repository provides a full pipeline for generating **guide point files (GPFiles)** from DICOM data, fitting **biventricular models**, and computing **functional cardiac metrics** such as volumes, strains, and wall thickness.
+This repository provides an end-to-end pipeline for generating **guide point files (GPFiles)** from CMR DICOM data, fitting **biventricular models**, and computing **functional cardiac metrics** such as volumes, strains, and wall thickness.
 
 Example data is available in the `example/` folder, including input DICOMs, output GPFiles, configuration files, and results for testing and reference.
 
-For a detailed description of the full pipeline, please refer to:
+For a detailed description of the end-to-end image to mesh pipeline, including image preprocessing and biventricular model fitting, please refer to:
 **Dillon JR, Mauger C, Zhao D, Deng Y, Petersen SE, McCulloch AD, Young AA, Nash MP. An open-source end-to-end pipeline for generating 3D+t biventricular meshes from cardiac magnetic resonance imaging. In: Functional Imaging and Modeling of the Heart (FIMH) 2025. (in press)**
 
 For a detailed description regarding the fitting of the biventricular model, please refer to:
@@ -25,8 +25,8 @@ For a detailed description regarding the fitting of the biventricular model, ple
 ## 🚀 Installation Guide
 -----------------------------------------------
 
-The easiest way to get this repo setup is to use the provided conda environment (python 3.11).
-The conda environment named biv311 can be created and activated with
+The easiest way to set up this repo is to use the provided conda environment (python 3.11).
+The conda environment named bivme311 can be created and activated by following steps 1-3 below.
 
 ### Step 1: Clone this repository
 ```bash
@@ -46,23 +46,11 @@ pip install -e .
 python src/pyezzi/setup.py build_ext --inplace
 ```
 
-## Table of Contents
-- [Preprocessing DICOM data](#preprocessing-dicom-data)
-- [Fit a biv-me model to GP files](#fit-a-biv-me-model-to-gp-files)
-- [Analysis of models](#analysis-of-models)  
-  - [Calculating volumes from models](#calculating-volumes-from-models)  
-  - [Calculating strains from models](#calculating-strains-from-models)  
-  - [Calculating wall thickness from models](#calculating-wall-thickness-from-models)
-- [Postprocessing of models](#postprocessing-of-models)  
+If you do not already have them, guidepoint files (GPFiles) for personalised biventricular mesh fitting can be generated directly from CMR DICOM files. This requires installing additional packages, and downloading deep learning models for view prediction and segmentation. If you do not plan to run preprocessing of CMR DICOM files to create GPFiles, you can skip the below steps.
 
------------------------------------------------
-## Preprocessing DICOM data
-If you do not already have them, guidepoint files (GPFiles) for personalised biventricular mesh fitting can be generated directly from DICOM files.
+### (Optional) Step 4: Download models
+The preprocessing code uses deep learning models for view prediction and segmentation. These can be downloaded from [here](https://www.dropbox.com/scl/fo/54662zpqpb0ibmoysqy54/AF4eN0-Bzmb7O-l1lJ6WCZI?rlkey=wxahs4jcepd8ryhh0nfersne2&st=75oy73u9&dl=0). They should be placed in the biv-me repository like so:
 
-### Download models
-The preprocessing pipeline uses deep learning models for view prediction and segmentation. These can be downloaded from ([here](https://www.dropbox.com/scl/fo/54662zpqpb0ibmoysqy54/AF4eN0-Bzmb7O-l1lJ6WCZI?rlkey=wxahs4jcepd8ryhh0nfersne2&st=75oy73u9&dl=0)). They should be placed in the biv-me repository like so:
-
-    ```
     src 
     └─── bivme
         └─── preprocessing
@@ -70,10 +58,9 @@ The preprocessing pipeline uses deep learning models for view prediction and seg
                 └─── models
                     └─── Segmentation
                     └─── ViewSelection
-    ```
 
-### Import libraries
-This preprocessing pipeline utilises PyTorch and nnU-Net. The default biv-me conda environment currently doesn't install either of these for you. To set these up, activate the biv-me conda environment, like so:
+### (Optional) Step 5: Install additional libraries (PyTorch and nnU-Net)
+This preprocessing code utilises PyTorch and nnU-Net. The default biv-me conda environment doesn't install either of these for you. To set these up, activate the biv-me conda environment, like so:
 
 ```bash
 conda activate bivme311
@@ -87,59 +74,69 @@ After PyTorch has been installed, install nnU-Net like so:
 pip install nnunetv2
 ```
 
-### Run preprocessing pipeline
-The main script for running the preprocessing pipeline can be found in src/bivme/preprocessing/dicom. This runs the pipeline on the DICOM directory you provide it. No prior organisation of DICOM files are required, other than to separate into one folder per case, like so:
+## Table of Contents
+- [Installation](#🚀-installation-guide)
 
-    ```
-    DICOM directory
-    └─── case1
-        │─── *
-    └─── case2
-        │─── *
-    └─── ...
-    ```
+- [Generating biventricular models](#how-to-run-biv-me)
+    - [Preprocessing DICOM data](#preprocessing)
+    - [Fitting biventricular models](#fitting)
+    - [End-to-end pipeline](#end-to-end-pipeline-preprocessing-and-fitting)
+- [Analysis of models](#analysis-of-models)  
+  - [Calculating volumes from models](#calculating-volumes-from-models)  
+  - [Calculating strains from models](#calculating-strains-from-models)  
+  - [Calculating wall thickness from models](#calculating-wall-thickness-from-models)
+- [Postprocessing of models](#postprocessing-of-models)
+- [Contact us](#contact)    
 
-The output is a set of GPFiles (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) for each frame of each case, which can be used for fitting (see next section).
+-----------------------------------------------
 
-```python
-usage: run_pipeline.py [-h] [-config CONFIG_FILE]
+## How to run biv-me
+biv-me can be broadly divided into three different modules: **preprocessing** (DICOMs -> GPFiles), **fitting** (GPFiles -> biventricular models), and **analysis** (biventricular models -> metrics). 
 
-Preprocess DICOM files for fitting
-
-options:
-  -h, --help            show this help message and exit
-  -config CONFIG_FILE, --config_file CONFIG_FILE
-                        Config file containing preprocessing parameters
-
-```
-An example of a config file can be found in src/bivme/preprocessing/dicom/configs/preprocessing-config.toml. 
-
-You can also run the preprocessing from a Jupyter notebook, in the same directory, named run_pipeline_interactive.ipynb. This notebook runs case by case. It is particularly useful if you would like some tighter supervision over certain aspects, such as the view selection. 
-
-## Fit a biv-me model to GP files
-The script for the mesh fitting can be found in src/bivme/fitting
+The first two modules (preprocessing and/or fitting) can be run from `src/bivme/main.py`, as detailed below.
 
 ```bash
-usage: perform_fit.py [-h] [-config CONFIG_FILE]
+usage: main.py [-h] [-config CONFIG_FILE]
 ```
 
 | **Argument**          | **Description**                                                                               |
 | --------------------- | --------------------------------------------------------------------------------------------- |
 | `-h, --help`          | Displays the help message and exits.                                                          |
-| `-config CONFIG_FILE`     | Config file containing fitting parameters.                      |
+| `-config CONFIG_FILE`     | Path to config file describing which modules to run and their associated parameters.                      |
 
+To run preprocessing and/or fitting, a **config file** must be created. The config file allows you to choose which modules to run and how you would like them to be run. An example of a config file can be found in `src/bivme/configs/config.toml`. If you wish, you can create a new config file for each time you want to make changes. Just make sure to update the path of the config file when you run the code!
 
-An example of a config file can be found in `src/bivme/configs/config.toml`. The gp_directory should contain one subfolder for each patient. Each subfolder should contain a set of GPFiles (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) and one SliceInfoFile.txt relative to one patient. See example in the example folder.
+### Preprocessing DICOM data
+If you choose to run preprocessing, then **GPFiles** (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) and one **SliceInfoFile.txt** will be created for each case for which there is DICOM data. These files are required for biventricular model fitting. GPFiles describe contour coordinates, whereas the SliceInfoFile.txt contains slice metadata.
 
-#### **Example Usage** <br>
-Example data is available in `example/guidepoints`. To fit biv-me models to this data, run the following command:
+When running preprocessing, you will need to provide certain directories in the config file. **All directories will be created upon runtime for you**, except for the 'source' directory. This should point to your DICOMs, which should be separated into folders by case like so:
+
+    source
+    └─── case1
+        │─── *
+    └─── case2
+        │─── *
+    └─── ...
+
+As long as the DICOM images are organised separately by case, **they can be arranged in any way that you like**. There is no need to manually exclude non-cines prior to running, as the code should find which images are cines and which ones aren't by checking key terms within the series descriptions. Check `src/bivme/preprocessing/dicom/extract_cines.py` for the list of key terms, and update as needed for your dataset.
+
+### Fitting biventricular models
+If you choose to run fitting, then biventricular models will be created for each case for which there are GPFiles and a SliceInfoFile.txt file (if they already exist). Models will be generated as .txt files containing mesh vertices, html plots for visualisation, and (optionally) .obj or .vtk files for LV endocardial, RV endocardial, and epicardial meshes.
+
+#### **Example usage** <br>
+Example GPFiles and SliceInfoFile.txt are available in `example/guidepoints`. To fit biv-me models to this data, run the following command:
 
 ```python
-cd src/bivme/fitting
-python perform_fit.py -config ../configs/configs.toml
+cd src/bivme
+python main.py -config ../configs/config.toml
 ```
 
-This will process the guidepoints files in the gp_directory defined in the config.toml file (default is `../../../example/guidepoints`) directory and save them in the output_directory defined in the config file (default is `./../../output/`). Each patient will have its own folder.
+This will fit biv-me models to the guidepoints files in the gp_directory defined in the config.toml file (default is `../../../example/guidepoints`) directory and save them in the output_directory defined in the config file (default is `./../../output/`). Each patient will have its own folder.
+
+
+### End-to-end pipeline (preprocessing and fitting)
+If you choose to run both preprocessing and fitting, they will run in sequence, such that biventricular models will be generated for each case for which there is DICOM data. 
+
 
 ## Analysis of models
 Several tools are provided for the analysis of biventricular models, including scripts for volume calculation, strain analysis (circumferential and longitudinal strains), and wall thickness measurement. 
@@ -290,7 +287,7 @@ usage: detect_intersection.py [-h] [-config CONFIG_FILE]
 | `-r VOXEL_RESOLUTION`        | Voxel resolution to compute the masks.                                        |
 | `-s SAVE_SEGMENTATION_FLAG` | Boolean flag indicating whether to save 3D masks
 
-The config file should be the one used to fit the original models. Refitted models will be saved in config["output"]["output_directory"]/corrected_models.
+The config file should be the one used to fit the original models. Refitted models will be saved in config["output_fitting"]["output_directory"]/corrected_models.
 
 ## Contribution - Notation
 -----------------------------------------------
@@ -311,8 +308,7 @@ If you wish to contribute to this project, please follow the naming conventions 
 
 ## Acknowledgments
 ------------------------------------
-This work is based on contributions by:  
-**Laura Dal Toso**, **Anna Mira**, **Liandong Lee**, **Richard Burns**, **Joshua Dillon**, and **Charlene Mauger**.
+This work is based on contributions by **Laura Dal Toso**, **Anna Mira**, **Liandong Lee**, **Richard Burns**, **Joshua Dillon**, and **Charléne Mauger**.
 
 ## Contact
 For questions or issues, please open an issue on GitHub or contact [joshua.dillon@auckland.ac.nz](joshua.dillon@auckland.ac.nz) or [charlene.1.mauger@kcl.ac.uk](charlene.1.mauger@kcl.ac.uk) 

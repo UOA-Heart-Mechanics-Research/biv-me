@@ -180,7 +180,7 @@ export_control_mesh = false
 mesh_format = ".vtk"
 # Allowed values:
 # * ".obj" : write the mesh as a wavefront .obj file - compatible with most computer graphics/mesh visualisation software
-# * ".vtk" : write the mesh as to vk format
+# * ".vtk" : write the mesh as to vtk format
 # * "none" : Only the .txt files containing the fitted model control meshes are written.
 # Default: ".vtk"
 
