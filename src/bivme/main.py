@@ -118,9 +118,10 @@ if __name__ == "__main__":
         config["input_fitting"]["gp_directory"] = gp_dir
 
         # save a copy of the config file to the output folder
-        output_folder = Path(config["output_pp"]["output_directory"])
-        output_folder.mkdir(parents=True, exist_ok=True)
-        shutil.copy(args.config_file, output_folder)
+        if config["output_pp"]["overwrite"] and os.path.exists(gp_dir):
+            shutil.rmtree(gp_dir)
+        os.makedirs(gp_dir, exist_ok=True)
+        shutil.copy(args.config_file, gp_dir)
 
     if run_fitting_bool: 
         validate_config_fitting(config, logger)
@@ -146,6 +147,8 @@ if __name__ == "__main__":
             else:
                 logger.info("Running preprocessing...")
                 run_preprocessing(case, config, logger)
+                if not config["logging"]["show_detailed_logging"]:
+                    logger.add(sys.stderr) # need add sink for log again
                 logger.success("Preprocessing complete.")
 
         if run_fitting_bool:
@@ -155,6 +158,8 @@ if __name__ == "__main__":
             else:
                 logger.info("Running fitting...")
                 run_fitting(case, config, logger)
+                if not config["logging"]["show_detailed_logging"]:
+                    logger.add(sys.stderr) # need add sink for log again
                 logger.success("Fitting complete.")
 
 

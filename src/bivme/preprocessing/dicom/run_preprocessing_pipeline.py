@@ -36,7 +36,7 @@ def perform_preprocessing(case, config, mylogger):
     os.makedirs(dst, exist_ok=True) # create new directory
     
     states = os.path.join(config["input_pp"]["states"], config["input_pp"]["batch_ID"])
-    states = os.path.join(states, case, config["input_pp"]["analyst_id"]) # destination directory for view predictions which don't get overwritten
+    states = os.path.join(states, case, config["input_pp"]["analyst_id"]) # destination directory for view predictions which don't get overwritten, and log files
     os.makedirs(states, exist_ok=True)
 
     # Output
@@ -55,7 +55,8 @@ def perform_preprocessing(case, config, mylogger):
     if config["logging"]["generate_log_file"]:
         log_level = "DEBUG"
         log_format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS zz}</green> | <level>{level: <8}</level> | <yellow>Line {line: >4} ({file}):</yellow> <b>{message}</b>"
-        logger_id = mylogger.add(f'{output}/log_file_{datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.log', level=log_level, format=log_format,
+        time_string = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        logger_id = mylogger.add(f'{output}/log_file_{time_string}.log', level=log_level, format=log_format,
                     colorize=False, backtrace=True,
                     diagnose=True)
 
@@ -102,6 +103,8 @@ def perform_preprocessing(case, config, mylogger):
 
     if config["logging"]["generate_log_file"]:
         mylogger.remove(logger_id)
+        # Copy log file to states directory
+        shutil.copyfile(f'{output}/log_file_{time_string}.log', os.path.join(states, f'log_file_{time_string}.log'))
 
 def validate_config(config, mylogger):
     assert os.path.exists(config["input_pp"]["source"]), \
