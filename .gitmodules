@@ -1,0 +1,3 @@
+[submodule "src/bivme/preprocessing/dicom/models"]
+	path = src/bivme/preprocessing/dicom/models
+	url = https://github.com/UOA-Heart-Mechanics-Research/biv-me-dl-models
