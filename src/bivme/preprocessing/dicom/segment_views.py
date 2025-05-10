@@ -82,7 +82,7 @@ def predict_view(input_folder, output_folder, model, view, version, dataset, my_
             nib.save(img_nii, os.path.join(view_output_folder, '{}_3d_{}.nii.gz'.format(view, slice)))
 
     
-def segment_views(case, dst, model, slice_info_df, version, my_logger):
+def segment_views(dst, model, slice_info_df, version, my_logger):
     # define I/O parameters for nnUnet segmentation
     input_folder = os.path.join(dst, 'images')
     output_folder = os.path.join(dst, 'segmentations')

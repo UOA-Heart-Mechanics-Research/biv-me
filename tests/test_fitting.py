@@ -17,7 +17,21 @@ def test_performed_fit():
     # TOML Schema Validation
     match config:
         case {
-            "input": {"gp_directory": str(),
+            "modules": {"preprocessing": bool(), "fitting": bool()},
+
+            "logging": {"show_detailed_logging": bool(), "generate_log_file": bool()},
+
+            "input_pp": {"source": str(),
+                      "batch_ID": str(),
+                      "analyst_id": str(),
+                      "processing": str(),
+                      "states": str()
+                      },
+            "view-selection": {"option": str()},
+            "segmentation": {"version": str()},
+            "output_pp": {"overwrite": bool(), "generate_plots": bool(), "output_directory": str()},
+
+            "input_fitting": {"gp_directory": str(),
                       "gp_suffix": str(),
                       "si_suffix": str(),
                       },
@@ -25,7 +39,7 @@ def test_performed_fit():
             "gp_processing": {"sampling": int(), "num_of_phantom_points_av": int(), "num_of_phantom_points_mv": int(), "num_of_phantom_points_tv": int(), "num_of_phantom_points_pv": int()},
             "multiprocessing": {"workers": int()},
             "fitting_weights": {"guide_points": float(), "convex_problem": float(), "transmural": float()},
-            "output": {"output_directory": str(), "output_meshes": list(), "closed_mesh": bool(),  "show_logging": bool(), "export_control_mesh": bool(), "mesh_format": str(), "generate_log_file": bool(), "overwrite": bool()},
+            "output_fitting": {"output_directory": str(), "output_meshes": list(), "closed_mesh": bool(),   "export_control_mesh": bool(), "mesh_format": str(),  "overwrite": bool()},
         }:
             pass
         case _:

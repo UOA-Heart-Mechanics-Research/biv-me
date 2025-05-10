@@ -336,42 +336,42 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                     meshes = {}
                     for surface in Surface:
                         mesh_data = {}
-                        if surface.name in config["output"]["output_meshes"]:
+                        if surface.name in config["output_fitting"]["output_meshes"]:
                             mesh_data[surface.name] = surface.value
-                            if surface.name == "LV_ENDOCARDIAL" and config["output"]["closed_mesh"] == True:
+                            if surface.name == "LV_ENDOCARDIAL" and config["output_fitting"]["closed_mesh"] == True:
                                 mesh_data["MITRAL_VALVE"] = Surface.MITRAL_VALVE.value
                                 mesh_data["AORTA_VALVE"] = Surface.AORTA_VALVE.value
-                            if surface.name == "EPICARDIAL" and config["output"]["closed_mesh"] == True:
+                            if surface.name == "EPICARDIAL" and config["output_fitting"]["closed_mesh"] == True:
                                 mesh_data["PULMONARY_VALVE"] = Surface.PULMONARY_VALVE.value
                                 mesh_data["TRICUSPID_VALVE"] = Surface.TRICUSPID_VALVE.value
                                 mesh_data["MITRAL_VALVE"] = Surface.MITRAL_VALVE.value
                                 mesh_data["AORTA_VALVE"] = Surface.AORTA_VALVE.value
                             meshes[surface.name] = mesh_data
 
-                    if "RV_ENDOCARDIAL" in config["output"]["output_meshes"]:
+                    if "RV_ENDOCARDIAL" in config["output_fitting"]["output_meshes"]:
                         mesh_data["RV_SEPTUM"] = Surface.RV_SEPTUM.value
                         mesh_data["RV_FREEWALL"] = Surface.RV_FREEWALL.value
-                        if config["output"]["closed_mesh"]:
+                        if config["output_fitting"]["closed_mesh"]:
                             mesh_data["PULMONARY_VALVE"] = Surface.PULMONARY_VALVE.value
                             mesh_data["TRICUSPID_VALVE"] = Surface.TRICUSPID_VALVE.value
                         meshes["RV_ENDOCARDIAL"] = mesh_data
 
                     ##TODO remove duplicated code here - not sure how yet
-                    if config["output"]["export_control_mesh"]:
+                    if config["output_fitting"]["export_control_mesh"]:
                         control_mesh_meshes = {}
                         for surface in ControlMesh:
                             control_mesh_mesh_data = {}
-                            if surface.name in config["output"]["output_meshes"]:
+                            if surface.name in config["output_fitting"]["output_meshes"]:
                                 control_mesh_mesh_data[surface.name] = surface.value
-                                if surface.name == "LV_ENDOCARDIAL" and config["output"]["closed_mesh"] == True:
+                                if surface.name == "LV_ENDOCARDIAL" and config["output_fitting"]["closed_mesh"] == True:
                                     control_mesh_mesh_data["MITRAL_VALVE"] = ControlMesh.MITRAL_VALVE.value
                                     control_mesh_mesh_data["AORTA_VALVE"] = ControlMesh.AORTA_VALVE.value
-                                if surface.name == "EPICARDIAL" and config["output"]["closed_mesh"] == True:
+                                if surface.name == "EPICARDIAL" and config["output_fitting"]["closed_mesh"] == True:
                                     control_mesh_mesh_data["PULMONARY_VALVE"] = ControlMesh.PULMONARY_VALVE.value
                                     control_mesh_mesh_data["TRICUSPID_VALVE"] = ControlMesh.TRICUSPID_VALVE.value
                                     control_mesh_mesh_data["MITRAL_VALVE"] = ControlMesh.MITRAL_VALVE.value
                                     control_mesh_mesh_data["AORTA_VALVE"] = ControlMesh.AORTA_VALVE.value
-                                if surface.name == "RV_ENDOCARDIAL" and config["output"]["closed_mesh"] == True:
+                                if surface.name == "RV_ENDOCARDIAL" and config["output_fitting"]["closed_mesh"] == True:
                                     control_mesh_mesh_data["PULMONARY_VALVE"] = ControlMesh.PULMONARY_VALVE.value
                                     control_mesh_mesh_data["TRICUSPID_VALVE"] = ControlMesh.TRICUSPID_VALVE.value
 
@@ -416,7 +416,7 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
                             return -1
 
                     ##TODO remove duplicated code here - not sure how yet
-                    if config["output"]["export_control_mesh"]:
+                    if config["output_fitting"]["export_control_mesh"]:
                         for key, value in control_mesh_meshes.items():
                             vertices = np.array([]).reshape(0, 3)
                             faces_mapped = np.array([], dtype=np.int64).reshape(0, 3)
@@ -459,93 +459,32 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
         return residuals
     except KeyboardInterrupt:
         return -1
+    
+def validate_config(config, mylogger):
+    assert Path(config["input_fitting"]["gp_directory"]).exists(), \
+        f'gp_directory does not exist. Cannot find {config["input_fitting"]["gp_directory"]}!'
 
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Biv-me')
-    parser.add_argument('-config', '--config_file', type=str,
-                        help='Config file containing fitting parameters')
-    args = parser.parse_args()
-
-    # Load config
-    assert Path(args.config_file).exists(), \
-        f'Cannot not find {args.config_file}!'
-    with open(args.config_file, mode="rb") as fp:
-        config = tomli.load(fp)
-
-    # TOML Schema Validation
-    match config:
-        case {
-            "input": {"gp_directory": str(),
-                      "gp_suffix": str(),
-                      "si_suffix": str(),
-                      },
-            "breathhold_correction": {"shifting": str(), "ed_frame": int()},
-            "gp_processing": {"sampling": int(), "num_of_phantom_points_av": int(), "num_of_phantom_points_mv": int(), "num_of_phantom_points_tv": int(), "num_of_phantom_points_pv": int()},
-            "multiprocessing": {"workers": int()},
-            "fitting_weights": {"guide_points": float(), "convex_problem": float(), "transmural": float()},
-            "output": {"output_directory": str(), "output_meshes": list(), "closed_mesh": bool(),  "show_logging": bool(), "export_control_mesh": bool(), "mesh_format": str(), "generate_log_file": bool(), "overwrite": bool()},
-        }:
-            pass
-        case _:
-            raise ValueError(f"Invalid configuration: {config}")
-
-    # save config file to the output folder
-    output_folder = Path(config["output"]["output_directory"])
-    output_folder.mkdir(parents=True, exist_ok=True)
-    shutil.copy(args.config_file, output_folder)
-
-    assert Path(config["input"]["gp_directory"]).exists(), \
-        f'gp_directory does not exist. Cannot find {config["input"]["gp_directory"]}!'
-
-    # set list of cases to process
-    case_list = os.listdir(config["input"]["gp_directory"])
-    case_dirs = [Path(config["input"]["gp_directory"], case).as_posix() for case in case_list]
-
-    if not config["output"]["show_logging"]:
-        logger.remove()
-
-    log_level = "DEBUG"
-    log_format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS zz}</green> | <level>{level: <8}</level> | <yellow>Line {line: >4} ({file}):</yellow> <b>{message}</b>"
-
-    logger.info(f"Found {len(case_dirs)} cases to fit.")
-    # start processing...
-    start_time = time.time()
-
-    if not (config["output"]["mesh_format"].endswith('.obj') or config["output"]["mesh_format"].endswith('.vtk') or config["output"]["mesh_format"] == 'none'):
-        logger.error(f'argument mesh_format must be .obj, .vtk or none. {config["output"]["mesh_format"]} given.')
+    if not (config["breathhold_correction"]["shifting"] == "derived_from_ed" or config["breathhold_correction"]["shifting"] == "average_all_frames" or config["breathhold_correction"]["shifting"] == "none"):
+        mylogger.error(f'argument shifting must be derived_from_ed, average_all_frames or none. {config["breathhold_correction"]["shifting"]} given.')
         sys.exit(0)
 
-    for mesh in config["output"]["output_meshes"]:
+    if not (config["output_fitting"]["mesh_format"].endswith('.obj') or config["output_fitting"]["mesh_format"].endswith('.vtk') or config["output_fitting"]["mesh_format"] == 'none'):
+        mylogger.error(f'argument mesh_format must be .obj, .vtk or none. {config["output_fitting"]["mesh_format"]} given.')
+        sys.exit(0)
+
+    for mesh in config["output_fitting"]["output_meshes"]:
         if mesh not in ["LV_ENDOCARDIAL", "RV_ENDOCARDIAL", "EPICARDIAL"]:
-            logger.error(f'argument output_meshes invalid. {mesh} given. Allowed values are "LV_ENDOCARDIAL", "RV_ENDOCARDIAL", "EPICARDIAL"')
+            mylogger.error(f'argument output_meshes invalid. {mesh} given. Allowed values are "LV_ENDOCARDIAL", "RV_ENDOCARDIAL", "EPICARDIAL"')
             sys.exit(0)
 
-    try:
-        for case in case_dirs:
-            logger.info(f"Processing {os.path.basename(case)}")
-            if config["output"]["generate_log_file"]:
-                logger_id = logger.add(f'{config["output"]["output_directory"]}/{os.path.basename(case)}/log_file_{datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}.log', level=log_level, format=log_format,
-                                            colorize=False, backtrace=True,
-                                            diagnose=True)
+    if not (config["output_fitting"]["mesh_format"].endswith('.obj') or config["output_fitting"]["mesh_format"].endswith('.vtk') or config["output_fitting"]["mesh_format"] == 'none'):
+        mylogger.error(f'argument mesh_format must be .obj, .vtk or none. {config["output_fitting"]["mesh_format"]} given.')
+        sys.exit(0)
 
-            if not config["output"]["overwrite"]:
-                rule = re.compile(fnmatch.translate(f"{os.path.basename(case)}_model_frame*.txt"), re.IGNORECASE)
-                case_folder = os.path.join(config["output"]["output_directory"], os.path.basename(case))
-                cases = [name for name in os.listdir(Path(case_folder)) if rule.match(name)]
-                if len(cases) > 0:
-                    logger.info("Folder already exists for this case. Proceeding to next case")
-                    continue
+    if not (config["output_fitting"]["closed_mesh"] == True or config["output_fitting"]["closed_mesh"] == False):
+        mylogger.error(f'argument closed_mesh must be true or false. {config["output_fitting"]["closed_mesh"]} given.')
+        sys.exit(0)
 
-            residuals = perform_fitting(case, config, out_dir=config["output"]["output_directory"], gp_suffix=config["input"]["gp_suffix"], si_suffix=config["input"]["si_suffix"],
-                            frames_to_fit=[], output_format=config["output"]["mesh_format"], logger=logger)
-            logger.info(f"Average residuals: {residuals} for case {os.path.basename(case)}")
-            if config["output"]["generate_log_file"]:
-                logger.remove(logger_id)
-
-        logger.info(f"Total cases processed: {len(case_dirs)}")
-        logger.info(f"Total time: {time.time() - start_time}")
-        logger.success(f'Done. Results are saved in {config["output"]["output_directory"]}')
-    except KeyboardInterrupt:
-        logger.info(f"Program interrupted by the user")
+    if not (config["output_fitting"]["overwrite"] == True or config["output_fitting"]["overwrite"] == False):
+        mylogger.error(f'argument overwrite must be true or false. {config["output_fitting"]["overwrite"]} given.')
         sys.exit(0)

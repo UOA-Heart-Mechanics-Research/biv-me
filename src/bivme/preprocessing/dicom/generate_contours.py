@@ -1,6 +1,6 @@
 from bivme.preprocessing.dicom.src.sliceviewer import SliceViewer
 
-def generate_contours(case, case_dst, slice_info_df, num_phases, version, my_logger):
+def generate_contours(dst, slice_info_df, num_phases, version, my_logger):
     slice_dict = {}
     views = ['SAX', '2ch', '3ch', '4ch', 'RVOT']
     
@@ -10,7 +10,7 @@ def generate_contours(case, case_dst, slice_info_df, num_phases, version, my_log
             my_logger.info(f'Generating contours for {view} slice {row["Slice ID"]}...')
 
             slice_id = row['Slice ID']
-            slice = SliceViewer(case, case_dst, slice_info_df, view, slice_id, num_phases//2, num_phases=num_phases, full_cycle=True, version = version)
+            slice = SliceViewer(dst, slice_info_df, view, slice_id, num_phases//2, num_phases=num_phases, full_cycle=True, version = version)
 
             # Landmarks estimated from intersections of contours
             slice.get_initial_landmarks()
