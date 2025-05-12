@@ -36,7 +36,7 @@ class SliceViewer:
                 image = np.transpose(image)
                 images.append(image)
         elif self.version == '3d':
-            image = os.path.join(self.image_folder, self.view, f"{self.view}_3d_{self.sliceID}.nii.gz")
+            image = os.path.join(self.image_folder, self.view, f"{self.view}_3d_{self.sliceID}_0000.nii.gz")
             image = nib.load(image).get_fdata()
             image = np.transpose(image, (1, 0, 2))
             for i in range(0,image.shape[2]):

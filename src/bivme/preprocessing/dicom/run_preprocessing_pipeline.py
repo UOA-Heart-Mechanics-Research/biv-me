@@ -46,7 +46,7 @@ def perform_preprocessing(case, config, mylogger):
         shutil.rmtree(output) # remove existing directory
     os.makedirs(output, exist_ok=True) # create new directory
 
-    plotting = dst # save the plotted htmls in processed directory
+    plotting = os.path.join(config["input_pp"]["processing"], config["input_pp"]["batch_ID"]) # save the plotted htmls in processed directory
 
     # Logging
     if not config["logging"]["show_detailed_logging"]:
@@ -85,7 +85,7 @@ def perform_preprocessing(case, config, mylogger):
     mylogger.success(f'Segmentation complete. Time taken: {seg_end_time-seg_start_time} seconds ({config["segmentation"]["version"]} version).')
 
     ## Step 2.1: Correct phase mismatch (if required)
-    correct_phase_mismatch(dst, slice_info_df, num_phases, mylogger)
+    correct_phase_mismatch(dst, slice_info_df, num_phases, mylogger) 
 
     ## Step 3: Guide point extraction
     slice_dict = generate_contours(dst, slice_info_df, num_phases, config["segmentation"]["version"], mylogger)
