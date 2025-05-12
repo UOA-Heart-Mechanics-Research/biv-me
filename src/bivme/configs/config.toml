@@ -121,10 +121,10 @@ output_directory = ''
 
 # Below are the parameters used to configure biv model fitting 
 [input_fitting]
-gp_directory = "./../../../example/guidepoints"
+gp_directory = "../../example/guidepoints"
 # Define the directory containing guidepoint files
 # If fitting and preprocessing are both enabled, this gp_directory will also be the output_directory used in preprocessing (see above)
-# default: "./../../../example/guidepoints"
+# default: "../../example/guidepoints"
 
 gp_suffix = ''
 # Define guidepoints to use if we do not want to fit all the models in the input folder
@@ -198,9 +198,9 @@ overwrite = true
 # Define to overwrite the output mesh if it exists
 # Default: true
 
-output_directory = "./../../output/"
+output_directory = "../output/"
 # Define where to save the fitted models and files
-# default: "./../../output/"
+# default: "../output/"
 
 [multiprocessing]
 workers = 1

@@ -128,10 +128,10 @@ Example GPFiles and SliceInfoFile.txt are available in `example/guidepoints`. To
 
 ```python
 cd src/bivme
-python main.py -config ../configs/config.toml
+python main.py -config configs/config.toml
 ```
 
-This will fit biv-me models to the guidepoints files in the gp_directory defined in the config.toml file (default is `../../../example/guidepoints`) directory and save them in the output_directory defined in the config file (default is `./../../output/`). Each patient will have its own folder.
+This will fit biv-me models to the guidepoints files in the gp_directory defined in the config.toml file (default is `../../example/guidepoints`) directory and save them in the output_directory defined in the config file (default is `../output/`). Each patient will have its own folder.
 
 
 ### End-to-end pipeline (preprocessing and fitting)
