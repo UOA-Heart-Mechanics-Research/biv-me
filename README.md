@@ -49,7 +49,12 @@ python src/pyezzi/setup.py build_ext --inplace
 If you do not already have them, guidepoint files (GPFiles) for personalised biventricular mesh fitting can be generated directly from CMR DICOM files. This requires installing additional packages, and downloading deep learning models for view prediction and segmentation. If you do not plan to run preprocessing of CMR DICOM files to create GPFiles, you can skip the below steps.
 
 ### (Optional) Step 4: Download models
-The preprocessing code uses deep learning models for view prediction and segmentation. These can be downloaded from [here](https://www.dropbox.com/scl/fo/54662zpqpb0ibmoysqy54/AF4eN0-Bzmb7O-l1lJ6WCZI?rlkey=wxahs4jcepd8ryhh0nfersne2&st=75oy73u9&dl=0). They should be placed in the biv-me repository like so:
+The preprocessing code uses deep learning models for view prediction and segmentation. These models are located inside of a [different repository](https://github.com/UOA-Heart-Mechanics-Research/biv-me-dl-models), and can be downloaded by running the command below.
+
+```bash
+git submodule update --init
+```
+The models will be placed in the following directory. 
 
     src 
     └─── bivme
