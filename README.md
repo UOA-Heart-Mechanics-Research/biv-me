@@ -29,7 +29,7 @@ The easiest way to set up this repository is to use the provided conda environme
 The conda environment named bivme311 can be created and activated by following steps 1-3 below.
 
 ### Step 1: Clone this repository
-In Git Bash or any other Git-capable terminal, enter the following command to clone the repository.
+In a Git-enabled terminal, enter the following command to clone the repository.
 
 ```bash
 git clone https://github.com/UOA-Heart-Mechanics-Research/biv-me.git
@@ -37,7 +37,7 @@ git clone https://github.com/UOA-Heart-Mechanics-Research/biv-me.git
 Alternatively, you can use software such as [GitHub Desktop](https://desktop.github.com/download/) or [GitKraken](https://www.gitkraken.com/) to clone the repository using the repository url.
 
 ### Step 2: Setup the virtual environment
-If you have [Anaconda](https://www.anaconda.com/docs/getting-started/anaconda/install) or [miniconda](https://www.anaconda.com/docs/getting-started/miniconda/main), you can create the conda virtual environment by entering the following lines into your terminal (or Anaconda Command Prompt if using Windows).
+If you have [Anaconda](https://www.anaconda.com/docs/getting-started/anaconda/install) or [miniconda](https://www.anaconda.com/docs/getting-started/miniconda/main), you can create the conda virtual environment by entering the following commands into your terminal (or Anaconda Command Prompt if using Windows).
 
 ```bash
 conda create -n bivme311 python=3.11
@@ -48,7 +48,7 @@ conda activate bivme311
 Once the conda environment has been initialised, the necessary libraries and packages need to be installed. In your terminal, navigate to where you have cloned the repository to, e.g:
 
 ```bash
-cd whatever_directory/biv-me
+cd biv-me
 ```
 Then, enter the following commands into your terminal to install the packages.
 
@@ -59,13 +59,13 @@ python src/pyezzi/setup.py build_ext --inplace
 
 If you do not already have them, guidepoint files (GPFiles) for personalised biventricular mesh fitting can be generated directly from CMR DICOM files. This requires installing additional packages, and downloading deep learning models for view prediction and segmentation. **If you do not plan to run preprocessing of CMR DICOM files to create GPFiles, you can skip the below steps.**
 
-### (Optional) Step 4: Download models
-The preprocessing code uses deep learning models for view prediction and segmentation. These models are located inside of a [different repository](https://github.com/UOA-Heart-Mechanics-Research/biv-me-dl-models), and can be downloaded by running the command below.
+### (Optional) Step 4: Download deep learning models
+The preprocessing code uses deep learning models for view prediction and segmentation. These models are located inside of a [different repository](https://github.com/UOA-Heart-Mechanics-Research/biv-me-dl-models), and can be installed by entering the following command into your terminal.
 
 ```bash
 git submodule update --init
 ```
-You can verify that the models have been downloaded by checking the following directory. 
+You can verify that the models have been installed by checking that the below directories contain .pth and .joblib files. 
 
     src 
     └─── bivme
@@ -98,7 +98,7 @@ pip install nnunetv2
 - [Generating biventricular models](#how-to-run-biv-me)
     - [Preprocessing DICOM data](#preprocessing)
     - [Fitting biventricular models](#fitting)
-    - [End-to-end pipeline](#end-to-end-pipeline-preprocessing-and-fitting)
+    - [Running end-to-end pipeline](#end-to-end-pipeline-preprocessing-and-fitting)
 - [Analysis of models](#analysis-of-models)  
   - [Calculating volumes from models](#calculating-volumes-from-models)  
   - [Calculating strains from models](#calculating-strains-from-models)  
