@@ -99,7 +99,7 @@ def perform_preprocessing(case, config, mylogger):
     if config["output_pp"]["generate_plots"]:
         generate_html(output, out_dir=plotting, gp_suffix='', si_suffix='', frames_to_fit=[], my_logger=mylogger, model_path=None)
 
-    mylogger.success(f'Guidepoints plotted and saved in {os.path.join(plotting,case,'html')}.')
+    mylogger.success(f'Guidepoints plotted at {os.path.join(plotting,case,"html")}.')
 
     if config["logging"]["generate_log_file"]:
         mylogger.remove(logger_id)
