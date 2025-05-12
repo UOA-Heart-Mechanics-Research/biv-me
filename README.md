@@ -25,28 +25,39 @@ For a detailed description regarding the fitting of the biventricular model, ple
 ## 🚀 Installation Guide
 -----------------------------------------------
 
-The easiest way to set up this repo is to use the provided conda environment (python 3.11).
+The easiest way to set up this repository is to use the provided conda environment (python 3.11).
 The conda environment named bivme311 can be created and activated by following steps 1-3 below.
 
 ### Step 1: Clone this repository
+In Git Bash or any other Git-capable terminal, enter the following command to clone the repository.
+
 ```bash
 git clone https://github.com/UOA-Heart-Mechanics-Research/biv-me.git
 ```
+Alternatively, you can use software such as [GitHub Desktop](https://desktop.github.com/download/) or [GitKraken](https://www.gitkraken.com/) to clone the repository using the repository url.
 
 ### Step 2: Setup the virtual environment
+If you have [Anaconda](https://www.anaconda.com/docs/getting-started/anaconda/install) or [miniconda](https://www.anaconda.com/docs/getting-started/miniconda/main), you can create the conda virtual environment by entering the following lines into your terminal (or Anaconda Command Prompt if using Windows).
+
 ```bash
-cd biv-me
 conda create -n bivme311 python=3.11
 conda activate bivme311
 ```
 
-### Step 3: Install the bivme packages
+### Step 3: Install the biv-me packages
+Once the conda environment has been initialised, the necessary libraries and packages need to be installed. In your terminal, navigate to where you have cloned the repository to, e.g:
+
+```bash
+cd whatever_directory/biv-me
+```
+Then, enter the following commands into your terminal to install the packages.
+
 ```bash
 pip install -e .
 python src/pyezzi/setup.py build_ext --inplace
 ```
 
-If you do not already have them, guidepoint files (GPFiles) for personalised biventricular mesh fitting can be generated directly from CMR DICOM files. This requires installing additional packages, and downloading deep learning models for view prediction and segmentation. If you do not plan to run preprocessing of CMR DICOM files to create GPFiles, you can skip the below steps.
+If you do not already have them, guidepoint files (GPFiles) for personalised biventricular mesh fitting can be generated directly from CMR DICOM files. This requires installing additional packages, and downloading deep learning models for view prediction and segmentation. **If you do not plan to run preprocessing of CMR DICOM files to create GPFiles, you can skip the below steps.**
 
 ### (Optional) Step 4: Download models
 The preprocessing code uses deep learning models for view prediction and segmentation. These models are located inside of a [different repository](https://github.com/UOA-Heart-Mechanics-Research/biv-me-dl-models), and can be downloaded by running the command below.
@@ -54,7 +65,7 @@ The preprocessing code uses deep learning models for view prediction and segment
 ```bash
 git submodule update --init
 ```
-The models will be placed in the following directory. 
+You can verify that the models have been downloaded by checking the following directory. 
 
     src 
     └─── bivme
@@ -65,15 +76,17 @@ The models will be placed in the following directory.
                     └─── ViewSelection
 
 ### (Optional) Step 5: Install additional libraries (PyTorch and nnU-Net)
-This preprocessing code utilises PyTorch and nnU-Net. The default biv-me conda environment doesn't install either of these for you. To set these up, activate the biv-me conda environment, like so:
+This preprocessing code utilises PyTorch and nnU-Net. The default biv-me conda environment doesn't install either of these for you. To set these up, activate the biv-me conda environment by entering the following command into your terminal.
 
 ```bash
 conda activate bivme311
 ```
 
-Then, find the PyTorch right version for your GPU and OS ([here](https://pytorch.org/get-started/locally/)) and install it as described on the website.
+Then, find the right PyTorch version for your GPU and OS and [install it as described on the website](https://pytorch.org/get-started/locally/).
 
-After PyTorch has been installed, install nnU-Net like so:
+**Do not install nnU-Net without installing PyTorch first!**. If you do, you will need to start over again.
+
+After PyTorch has been installed, install nnU-Net by entering the following command into your terminal.
 
 ```bash
 pip install nnunetv2
