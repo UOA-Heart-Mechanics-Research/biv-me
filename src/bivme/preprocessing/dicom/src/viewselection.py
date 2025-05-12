@@ -106,7 +106,7 @@ class ViewSelector:
 
     def get_dicom_header(self, dicom_loc):
         # read dicom file and return header information and image
-        ds = pydicom.read_file(dicom_loc, force=True)
+        ds = pydicom.dcmread(dicom_loc, force=True)
         # get patient, study, and series information
         patient_id = ds.get("PatientID", "NA")
         modality = ds.get("Modality","NA")
