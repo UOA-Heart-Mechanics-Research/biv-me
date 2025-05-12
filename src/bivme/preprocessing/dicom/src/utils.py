@@ -92,6 +92,23 @@ def write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view, versio
 
     return rescale_factor
 
+def resample_img(dst, view, series, num_phases, my_logger):
+    # Load 3D nifti
+    img = nib.load(os.path.join(dst, 'images', view, '{}_3d_{}_0000.nii.gz'.format(view, series)))
+    img_array = img.get_fdata()
+
+    # Need to resample last dimension to num_phases
+    current_phases = img_array.shape[-1]
+
+    # Apply spline interpolation in the temporal dimension
+    new_img_array = ndimage.zoom(img_array, (1, 1, num_phases/current_phases), order=3) # Order 3 is cubic spline
+    new_img_array = new_img_array.astype(np.uint8)
+
+    # Save as 3D nii
+    affine = img.affine
+    new_nii = nib.Nifti1Image(new_img_array, affine)
+    nib.save(new_nii, os.path.join(dst, 'images', view, '{}_3d_{}_0000.nii.gz'.format(view, series)))
+
 def resample_seg(dst, view, series, num_phases, my_logger):
     # Load 3D nifti
     seg = nib.load(os.path.join(dst, 'segmentations', view, '{}_3d_{}.nii.gz'.format(view, series)))
