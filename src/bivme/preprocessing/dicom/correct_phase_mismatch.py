@@ -1,5 +1,7 @@
 from bivme.preprocessing.dicom.src.utils import resample_img, resample_seg
 
+VIEWS_TO_RESAMPLE = ['SAX', '2ch', '3ch', '4ch', 'RVOT']
+
 def correct_phase_mismatch(dst, slice_info_df, num_phases, my_logger):
     # Often, LAX and SAX series do not have matching number of phases. In that case, we need to resample segmentations to have the same number of phases.
     # We will use the SAX series as the reference for the 'right' number of phases
@@ -14,6 +16,9 @@ def correct_phase_mismatch(dst, slice_info_df, num_phases, my_logger):
     if len(mismatch_dict) > 0:
         for series, num_frames in mismatch_dict.items():
             view = slice_info_df[slice_info_df['Slice ID'] == series]['View'].values[0]
+            if view not in VIEWS_TO_RESAMPLE:
+                my_logger.info(f"Skipping series {series} as {view} images do not need to be resampled...")
+                continue
             my_logger.info(f'Resampling images and segmentations for series {series} ({view}) to have {num_phases} phases...')
             resample_img(dst, view, series, num_phases, my_logger)
             resample_seg(dst, view, series, num_phases, my_logger)
