@@ -308,7 +308,7 @@ If you wish to contribute to this project, please follow the naming conventions 
 
 ## Acknowledgments
 ------------------------------------
-This work is based on contributions by **Laura Dal Toso**, **Anna Mira**, **Liandong Lee**, **Richard Burns**, **Joshua Dillon**, and **Charléne Mauger**.
+This work is based on contributions by **Laura Dal Toso**, **Anna Mira**, **Liandong Lee**, **Richard Burns**, **Debbie Zhao**, **Joshua Dillon**, and **Charlène Mauger**.
 
 ## Contact
 For questions or issues, please open an issue on GitHub or contact [joshua.dillon@auckland.ac.nz](joshua.dillon@auckland.ac.nz) or [charlene.1.mauger@kcl.ac.uk](charlene.1.mauger@kcl.ac.uk) 
