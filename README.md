@@ -25,31 +25,53 @@ For a detailed description regarding the fitting of the biventricular model, ple
 ## 🚀 Installation Guide
 -----------------------------------------------
 
-The easiest way to set up this repo is to use the provided conda environment (python 3.11).
+The easiest way to set up this repository is to use the provided conda environment (python 3.11).
 The conda environment named bivme311 can be created and activated by following steps 1-3 below.
 
 ### Step 1: Clone this repository
+In a Git-enabled terminal, enter the following command to clone the repository.
+
 ```bash
 git clone https://github.com/UOA-Heart-Mechanics-Research/biv-me.git
 ```
+Alternatively, you can use software such as [GitHub Desktop](https://desktop.github.com/download/) or [GitKraken](https://www.gitkraken.com/) to clone the repository using the repository url.
 
 ### Step 2: Setup the virtual environment
+If you have [Anaconda](https://www.anaconda.com/docs/getting-started/anaconda/install) or [miniconda](https://www.anaconda.com/docs/getting-started/miniconda/main), you can create the conda virtual environment by entering the following commands into your terminal (or Anaconda Command Prompt if using Windows).
+
 ```bash
-cd biv-me
 conda create -n bivme311 python=3.11
 conda activate bivme311
 ```
 
-### Step 3: Install the bivme packages
+### Step 3: Install the biv-me packages
+Once the conda environment has been initialised, the necessary libraries and packages need to be installed. In your terminal, navigate to where you have cloned the repository to, e.g:
+
+```bash
+cd biv-me
+```
+Then, enter the following commands into your terminal to install the packages.
+
 ```bash
 pip install -e .
 python src/pyezzi/setup.py build_ext --inplace
 ```
 
-If you do not already have them, guidepoint files (GPFiles) for personalised biventricular mesh fitting can be generated directly from CMR DICOM files. This requires installing additional packages, and downloading deep learning models for view prediction and segmentation. If you do not plan to run preprocessing of CMR DICOM files to create GPFiles, you can skip the below steps.
+If you do not already have them, guidepoint files (GPFiles) for personalised biventricular mesh fitting can be generated directly from CMR DICOM files. This requires installing additional packages, and downloading deep learning models for view prediction and segmentation. **If you do not plan to run preprocessing of CMR DICOM files to create GPFiles, you can skip the below steps.**
 
-### (Optional) Step 4: Download models
-The preprocessing code uses deep learning models for view prediction and segmentation. These can be downloaded from [here](https://www.dropbox.com/scl/fo/54662zpqpb0ibmoysqy54/AF4eN0-Bzmb7O-l1lJ6WCZI?rlkey=wxahs4jcepd8ryhh0nfersne2&st=75oy73u9&dl=0). They should be placed in the biv-me repository like so:
+### (Optional) Step 4: Download deep learning models
+The preprocessing code uses deep learning models for view prediction and segmentation. These models are located inside of a [different repository](https://github.com/UOA-Heart-Mechanics-Research/biv-me-dl-models), and are imported as a submodule. To download the models, you need to have Git LFS installed. You can run the following command in your terminal to check you have Git LFS.
+
+```bash
+git lfs install
+```
+
+If you don't have Git LFS installed, you can [follow these instructions to install it](https://docs.github.com/en/repositories/working-with-files/managing-large-files/installing-git-large-file-storage). Once you have Git LFS installed, you can download the models by running the following command in your terminal. 
+
+```bash
+git submodule update --init
+```
+You can verify that the models have been downloaded by checking that the below directories contain .pth and .joblib files that are larger than 1 KB. If they don't, refer to the troubleshooting section below.
 
     src 
     └─── bivme
@@ -59,16 +81,27 @@ The preprocessing code uses deep learning models for view prediction and segment
                     └─── Segmentation
                     └─── ViewSelection
 
+### Troubleshooting
+If this does not work for any reason, you can fall back on downloading the models manually. First, delete the folder called `src\bivme\preprocessing\dicom\models`. Create a new folder in its place, with the same name ('models'). Then, clone the repository with the deep learning models using the following command.
+
+```bash
+git clone https://github.com/UOA-Heart-Mechanics-Research/biv-me-dl-models.git
+```
+
+Copy the contents of the cloned models repository to `src\bivme\preprocessing\dicom\models` within your biv-me repository. Again, check if .pth and .joblib files are stored there, and that they are larger than 1 KB. If not, you probably do not have Git LFS initialised. Make sure to install Git LFS and retry. 
+
 ### (Optional) Step 5: Install additional libraries (PyTorch and nnU-Net)
-This preprocessing code utilises PyTorch and nnU-Net. The default biv-me conda environment doesn't install either of these for you. To set these up, activate the biv-me conda environment, like so:
+This preprocessing code utilises PyTorch and nnU-Net. The default biv-me conda environment doesn't install either of these for you. To set these up, activate the biv-me conda environment by entering the following command into your terminal.
 
 ```bash
 conda activate bivme311
 ```
 
-Then, find the PyTorch right version for your GPU and OS ([here](https://pytorch.org/get-started/locally/)) and install it as described on the website.
+Then, find the right PyTorch version for your GPU and OS and [install it as described on the website](https://pytorch.org/get-started/locally/).
 
-After PyTorch has been installed, install nnU-Net like so:
+**Do not install nnU-Net without installing PyTorch first!**. If you do, you will need to start over again.
+
+After PyTorch has been installed, install nnU-Net by entering the following command into your terminal.
 
 ```bash
 pip install nnunetv2
@@ -80,12 +113,12 @@ pip install nnunetv2
 - [Generating biventricular models](#how-to-run-biv-me)
     - [Preprocessing DICOM data](#preprocessing)
     - [Fitting biventricular models](#fitting)
-    - [End-to-end pipeline](#end-to-end-pipeline-preprocessing-and-fitting)
+    - [Running end-to-end pipeline](#end-to-end-pipeline-preprocessing-and-fitting)
 - [Analysis of models](#analysis-of-models)  
   - [Calculating volumes from models](#calculating-volumes-from-models)  
   - [Calculating strains from models](#calculating-strains-from-models)  
   - [Calculating wall thickness from models](#calculating-wall-thickness-from-models)
-- [Postprocessing of models](#postprocessing-of-models)
+- [Postprocessing of models (experimental)](#postprocessing-of-models)
 - [Contact us](#contact)    
 
 -----------------------------------------------
@@ -266,7 +299,7 @@ The output files will look like this in 3D Slicer:
 ![Wall_thickness](images/WallThickness.png)
 
 
-## Postprocessing of models
+## Postprocessing of models (experimental)
 An experimental tool is available to refine the models by applying collision detection to prevent intersections between the RV septum and RV free wall. While the diffeomorphic fitting ensures no intersection between the endocardial and epicardial surfaces, this tool specifically addresses any potential self-intersections within the endocardial surface.
 
 The script refitting a biv-me model with collision detection can be found in `src/bivme/postprocessing`. This script re-fit the models, using an extra collision detection step. An inital fit of the model is required as this will be used as guide points.
