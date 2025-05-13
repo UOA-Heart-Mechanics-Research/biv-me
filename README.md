@@ -71,7 +71,7 @@ If you don't have Git LFS installed, you can [follow these instructions to insta
 ```bash
 git submodule update --init
 ```
-You can verify that the models have been downloaded by checking that the below directories contain .pth and .joblib files that are larger than 1 KB. 
+You can verify that the models have been downloaded by checking that the below directories contain .pth and .joblib files that are larger than 1 KB. If they don't, refer to the troubleshooting section below.
 
     src 
     └─── bivme
@@ -82,13 +82,13 @@ You can verify that the models have been downloaded by checking that the below d
                     └─── ViewSelection
 
 ### Troubleshooting
-If this does not work for any reason, you can fall back on downloading the models manually. First, delete the contents inside of `src\bivme\preprocessing\dicom\models`. Then, clone the repository with the deep learning models using the following command.
+If this does not work for any reason, you can fall back on downloading the models manually. First, delete the folder called `src\bivme\preprocessing\dicom\models`. Create a new folder in its place, with the same name ('models'). Then, clone the repository with the deep learning models using the following command.
 
 ```bash
 git clone https://github.com/UOA-Heart-Mechanics-Research/biv-me-dl-models.git
 ```
 
-Copy the contents of the cloned models repository to `src\bivme\preprocessing\dicom\models` within your biv-me repository. Again, check if .pth and .joblib files are stored there, and that they are larger than 1 KB. If not, you probably do not have Git LFS initialised. 
+Copy the contents of the cloned models repository to `src\bivme\preprocessing\dicom\models` within your biv-me repository. Again, check if .pth and .joblib files are stored there, and that they are larger than 1 KB. If not, you probably do not have Git LFS initialised. Make sure to install Git LFS and retry. 
 
 ### (Optional) Step 5: Install additional libraries (PyTorch and nnU-Net)
 This preprocessing code utilises PyTorch and nnU-Net. The default biv-me conda environment doesn't install either of these for you. To set these up, activate the biv-me conda environment by entering the following command into your terminal.
