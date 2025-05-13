@@ -8,11 +8,10 @@ This code reads in CMR DICOM files and generates GPFiles for personalised bivent
 
 ## Usage
 
-To run the preprocessing code, you can use the following command.
+To run the preprocessing code, you can use the following command once in the `src\bivme` folder.
 
 ```python
-cd src/bivme
-python main.py -config ../configs/config.toml
+python main.py -config configs/config.toml
 ```
 
 Make sure to set up the config file in advance, and make sure that preprocessing is set to true. If you don't want to run fitting right away, you can skip filling the fields related to fitting. Otherwise, running the main.py script with both preprocessing and fitting enabled will generate biventricular models for each case in your source directory into the output directory you specify. 
