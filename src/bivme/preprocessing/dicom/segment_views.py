@@ -34,12 +34,9 @@ def init_nnUNetv2(model_folder):
     )
     return predictor
 
-def predict_view(input_folder, output_folder, model, view, version, dataset, my_logger):
+def predict_view(input_folder, output_folder, model, view, dataset, my_logger):
     # Define the trained model to use (Specified by the Task)
-    if version == '2d':
-        model_folder_name = os.path.join(model,"Segmentation/{}/nnUNetTrainer__nnUNetPlans__2d/".format(dataset))
-    elif version == '3d':
-        model_folder_name = os.path.join(model,"Segmentation/{}/nnUNetTrainer__nnUNetPlans__3d_fullres/".format(dataset))
+    model_folder_name = os.path.join(model,"Segmentation/{}/nnUNetTrainer__nnUNetPlans__3d_fullres/".format(dataset))
 
     view_input_folder = os.path.join(input_folder, view)
     view_output_folder = os.path.join(output_folder, view)
@@ -60,29 +57,7 @@ def predict_view(input_folder, output_folder, model, view, version, dataset, my_
 
         my_logger.info(f'Done with {view}')
 
-    if version == '2d':
-        # Concatenate 2D predictions to 3D to make them easier to inspect and correct if needed
-        segmentations = [f for f in os.listdir(view_output_folder) if f.endswith('.nii.gz')]
-        slices = np.unique([f.split('_')[-2] for f in segmentations])
-        for slice in slices:
-            segs = [f for f in segmentations if slice==f.split('_')[-2]]
-            # Sort by frame number
-            segs.sort(key=lambda x: int(x.split('_')[-1].replace('.nii.gz','')))
-
-            concat_seg = []
-            for seg in segs:
-                img = nib.load(os.path.join(view_output_folder, seg))
-                img = img.get_fdata()
-                concat_seg.append(img)
-
-            concat_seg = np.stack(concat_seg, axis=-1)
-            # Save as 3D nii
-            affine = np.eye(4)
-            img_nii = nib.Nifti1Image(concat_seg, affine)
-            nib.save(img_nii, os.path.join(view_output_folder, '{}_3d_{}.nii.gz'.format(view, slice)))
-
-    
-def segment_views(dst, model, slice_info_df, version, my_logger):
+def segment_views(dst, model, slice_info_df, my_logger):
     # define I/O parameters for nnUnet segmentation
     input_folder = os.path.join(dst, 'images')
     output_folder = os.path.join(dst, 'segmentations')
@@ -99,9 +74,7 @@ def segment_views(dst, model, slice_info_df, version, my_logger):
         shutil.rmtree(output_folder)
         os.makedirs(output_folder)
         
-
     # nnunet models / tasks
-    datasets_2d = ["Dataset210_SAX_2D", "Dataset211_2ch_2D", "Dataset212_3ch_2D", "Dataset213_4ch_2D", "Dataset214_RVOT_2D"]
     datasets_3d = ["Dataset230_SAX_3D", "Dataset231_2ch_3D", "Dataset232_3ch_3D", "Dataset233_4ch_3D", "Dataset234_RVOT_3D"]
 
     views = ['SAX', '2ch', '3ch', '4ch', 'RVOT']
@@ -117,7 +90,7 @@ def segment_views(dst, model, slice_info_df, version, my_logger):
             slice_id = row['Slice ID']
             pixel_array = row['Img']
             pixel_spacing = row['Pixel Spacing']
-            rescale_factor = write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view, version)
+            rescale_factor = write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view)
 
             if rescale_factor != 1:
                 # Update pixel spacing
@@ -127,9 +100,5 @@ def segment_views(dst, model, slice_info_df, version, my_logger):
 
         my_logger.info(f'Segmenting {view} images...')
         
-        if version == '2d':
-            dataset = datasets_2d[i]
-            predict_view(input_folder, output_folder, model, view, version, dataset, my_logger)
-        elif version == '3d':
-            dataset = datasets_3d[i]
-            predict_view(input_folder, output_folder, model, view, version, dataset, my_logger)
+        dataset = datasets_3d[i]
+        predict_view(input_folder, output_folder, model, view, dataset, my_logger)

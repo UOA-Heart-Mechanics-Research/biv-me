@@ -79,14 +79,6 @@ option = "default"
 # * "load" : View predictions are loaded from the states folder, if they exist
 # Default: "default"
 
-[segmentation]
-version = "3d"
-# Define the version of nnU-Net models to segment with. 3D models are recommended, for increased speed and temporal coherency, but you have the option 
-# Allowed values:
-# * "2d" : Use 2D segmentation models. Runs frame by frame.
-# * "3d" : Use 3D segmentation models. Runs on 2D+t sequence.
-# Default: "3d"
-
 [output_pp]
 overwrite = true
 # Define to overwrite the processed folder and outputs of an already preprocessed case, if it exists

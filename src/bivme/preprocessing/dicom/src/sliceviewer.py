@@ -7,7 +7,7 @@ import bivme.preprocessing.dicom.src.contouring as contouring
 import bivme.preprocessing.dicom.src.guidepointprocessing as guidepointprocessing
 
 class SliceViewer:
-    def __init__(self, processed_folder, slice_info_df, view, sliceID, es_phase, num_phases, full_cycle=True, version='3d'):
+    def __init__(self, processed_folder, slice_info_df, view, sliceID, es_phase, num_phases, full_cycle=True):
         
         self.slice_info_df = slice_info_df
         self.view = view
@@ -19,36 +19,15 @@ class SliceViewer:
         else:
             self.phases = [0, self.es_phase]
         self.slice = self.slice_info_df[(self.slice_info_df['View'] == self.view) & (self.slice_info_df['Slice ID'] == self.sliceID)]
-        self.image_folder = os.path.join(processed_folder, 'images') # Only for plotting & debugging
         self.segmentation_folder = os.path.join(processed_folder, 'segmentations')
-        self.version = version  # 2D or 3D
-        # self.images = self.get_images()
         self.segmentations = self.get_segmentations()
         self.get_contours()
         self.landmarks = None
-
-    def get_images(self):
-        images = []
-        if self.version == '2d':
-            for phase in self.phases:
-                image = os.path.join(self.image_folder, self.view, f"{self.view}_2d_{self.sliceID}_{int(phase):03}_0000.nii.gz")
-                image = nib.load(image).get_fdata()
-                image = np.transpose(image)
-                images.append(image)
-        elif self.version == '3d':
-            image = os.path.join(self.image_folder, self.view, f"{self.view}_3d_{self.sliceID}_0000.nii.gz")
-            image = nib.load(image).get_fdata()
-            image = np.transpose(image, (1, 0, 2))
-            for i in range(0,image.shape[2]):
-                images.append(image[:,:,i])
-
-        self.size = images[0].shape
-        return images
         
     def get_segmentations(self):
         segmentations = []
 
-        segmentation = os.path.join(self.segmentation_folder, self.view, f"{self.view}_3d_{self.sliceID}.nii.gz") # Load from 3D to make manual correction easier
+        segmentation = os.path.join(self.segmentation_folder, self.view, f"{self.view}_3d_{self.sliceID}.nii.gz")
         segmentation = nib.load(segmentation).get_fdata()
         segmentation = np.transpose(segmentation, (1, 0, 2))
         for i in range(0,segmentation.shape[2]):

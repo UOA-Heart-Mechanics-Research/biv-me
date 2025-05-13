@@ -76,7 +76,6 @@ if __name__ == "__main__":
                       "states": str()
                       },
             "view-selection": {"option": str()},
-            "segmentation": {"version": str()},
             "output_pp": {"overwrite": bool(), "generate_plots": bool(), "output_directory": str()},
 
             "input_fitting": {"gp_directory": str(),
