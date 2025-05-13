@@ -60,12 +60,18 @@ python src/pyezzi/setup.py build_ext --inplace
 If you do not already have them, guidepoint files (GPFiles) for personalised biventricular mesh fitting can be generated directly from CMR DICOM files. This requires installing additional packages, and downloading deep learning models for view prediction and segmentation. **If you do not plan to run preprocessing of CMR DICOM files to create GPFiles, you can skip the below steps.**
 
 ### (Optional) Step 4: Download deep learning models
-The preprocessing code uses deep learning models for view prediction and segmentation. These models are located inside of a [different repository](https://github.com/UOA-Heart-Mechanics-Research/biv-me-dl-models), and can be installed by entering the following command into your terminal.
+The preprocessing code uses deep learning models for view prediction and segmentation. These models are located inside of a [different repository](https://github.com/UOA-Heart-Mechanics-Research/biv-me-dl-models), and are imported as a submodule. To download the models, you need to have Git LFS installed. You can run the following command in your terminal to check you have Git LFS.
+
+```bash
+git lfs install
+```
+
+If you don't have Git LFS installed, you can [follow these instructions to install it](https://docs.github.com/en/repositories/working-with-files/managing-large-files/installing-git-large-file-storage). Once you have Git LFS installed, you can download the models by running the following command in your terminal. 
 
 ```bash
 git submodule update --init
 ```
-You can verify that the models have been installed by checking that the below directories contain .pth and .joblib files. 
+You can verify that the models have been downloaded by checking that the below directories contain .pth and .joblib files. 
 
     src 
     └─── bivme
@@ -103,7 +109,7 @@ pip install nnunetv2
   - [Calculating volumes from models](#calculating-volumes-from-models)  
   - [Calculating strains from models](#calculating-strains-from-models)  
   - [Calculating wall thickness from models](#calculating-wall-thickness-from-models)
-- [Postprocessing of models](#postprocessing-of-models)
+- [Postprocessing of models (experimental)](#postprocessing-of-models)
 - [Contact us](#contact)    
 
 -----------------------------------------------
@@ -284,7 +290,7 @@ The output files will look like this in 3D Slicer:
 ![Wall_thickness](images/WallThickness.png)
 
 
-## Postprocessing of models
+## Postprocessing of models (experimental)
 An experimental tool is available to refine the models by applying collision detection to prevent intersections between the RV septum and RV free wall. While the diffeomorphic fitting ensures no intersection between the endocardial and epicardial surfaces, this tool specifically addresses any potential self-intersections within the endocardial surface.
 
 The script refitting a biv-me model with collision detection can be found in `src/bivme/postprocessing`. This script re-fit the models, using an extra collision detection step. An inital fit of the model is required as this will be used as guide points.
