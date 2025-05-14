@@ -176,3 +176,12 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# Pyezzi files
+src/pyezzi/pyezzi
+
+# Directories potentially created by running example code
+src/output
+example/processing
+example/states
+example/guidepoints/test

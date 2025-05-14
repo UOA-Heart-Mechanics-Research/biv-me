@@ -113,10 +113,10 @@ output_directory = "../../example/guidepoints"
 
 # Below are the parameters used to configure biv model fitting 
 [input_fitting]
-gp_directory = "../../example/guidepoints"
+gp_directory = "../../example/guidepoints/default"
 # Define the directory containing guidepoint files
 # If fitting and preprocessing are both enabled, this gp_directory will also be the output_directory used in preprocessing (see above)
-# default: "../../example/guidepoints"
+# default: "../../example/guidepoints/default"
 
 gp_suffix = ""
 # Define guidepoints to use if we do not want to fit all the models in the input folder

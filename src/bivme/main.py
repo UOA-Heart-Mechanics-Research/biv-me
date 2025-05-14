@@ -151,7 +151,7 @@ if __name__ == "__main__":
                 logger.success("Preprocessing complete.")
 
         if run_fitting_bool:
-            if not config["output_fitting"]["overwrite"] and os.path.exists(os.path.join(config["output_fitting"]["output_directory"], case)) and os.listdir(os.path.join(config["output_fitting"]["output_directory"], case)) > 0:
+            if not config["output_fitting"]["overwrite"] and os.path.exists(os.path.join(config["output_fitting"]["output_directory"], case)) and len(os.listdir(os.path.join(config["output_fitting"]["output_directory"], case))) > 0:
                 logger.info(f"Skipping fitting for {case} as it is already complete at {os.path.join(config['output_fitting']['output_directory'], case)}.")
                 continue
             else:
