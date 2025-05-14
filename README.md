@@ -12,9 +12,9 @@
 
 </div>
 
-This repository provides an end-to-end pipeline for generating **guide point files (GPFiles)** from CMR DICOM data, fitting **biventricular models**, and computing **functional cardiac metrics** such as volumes, strains, and wall thickness.
+This repository provides an end-to-end pipeline for generating guidepoint files (**GPFiles**) from CMR DICOMs, fitting **biv-me models**, and computing **functional cardiac metrics** such as volumes, strains, and wall thickness.
 
-Example data is available in the `example/` folder, including input DICOMs, output GPFiles, configuration files, and results for testing and reference.
+Example data is available in the `example/` folder, including input DICOMs, GPFiles, and fitted models for testing and reference.
 
 For a detailed description of the end-to-end image to mesh pipeline, including image preprocessing and biventricular model fitting, please refer to:
 **Dillon JR, Mauger C, Zhao D, Deng Y, Petersen SE, McCulloch AD, Young AA, Nash MP. An open-source end-to-end pipeline for generating 3D+t biventricular meshes from cardiac magnetic resonance imaging. In: Functional Imaging and Modeling of the Heart (FIMH) 2025. (in press)**
@@ -26,7 +26,7 @@ For a detailed description regarding the fitting of the biventricular model, ple
 -----------------------------------------------
 
 The easiest way to set up this repository is to use the provided conda environment (python 3.11).
-The conda environment named bivme311 can be created and activated by following steps 1-3 below.
+The conda environment named *bivme311* can be created and activated by following steps 1-3 below.
 
 ### Step 1: Clone this repository
 In a Git-enabled terminal, enter the following command to clone the repository.
@@ -57,7 +57,7 @@ pip install -e .
 python src/pyezzi/setup.py build_ext --inplace
 ```
 
-If you do not already have them, guidepoint files (GPFiles) for personalised biventricular mesh fitting can be generated directly from CMR DICOM files. This requires installing additional packages, and downloading deep learning models for view prediction and segmentation. **If you do not plan to run preprocessing of CMR DICOM files to create GPFiles, you can skip the below steps.**
+If you do not already have them, guidepoint files (GPFiles) for biventricular model fitting can be generated directly from CMR DICOM files. This requires installing additional packages, and downloading deep learning models for view prediction and segmentation. **If you do not plan to run preprocessing of DICOM files to create GPFiles, you can skip Steps 4 and 5.**
 
 ### (Optional) Step 4: Download deep learning models
 The preprocessing code uses deep learning models for view prediction and segmentation. These models are located inside of a [different repository](https://github.com/UOA-Heart-Mechanics-Research/biv-me-dl-models), and are imported as a submodule. To download the models, you need to have Git LFS installed. You can run the following command in your terminal to check you have Git LFS.
@@ -82,7 +82,7 @@ You can verify that the models have been downloaded by checking that the below d
                     └─── ViewSelection
 
 ### Troubleshooting
-If this does not work for any reason, you can fall back on downloading the models manually. First, delete the folder called `src\bivme\preprocessing\dicom\models`. Create a new folder in its place, with the same name ('models'). Then, clone the repository with the deep learning models using the following command.
+If importing the submodule does not work for any reason, you can fall back on downloading the models manually. First, delete the folder called `src\bivme\preprocessing\dicom\models`. Create a new folder in its place, with the same name ('models'). Then, clone the repository with the deep learning models using the following command.
 
 ```bash
 git clone https://github.com/UOA-Heart-Mechanics-Research/biv-me-dl-models.git
@@ -97,9 +97,10 @@ This preprocessing code utilises PyTorch and nnU-Net. The default biv-me conda e
 conda activate bivme311
 ```
 
-Then, find the right PyTorch version for your GPU and OS and [install it as described on the website](https://pytorch.org/get-started/locally/).
+Then, find the right PyTorch version for your GPU and OS and [**install it as described on the website**](https://pytorch.org/get-started/locally/).
 
-**Do not install nnU-Net without installing PyTorch first!**. If you do, you will need to start over again.
+### **Do not install nnU-Net without installing PyTorch first!** 
+#### If you do, you will need to start over again. 
 
 After PyTorch has been installed, install nnU-Net by entering the following command into your terminal.
 
@@ -108,23 +109,24 @@ pip install nnunetv2
 ```
 
 ## Table of Contents
-- [Installation](#🚀-installation-guide)
+- [**Installation**](#🚀-installation-guide)
 
-- [Generating biventricular models](#how-to-run-biv-me)
-    - [Preprocessing DICOM data](#preprocessing)
-    - [Fitting biventricular models](#fitting)
-    - [Running end-to-end pipeline](#end-to-end-pipeline-preprocessing-and-fitting)
-- [Analysis of models](#analysis-of-models)  
+- [**Generating biv-me models**](#how-to-run-biv-me)
+    - [Example usage](#example-usage)
+    - [Preprocessing DICOM data](#preprocessing-dicom-data)
+    - [Fitting biv-me models](#fitting-biv-me-models)
+    - [Running end-to-end pipeline](#running-end-to-end-pipeline-preprocessing-and-fitting)
+- [**Analysis of models**](#analysis-of-models)  
   - [Calculating volumes from models](#calculating-volumes-from-models)  
   - [Calculating strains from models](#calculating-strains-from-models)  
   - [Calculating wall thickness from models](#calculating-wall-thickness-from-models)
-- [Postprocessing of models (experimental)](#postprocessing-of-models)
-- [Contact us](#contact)    
+- [**Postprocessing of models (experimental)**](#postprocessing-of-models-experimental)
+- [**Contact us**](#contact)    
 
 -----------------------------------------------
 
 ## How to run biv-me
-biv-me can be broadly divided into three different modules: **preprocessing** (DICOMs -> GPFiles), **fitting** (GPFiles -> biventricular models), and **analysis** (biventricular models -> metrics). 
+biv-me can be broadly divided into three different modules: **preprocessing** (DICOMs -> GPFiles), **fitting** (GPFiles -> biv-me models), and **analysis** (biv-me models -> metrics). 
 
 The first two modules (preprocessing and/or fitting) can be run from `src/bivme/main.py`, as detailed below.
 
@@ -139,23 +141,28 @@ usage: main.py [-h] [-config CONFIG_FILE]
 
 To run preprocessing and/or fitting, a **config file** must be created. The config file allows you to choose which modules to run and how you would like them to be run. An example of a config file can be found in `src/bivme/configs/config.toml`. If you wish, you can create a new config file for each time you want to make changes. Just make sure to update the path of the config file when you run the code!
 
-#### **Example usage** <br>
-Example DICOMs are provided in `example/dicoms` and example GPFiles are provided in `example/guidepoints/default`. You can verify that the repository is working by running biv-me on this example case (called 'patient1'), using the following commands.
+#### **Example usage** 
+Example DICOMs are provided in `example/dicoms` and example GPFiles are provided in `example/guidepoints/default`. You can verify that the repository is working by running biv-me on this example case (called *patient1*), using the following commands.
 
 ```python
 cd src/bivme
 python main.py -config configs/config.toml
 ```
-By default, this will generate GPFiles from the provided DICOMs for patient1 in `example/dicoms`, fit biv-me models to those GPFiles, and save them to the `src/output` directory. You can review the default paths by opening the config file at `src/bivme/configs/config.toml`.
+By default, this will generate new GPFiles from the DICOMs for *patient1* in `example/dicoms` (**preprocessing**), fit biv-me models to the new GPFiles created in `example/guidepoints/test` (**fitting**), and save the fitted models to the `src/output` directory. You can review the default paths by opening the config file at `src/bivme/configs/config.toml`.
 
-**If you did not configure the preprocessing in Steps 4 and 5 of the installation, you will not be able to run preprocessing**. If so, make sure to set preprocessing=False in the config file before running. If you turn off preprocessing, running main.py will carry out fitting only on the example GPFiles in `example/guidepoints/default`.
+**If you did not configure the preprocessing in Steps 4 and 5 of the installation, you will not be able to run preprocessing**. If so, make sure to set *preprocessing=False* in the config file before running. If you turn off preprocessing, running `src/bivme/main.py` will carry out fitting only on the example GPFiles in `example/guidepoints/default`.
 
-Example fitted biv-me models for patient1 are provided in `example/fitted-models/default`. These are provided in .vtk, .obj, .txt, and .html versions. The .html is only stored for one frame due to storage considerations. 
+#### **Sample output**
+Example biv-me models for *patient1* have been already fitted, and can be found in `example/fitted-models/default`. These are provided in .txt, .vtk, obj, and .html formats. The .html is only stored for one frame due to storage considerations. The first frame of the fitted models in .vtk format is visualised below using [Paraview](https://www.paraview.org/). Your fitted models should ideally look something like this.
+
+![Model4ch](images/Model1.png) 
+
+![Modelsax](images/Model2.png)
 
 ### Preprocessing DICOM data
-If you choose to run preprocessing, then **GPFiles** (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) and one **SliceInfoFile.txt** will be created for each case for which there is DICOM data. These files are required for biventricular model fitting. GPFiles describe contour coordinates, whereas the SliceInfoFile.txt contains slice metadata.
+When you run preprocessing, **GPFiles** (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) and one **SliceInfoFile.txt** will be created for each case for which there is DICOM data. These files are required for biventricular model fitting. GPFiles describe contour coordinates, whereas the SliceInfoFile.txt contains slice metadata.
 
-When running preprocessing, you will need to provide certain directories in the config file. **All directories will be created upon runtime for you**, except for the 'source' directory. This should point to your DICOMs, which should be separated into folders by case like so:
+When running preprocessing on your own data, you will need to provide certain directories in the config file. **All directories will be created upon runtime for you**, except for the 'source' directory. This should point to your DICOMs, which should be separated into folders by case like so:
 
     source
     └─── case1
@@ -166,15 +173,20 @@ When running preprocessing, you will need to provide certain directories in the 
 
 As long as the DICOM images are organised separately by case, **they can be arranged in any way that you like**. There is no need to manually exclude non-cines prior to running, as the code should find which images are cines and which ones aren't by checking key terms within the series descriptions. Check `src/bivme/preprocessing/dicom/extract_cines.py` for the list of key terms, and update as needed for your dataset.
 
-### Fitting biventricular models
-If you choose to run fitting, then biventricular models will be created for each case for which there are GPFiles and a SliceInfoFile.txt file (if they already exist). Models will be generated as .txt files containing mesh vertices, html plots for visualisation, and (optionally) .obj or .vtk files for LV endocardial, RV endocardial, and epicardial meshes.
+### Fitting biv-me models
+When you run fitting, biv-me models will be created for each case for which there are GPFiles and a SliceInfoFile.txt file. 
 
-### End-to-end pipeline (preprocessing and fitting)
-If you choose to run both preprocessing and fitting, they will run in sequence, such that biventricular models will be generated for each case for which there is DICOM data. 
+If you already have GPFiles,  then you do not need to run preprocessing. Simply set the *gp_directory* in the config file to the folder where you have GPFiles and SliceInfoFile.txt files, separated into one folder per case. 
 
+If you want to generate GPFiles yourself (i.e. not using biv-me preprocessing), but you don't know how to, the example GPFiles in `example\guidepoints\default` can serve as reference for the required format.
+
+Models will be generated as .txt files containing mesh vertex coordinates, html plots for visualisation, and (optionally) .obj or .vtk files for LV endocardial, RV endocardial, and epicardial meshes.
+
+### Running end-to-end pipeline (preprocessing and fitting)
+If you specify in your config file to run both preprocessing and fitting, they will run in sequence as an end-to-end pipeline, such that biv-me models will be generated for each case for which there is DICOM data. When running as an end-to-end pipeline, there is no need to set the *gp_directory* for the fitting, as this will be automatically set as the *output_directory* of the preprocessing.
 
 ## Analysis of models
-Several tools are provided for the analysis of biventricular models, including scripts for volume calculation, strain analysis (circumferential and longitudinal strains), and wall thickness measurement. 
+Several tools are provided for the analysis of biv-me models, including scripts for volume calculation, strain analysis (circumferential and longitudinal strains), and wall thickness measurement. 
 
 ### Calculating volumes from models 
 The script for calculating the volume of a mesh can be found in the `src/bivme/analysis` directory. It uses the tetrahedron method, which decomposes the mesh into tetrahedra and computes their volumes.
@@ -189,7 +201,7 @@ usage: compute_volume.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_PATH] [-b BIV_MODEL_F
 | **Argument**          | **Description**                                                                               |
 | --------------------- | --------------------------------------------------------------------------------------------- |
 | `-h, --help`          | Displays the help message and exits.                                                          |
-| `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biventricular models.                      |
+| `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biv-me models.                      |
 | `-o OUTPUT_PATH`      | Specifies the directory where the output files will be saved.                                 |
 | `-b BIV_MODEL_FOLDER` | Path to the folder containing the subdivision matrices for the models (default: `src/model`). |
 | `-pat PATTERNS`       | The folder pattern to include for processing. You can use wildcards (default: `*`).           |
@@ -203,7 +215,7 @@ cd src/bivme/analysis
 python compute_volume.py -mdir ../../../example/fitted-models -p 1 -o example_volumes
 ```
 
-This will process the biventricular models in the `../../../example/fitted-models` directory, compute the volumes with a precision of 1 decimal place, and save the results in the `example_volumes` directory. The volumes will be saved in the `lvrv_volumes.csv` file.
+This will process the biv-me models in the `../../../example/fitted-models` directory, compute the volumes with a precision of 1 decimal place, and save the results in the `example_volumes` directory. The volumes will be saved in the `lvrv_volumes.csv` file.
 
 **Sample Output** <br> 
 The output file will look like this:
@@ -216,7 +228,7 @@ The output file will look like this:
 
 ### Calculating strains from models 
 
-The script for calculating both global circumferential and global longitudinal strains of a mesh can be found in the `src/bivme/analysis` directory. Geometric strain is defined as the change in geometric arc length from ED to any other frame using a set of predefined points and calculated using the Cauchy strain formula. The global circuferential strains are calculated at three levels: apical, mid and basal. The global longitudinal strains are calculated on a 4Ch and a 2Ch view.
+The script for calculating both global circumferential and global longitudinal strains of a mesh can be found in the `src/bivme/analysis` directory. Geometric strain is defined as the change in geometric arc length from ED to any other frame using a set of predefined points and calculated using the Cauchy strain formula. The global circuferential strains are calculated at three levels: apical, mid and basal. The global longitudinal strains are calculated on a 4ch and a 2ch view.
 
 #### **Running the scripts** 
 To run the `compute_global_circumferential_strain.py` and `compute_global_longitudinal_strain.py` scripts, use the following command:
@@ -234,7 +246,7 @@ usage: compute_global_longitudinal_strain.py [-h] [-mdir MODEL_DIR] [-o OUTPUT_P
 | **Argument**          | **Description**                                                                               |
 | --------------------- | --------------------------------------------------------------------------------------------- |
 | `-h, --help`          | Displays the help message and exits.                                                          |
-| `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biventricular models.                      |
+| `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biv-me models.                      |
 | `-o OUTPUT_PATH`      | Specifies the directory where the output files will be saved.                                 |
 | `-b BIV_MODEL_FOLDER` | Path to the folder containing the subdivision matrices for the models (default: `src/model`). |
 | `-pat PATTERNS`       | The folder pattern to include for processing. You can use wildcards (default: `*`).           |
@@ -250,7 +262,7 @@ cd src/bivme/analysis
 python compute_global_circumferential_strain.py -mdir ../../../example/fitted-models -p 1 -o example_strains -ed 0
 ```
 
-This will process the biventricular models in the `../../../example/fitted-models` directory, compute the global circumferential strain with a precision of 1 decimal place, and save the results in the `example_strains` directory. The GCS will be saved in the `global_circumferential_strain.csv.csv` file. The first frame will be used as ED. 
+This will process the biv-me models in the `../../../example/fitted-models` directory, compute the global circumferential strain with a precision of 1 decimal place, and save the results in the `example_strains` directory. The GCS will be saved in the `global_circumferential_strain.csv.csv` file. The first frame will be used as ED. 
 
 **Sample Output** <br>
 The output file will look like this:
@@ -273,7 +285,7 @@ usage: compute_global_circumferential_strain.py [-h] [-mdir MODEL_DIR] [-o OUTPU
 | **Argument**          | **Description**                                                                               |
 | --------------------- | --------------------------------------------------------------------------------------------- 
 | `-h, --help`          | Displays the help message and exits.                                                          |
-| `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biventricular models.                      |
+| `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biv-me models.                      |
 | `-o OUTPUT_PATH`      | Specifies the directory where the output files will be saved.                                 |
 | `-b BIV_MODEL_FOLDER` | Path to the folder containing the subdivision matrices for the models (default: `src/model`). |
 | `-pat PATTERNS`       | The folder pattern to include for processing. You can use wildcards (default: `*`).           |
@@ -281,14 +293,14 @@ usage: compute_global_circumferential_strain.py [-h] [-mdir MODEL_DIR] [-o OUTPU
 | `-s SAVE_SEGMENTATION_FLAG` | Boolean flag indicating whether to save 3D masks
 
 
-#### **Example Usage** <br>
+#### **Example Usage**
 Example data is available in `example/fitted-models`. To compute the wall thickness using this data, run the following command:
 
 ```
 python compute_wall_thickness.py -mdir ../../../example/fitted-models -o example_thickness
 ```
 
-This will process the biventricular models in the `../../../example/fitted-models` directory, compute the wall thickness at a resolution of 1mm, and save the results in the `example_thickness` directory. Wall thickness is sampled and saved at the location of each vertex and can be visualised in Paraview as vertex color or in 3D slicer.
+This will process the biv-me models in the `../../../example/fitted-models` directory, compute the wall thickness at a resolution of 1mm, and save the results in the `example_thickness` directory. Wall thickness is sampled and saved at the location of each vertex and can be visualised in Paraview as vertex color or in 3D slicer.
 
 Adding the `-s` flag to the above command will also generate 4 extra nifti files per model: 2 3D masks with background=0, cavity=1, and wall=2 (`labeled_image_lv*.nii` and `labeled_image_lv*.nii`) and 2 3D mask containing thickness values at each voxel (`lv_thickness*.nii` and `rv_thickness*.nii`).
 
@@ -296,8 +308,9 @@ Adding the `-s` flag to the above command will also generate 4 extra nifti files
 python compute_wall_thickness.py -mdir ../../../example/fitted-models -o example_thickness -s
 ```
 
-**Sample Output** <br>
+#### **Sample Output**
 The output files will look like this in 3D Slicer:
+
 ![Wall_thickness](images/WallThickness.png)
 
 
@@ -315,7 +328,7 @@ usage: detect_intersection.py [-h] [-config CONFIG_FILE]
 | **Argument**          | **Description**                                                                               |
 | --------------------- | --------------------------------------------------------------------------------------------- 
 | `-h, --help`          | Displays the help message and exits.                                                          |
-| `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biventricular models.                      |
+| `-mdir MODEL_DIR`     | Specifies the path to the directory containing the biv-me models.                      |
 | `-o OUTPUT_PATH`      | Specifies the directory where the output files will be saved.                                 |
 | `-b BIV_MODEL_FOLDER` | Path to the folder containing the subdivision matrices for the models (default: `src/model`). |
 | `-pat PATTERNS`       | The folder pattern to include for processing. You can use wildcards (default: `*`).           |
