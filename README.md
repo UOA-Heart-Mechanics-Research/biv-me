@@ -139,6 +139,19 @@ usage: main.py [-h] [-config CONFIG_FILE]
 
 To run preprocessing and/or fitting, a **config file** must be created. The config file allows you to choose which modules to run and how you would like them to be run. An example of a config file can be found in `src/bivme/configs/config.toml`. If you wish, you can create a new config file for each time you want to make changes. Just make sure to update the path of the config file when you run the code!
 
+#### **Example usage** <br>
+Example DICOMs are provided in `example/dicoms` and example GPFiles are provided in `example/guidepoints/default`. You can verify that the repository is working by running biv-me on this example case (called 'patient1'), using the following commands.
+
+```python
+cd src/bivme
+python main.py -config configs/config.toml
+```
+By default, this will generate GPFiles from the provided DICOMs for patient1 in `example/dicoms`, fit biv-me models to those GPFiles, and save them to the `src/output` directory. You can review the default paths by opening the config file at `src/bivme/configs/config.toml`.
+
+**If you did not configure the preprocessing in Steps 4 and 5 of the installation, you will not be able to run preprocessing**. If so, make sure to set preprocessing=False in the config file before running. If you turn off preprocessing, running main.py will carry out fitting only on the example GPFiles in `example/guidepoints/default`.
+
+Example fitted biv-me models for patient1 are provided in `example/fitted-models/default`. These are provided in .vtk, .obj, .txt, and .html versions. The .html is only stored for one frame due to storage considerations. 
+
 ### Preprocessing DICOM data
 If you choose to run preprocessing, then **GPFiles** (GPFile_000.txt for frame 0, GPFile_001.txt for frame 1...) and one **SliceInfoFile.txt** will be created for each case for which there is DICOM data. These files are required for biventricular model fitting. GPFiles describe contour coordinates, whereas the SliceInfoFile.txt contains slice metadata.
 
@@ -155,17 +168,6 @@ As long as the DICOM images are organised separately by case, **they can be arra
 
 ### Fitting biventricular models
 If you choose to run fitting, then biventricular models will be created for each case for which there are GPFiles and a SliceInfoFile.txt file (if they already exist). Models will be generated as .txt files containing mesh vertices, html plots for visualisation, and (optionally) .obj or .vtk files for LV endocardial, RV endocardial, and epicardial meshes.
-
-#### **Example usage** <br>
-Example GPFiles and SliceInfoFile.txt are available in `example/guidepoints`. To fit biv-me models to this data, run the following command:
-
-```python
-cd src/bivme
-python main.py -config configs/config.toml
-```
-
-This will fit biv-me models to the guidepoints files in the gp_directory defined in the config.toml file (default is `../../example/guidepoints`) directory and save them in the output_directory defined in the config file (default is `../output/`). Each patient will have its own folder.
-
 
 ### End-to-end pipeline (preprocessing and fitting)
 If you choose to run both preprocessing and fitting, they will run in sequence, such that biventricular models will be generated for each case for which there is DICOM data. 
