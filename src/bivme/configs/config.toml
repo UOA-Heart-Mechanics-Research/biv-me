@@ -6,7 +6,7 @@ version = "1.0.0" # for semantic versioning - Major.Minor.Patch sequence
 # When a developer fixes a bug in that version, the next version release is named version 2.3.2.
 
 [modules]
-preprocessing = false
+preprocessing = true
 fitting = true
 # Define which modules you want to run. 
 # preprocessing generates GPFiles and SliceInfo files for biv model fitting directly from a DICOM directory
@@ -50,9 +50,9 @@ generate_log_file = true
 # Below are the parameters used to configure preprocessing of DICOM files 
 # Skip these if you do not intend to run preprocessing
 [input_pp]
-source = ''
+source = "../../example/dicoms"
 # Define the directory containing raw dicoms. Files must be grouped into one folder per case
-# Default: ''
+# Default: "../../example/dicoms"
 
 batch_ID = "test"
 # Define the id of the batch you are processing. This will define the name of the folder that processed outputs will be written to
@@ -62,13 +62,13 @@ analyst_id = "analyst1"
 # Define the id of the analyst performing the preprocessing. Useful e.g. if view predictions need to be corrected
 # Default: "analyst1"
 
-processing = ''
+processing = "../../example/processing"
 # Define the directory where processing files (including view predictions, segmentations) will be written
-# Default: ''
+# Default: "../../example/processing"
 
-states = ''
+states = "../../example/states"
 # Define the directory where view predictions and log files will be written out to
-# Default: ''
+# Default: "../../example/states"
 
 [view-selection]
 option = "default"
@@ -80,18 +80,18 @@ option = "default"
 # Default: "default"
 
 [output_pp]
-overwrite = true
+overwrite = false
 # Define to overwrite the processed folder and outputs of an already preprocessed case, if it exists
-# Default: true
+# Default: false
 
 generate_plots = true
 # Define whether to generate html plots of exported contours after preprocessing. 
 # Default: true
 
-output_directory = ''
+output_directory = "../../example/guidepoints"
 # Define the directory where GPFiles will be created
 # If fitting and preprocessing are both enabled, this output_directory will also be the gp_directory used for fitting (see below)
-# Default: ''
+# Default: "../../example/guidepoints"
 
 #
 #
@@ -118,11 +118,11 @@ gp_directory = "../../example/guidepoints"
 # If fitting and preprocessing are both enabled, this gp_directory will also be the output_directory used in preprocessing (see above)
 # default: "../../example/guidepoints"
 
-gp_suffix = ''
+gp_suffix = ""
 # Define guidepoints to use if we do not want to fit all the models in the input folder
 # Default: ""
 
-si_suffix = ''
+si_suffix = ""
 # Define slice info to use if multiple SliceInfo.txt file are available
 # Default: ""
 
@@ -186,9 +186,9 @@ output_meshes = ["LV_ENDOCARDIAL", "RV_ENDOCARDIAL", "EPICARDIAL"]
 # * "RV_ENDOCARDIAL" : RV endocardium - RVFW and RVS
 # * "EPICARDIAL" : Epicardium
 
-overwrite = true
+overwrite = false
 # Define to overwrite the output mesh if it exists
-# Default: true
+# Default: false
 
 output_directory = "../output/"
 # Define where to save the fitted models and files

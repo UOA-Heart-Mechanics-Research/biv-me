@@ -141,7 +141,7 @@ if __name__ == "__main__":
 
         if run_preprocessing_bool:
             if not config["output_pp"]["overwrite"] and os.path.exists(os.path.join(config["output_pp"]["output_directory"], config["input_pp"]["batch_ID"], case)):
-                logger.info(f"Skipping preprocessing for {case} as it is already complete.")
+                logger.info(f"Skipping preprocessing for {case} as it is already complete at {os.path.join(config['output_pp']['output_directory'], config['input_pp']['batch_ID'], case)}.")
                 continue
             else:
                 logger.info("Running preprocessing...")
@@ -151,8 +151,8 @@ if __name__ == "__main__":
                 logger.success("Preprocessing complete.")
 
         if run_fitting_bool:
-            if not config["output_fitting"]["overwrite"] and os.path.exists(os.path.join(config["output_fitting"]["output_directory"], case)):
-                logger.info(f"Skipping fitting for {case} as it is already complete.")
+            if not config["output_fitting"]["overwrite"] and os.path.exists(os.path.join(config["output_fitting"]["output_directory"], case)) and os.listdir(os.path.join(config["output_fitting"]["output_directory"], case)) > 0:
+                logger.info(f"Skipping fitting for {case} as it is already complete at {os.path.join(config['output_fitting']['output_directory'], case)}.")
                 continue
             else:
                 logger.info("Running fitting...")
