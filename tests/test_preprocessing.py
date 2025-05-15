@@ -74,7 +74,7 @@ def test_writenifti():
 
     os.makedirs(os.path.join(test_dst, view), exist_ok=True)
 
-    write_nifti(slice_id, img, pixel_spacing, test_dst, view, '3d') # Testing 3d version
+    write_nifti(slice_id, img, pixel_spacing, test_dst, view)
 
     # Find the generated nifti file
     nifti_path = os.path.join(test_dst, view, f'{view}_3d_{slice_id}_0000.nii.gz')
@@ -120,7 +120,7 @@ def test_contouring():
     assert os.path.exists(slice_info_file), 'SliceInfoFile not generated.'
 
     # Generate contours
-    slice_dict = generate_contours(test_dst, slice_info_df, 27, '3d', logger)
+    slice_dict = generate_contours(test_dst, slice_info_df, 27, logger)
 
     assert len(slice_dict.keys()) == 1, 'Contours not generated.'
 

@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import pydicom
 import pandas as pd
@@ -45,9 +46,9 @@ def predict_on_metadata(vs):
     vs.prepare_data_for_prediction()
 
     if len(vs.df) == 0:
-        vs.my_logger.warning("No series found")
-        return
-    
+        vs.my_logger.error("No series found. This means that after excluding invalid series descriptions and images with less than 10 frames, this case has no eligible cine images. Please check your input directory.")
+        sys.exit(0)
+
     view_class_map = {'SA': 'SAX', '2CH LT': '2ch', '2CH RT': '2ch-RT', '3CH': '3ch', '4CH': '4ch', 'LVOT': 'LVOT', 'RVOT': 'RVOT', 'RVOT-T': 'RVOT-T', 'SAX-atria': 'SAX-atria', 'OTHER': 'OTHER'}
 
     metadata_model_path = os.path.join(vs.model, "ViewSelection", "metadata-based_model.joblib")
@@ -135,8 +136,8 @@ def predict_on_images(vs):
     vs.prepare_data_for_prediction()
 
     if len(vs.df) == 0:
-        vs.my_logger.warning("No series found")
-        return
+        vs.my_logger.error("No series found. This means that after excluding invalid series descriptions and images with less than 10 frames, this case has no eligible cine images. Please check your input directory.")
+        sys.exit(0)
 
     view_label_map = {'2ch': 0, '2ch-RT': 1, '3ch': 2, '4ch': 3, 'LVOT': 4, 
                 'OTHER': 5, 'RVOT': 6, 'RVOT-T': 7, 'SAX': 8, 'SAX-atria': 9}

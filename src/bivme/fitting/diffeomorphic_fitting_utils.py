@@ -183,7 +183,7 @@ def solve_convex_problem(
 
     residuals = step_err
 
-    my_logger.success(f"End of the implicitly constrained fit. Time taken: {time.time() - start_time}")
+    my_logger.success(f"End of the explicitly constrained fit. Time taken: {time.time() - start_time}")
     return residuals
 
 def fit_least_squares_model(biv_model: BiventricularModel, weight_gp: float, data_set: GPDataSet, smoothing_factor: float) -> [np.ndarray, float]:
@@ -315,7 +315,7 @@ def solve_least_squares_problem(biv_model : BiventricularModel, weight_gp: float
                 isdiffeo = 1
         iteration += 1
 
-    my_logger.success(f"End of the explicitely constrained fit. Time taken: {time.time() - start_time}")
+    my_logger.success(f"End of the implicitly constrained fit. Time taken: {time.time() - start_time}")
 
     return high_weight
 

@@ -5,10 +5,11 @@ from bivme.preprocessing.dicom.src.sliceviewer import SliceViewer
 
 def export_guidepoints(dst, output, slice_dict, slice_mapping):
     # check if files in output folder already exist
-    existing_files = os.listdir(output)
-    for file in existing_files:
-        if file.endswith('.txt'):
-            os.remove(os.path.join(output, file))
+    if os.path.exists(output):
+        existing_files = os.listdir(output)
+        for file in existing_files:
+            if file.endswith('.txt'):
+                os.remove(os.path.join(output, file))
             
     for s in slice_dict.values():
         s.export_slice(output, slice_mapping)

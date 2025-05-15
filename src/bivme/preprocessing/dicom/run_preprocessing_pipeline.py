@@ -46,7 +46,7 @@ def perform_preprocessing(case, config, mylogger):
         shutil.rmtree(output) # remove existing directory
     os.makedirs(output, exist_ok=True) # create new directory
 
-    plotting = dst # save the plotted htmls in processed directory
+    plotting = os.path.join(config["input_pp"]["processing"], config["input_pp"]["batch_ID"]) # save the plotted htmls in processed directory
 
     # Logging
     if not config["logging"]["show_detailed_logging"]:
@@ -79,16 +79,16 @@ def perform_preprocessing(case, config, mylogger):
 
     ## Step 2: Segmentation
     seg_start_time = time.time()
-    mylogger.info(f'Starting segmentation with {config["segmentation"]["version"]} version...')
-    segment_views(dst, MODEL_DIR, slice_info_df, config["segmentation"]["version"], mylogger) # TODO: Find a way to suppress nnUnet output
+    mylogger.info(f'Starting segmentation...')
+    segment_views(dst, MODEL_DIR, slice_info_df, mylogger) # TODO: Find a way to suppress nnUnet output
     seg_end_time = time.time()
-    mylogger.success(f'Segmentation complete. Time taken: {seg_end_time-seg_start_time} seconds ({config["segmentation"]["version"]} version).')
+    mylogger.success(f'Segmentation complete. Time taken: {seg_end_time-seg_start_time} seconds.')
 
     ## Step 2.1: Correct phase mismatch (if required)
-    correct_phase_mismatch(dst, slice_info_df, num_phases, mylogger)
+    correct_phase_mismatch(dst, slice_info_df, num_phases, mylogger) 
 
     ## Step 3: Guide point extraction
-    slice_dict = generate_contours(dst, slice_info_df, num_phases, config["segmentation"]["version"], mylogger)
+    slice_dict = generate_contours(dst, slice_info_df, num_phases, mylogger)
     mylogger.success(f'Guide points generated successfully.')
 
     ## Step 4: Export guide points
@@ -99,7 +99,7 @@ def perform_preprocessing(case, config, mylogger):
     if config["output_pp"]["generate_plots"]:
         generate_html(output, out_dir=plotting, gp_suffix='', si_suffix='', frames_to_fit=[], my_logger=mylogger, model_path=None)
 
-    mylogger.success(f'Guidepoints plotted and saved in {plotting}.')
+    mylogger.success(f'Guidepoints plotted at {os.path.join(plotting,case,"html")}.')
 
     if config["logging"]["generate_log_file"]:
         mylogger.remove(logger_id)
@@ -113,10 +113,6 @@ def validate_config(config, mylogger):
     if not (config["view-selection"]["option"] == "default" or config["view-selection"]["option"] == "metadata-only" 
             or config["view-selection"]["option"] == "image-only"  or config["view-selection"]["option"] == "load"):
         mylogger.error(f'Invalid view selection option: {config["view-selection"]["option"]}. Must be "default", "metadata-only", "image-only", or "load".')
-        sys.exit(0)
-
-    if not (config["segmentation"]["version"] == "2d" or config["segmentation"]["version"] == "3d"):
-        mylogger.error(f'Invalid segmentation version: {config["segmentation"]["version"]}. Must be "2d" or "3d".')
         sys.exit(0)
 
     if not (config["output_pp"]["overwrite"] == True or config["output_pp"]["overwrite"] == False):
