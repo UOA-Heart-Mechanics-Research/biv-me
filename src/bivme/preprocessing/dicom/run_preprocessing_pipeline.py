@@ -63,6 +63,8 @@ def perform_preprocessing(case, config, mylogger):
     # Check if GPU is available (torch)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     mylogger.info(f'Using device: {device}')
+    if not torch.cuda.is_available():
+        mylogger.warning(f'No GPU available. Using CPU instead. This may be very slow!')
 
     ## Step 0: Pre-preprocessing (separate cines from non-cines)
     mylogger.info(f'Finding cines...')
