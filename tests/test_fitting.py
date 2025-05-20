@@ -9,8 +9,7 @@ def test_performed_fit():
 
     test_data = ["patient_1_gpdata", "patient_2_gpdata"]
     output_dir = TEST_RESOURCE_DIR / 'output'
-
-    config_file = '../biv-me/src/bivme/configs/config.toml'
+    config_file = 'src/bivme/configs/config.toml'
     with open(config_file, mode="rb") as fp:
         config = tomli.load(fp)
 

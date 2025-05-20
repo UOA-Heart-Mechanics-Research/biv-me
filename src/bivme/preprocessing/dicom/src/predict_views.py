@@ -146,13 +146,16 @@ def predict_on_images(vs):
     dir_img_test = os.path.join(vs.dst, 'view-classification', 'unsorted') # Directory of images to predict. Predictions are run on .pngs
     
     # Load model from file
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     loaded_model_path = os.path.join(vs.model, "ViewSelection", "resnet50-v13.pth")
     loaded_model = torchvision.models.resnet50()
     loaded_model.fc = nn.Linear(2048, 10)
-    loaded_model.load_state_dict(torch.load(loaded_model_path))
+
+    if not torch.cuda.is_available():
+        loaded_model.load_state_dict(torch.load(loaded_model_path, map_location=torch.device('cpu')))
 
     model = loaded_model
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Get transforms
     orig_transform = transforms.Compose([
