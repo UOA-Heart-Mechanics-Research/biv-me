@@ -262,7 +262,7 @@ cd src/bivme/analysis
 python compute_global_circumferential_strain.py -mdir ../../../example/fitted-models -p 1 -o example_strains -ed 0
 ```
 
-This will process the biv-me models in the `../../../example/fitted-models` directory, compute the global circumferential strain with a precision of 1 decimal place, and save the results in the `example_strains` directory. The GCS will be saved in the `global_circumferential_strain.csv.csv` file. The first frame will be used as ED. 
+This will process the biv-me models in the `../../../example/fitted-models` directory, compute the global circumferential strain with a precision of 1 decimal place, and save the results in the `example_strains` directory. The GCS will be saved in the `global_circumferential_strain.csv` file. The first frame will be used as ED. 
 
 **Sample Output** <br>
 The output file will look like this:
