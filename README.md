@@ -129,9 +129,9 @@ pip install nnunetv2
 We update biv-me regularly to apply patches and add new features. Make sure to star and/or watch the repository to keep up with new releases!
 
 ## Table of Contents
-- [**Installation**](#🚀-installation-guide)
+- [**Installation guide**](#🚀-installation-guide)
 
-- [**Generating biv-me models**](#how-to-run-biv-me)
+- [**How to run biv-me**](#how-to-run-biv-me)
     - [Example usage](#example-usage)
     - [Preprocessing DICOM data](#preprocessing-dicom-data)
     - [Fitting biv-me models](#fitting-biv-me-models)
@@ -145,6 +145,8 @@ We update biv-me regularly to apply patches and add new features. Make sure to s
   - [Calculating wall thickness from models](#calculating-wall-thickness-from-models)
 - [**Postprocessing of models (experimental)**](#postprocessing-of-models-experimental)
 - [**FAQs**](#faqs)
+- [**Contribution - notation**](#contribution---notation)
+- [**Acknowledgements**](#acknowledgments)
 - [**Contact us**](#contact)    
 
 -----------------------------------------------
@@ -438,7 +440,7 @@ Another explanation is that your images are being filtered out. We use the serie
 The preprocessing pipeline uses 3D nnU-Net models to perform automatic segmentation. Unfortunately, [Apple silicon chips (M1-) with MPS do not currently support 3D convolutions](https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/installation_instructions.md), so segmentation is carried on CPU instead, and may take a long time to process. If possible, consider running preprocessing on a CUDA enabled device.   
 
 
-## Contribution - Notation
+## Contribution - notation
 -----------------------------------------------
 If you wish to contribute to this project, please follow the naming conventions outlined below:
 
