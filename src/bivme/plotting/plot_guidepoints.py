@@ -222,6 +222,7 @@ def prepare_image_plots(image_path, data_set, image_grids, frame, shifts=None, o
                     showlegend=True,
                 ))
 
+
                 if output_path is not None:
                     # Export the image as a VTK file
                     gridX = gridX.astype(np.float32) # pyvista requires float32
@@ -313,20 +314,19 @@ def generate_html(case: str, gp_dir: str, out_dir: str ="./results/", gp_suffix:
 
     # Pre-prepare all the images to be plotted in parallel (if configured)
     if image_path is not None:
-        image_grids = {}
-        image_plots = {}
+        image_grids = {} # keys are slice numbers, values are the corresponding grids for plotting the image slices. We store this to avoid recomputing the grids for each frame if they are the same.
+        image_plots = {} # keys are frame numbers, values are the corresponding image plots for that frame 
         for num in frames_to_fit:
             if num in datasets.keys():
                 data_set = datasets[num]
                 try:
-                    image_plot, image_grid = prepare_image_plots(image_path, data_set, image_grids, num, shifts=None, output_path = vtk_export_path, logger=my_logger) # Returns the image plots and the grids used for plotting (so that we don't have to recompute the grids for each frame if they are the same), and exports image VTK files to the specified path if configured
+                    image_plot, image_grids = prepare_image_plots(image_path, data_set, image_grids, num, shifts=None, output_path = vtk_export_path, logger=my_logger) # Returns the image plots and the grids used for plotting (so that we don't have to recompute the grids for each frame if they are the same), and exports image VTK files to the specified path if configured
                 except Exception as e:
                     my_logger.error(f"Error preparing image plots for frame {num:03}: {e}")
+                    breakpoint()
                     image_plot = None
-                    image_grid = None
 
                 image_plots[num] = image_plot
-                image_grids[num] = image_grid
     else:
         image_plots = {num: None for num in frames_to_fit} # If no images to plot, create empty lists for each frame to simplify the plotting code later
 
