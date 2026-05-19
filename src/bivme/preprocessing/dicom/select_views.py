@@ -62,7 +62,7 @@ def handle_duplicates(view_predictions, viewSelector, my_logger):
 
     # Type 2 - Multiple series classed as the same 'exclusive' view (i.e. 2ch, 3ch, 4ch, RVOT, RVOT-T, 2ch-RT, LVOT) 
     # i.e. a view that should only have one series 
-    exclusive_views = ['2ch', '3ch', '4ch', 'RVOT', 'RVOT-T', '2ch-RT', 'LVOT']
+    exclusive_views = ['2ch', '3ch', '4ch', 'RVOT', 'RVOT-oblique', '2ch-RV', 'LVOT']
     for view in exclusive_views:
         series = view_predictions[view_predictions['Predicted View'] == view]
         series_nums = series['Series Number'].values
