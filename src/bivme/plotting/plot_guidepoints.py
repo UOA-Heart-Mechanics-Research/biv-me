@@ -123,7 +123,7 @@ def prepare_biv_model(model_path, num, my_logger):
 
     return biventricular_model.copy()
 
-def prepare_image_plots(image_path, data_set, image_grids, frame, shifts=None, output_path = None, logger = logger):
+def prepare_image_plots(image_path, data_set, image_grid, frame, shifts=None, output_path = None, logger = logger):
     image_plots = []
 
     for root, dirs, files in os.walk(image_path):
@@ -152,7 +152,7 @@ def prepare_image_plots(image_path, data_set, image_grids, frame, shifts=None, o
                 # Extract the data for the current frame
                 frame_data = img_data[:, :, frame]
 
-                if slice_number not in image_grids.keys(): # Only compute the grid for this slice if it hasn't been computed before.
+                if slice_number not in image_grid.keys(): # Only compute the grid for this slice if it hasn't been computed before.
                     # Get slice
                     try:
                         current_slice = data_set.slices[slice_number]
@@ -191,12 +191,12 @@ def prepare_image_plots(image_path, data_set, image_grids, frame, shifts=None, o
                     gridY = gridY.astype(np.float16)
                     gridZ = gridZ.astype(np.float16)
 
-                    image_grids[slice_number] = (gridX, gridY, gridZ)
+                    image_grid[slice_number] = (gridX, gridY, gridZ)
                 
                 else:
-                    gridX = image_grids[slice_number][0]
-                    gridY = image_grids[slice_number][1]
-                    gridZ = image_grids[slice_number][2]
+                    gridX = image_grid[slice_number][0]
+                    gridY = image_grid[slice_number][1]
+                    gridZ = image_grid[slice_number][2]
 
 
                 # Apply CLAHE
@@ -240,7 +240,7 @@ def prepare_image_plots(image_path, data_set, image_grids, frame, shifts=None, o
                     save_name = f"{slice_type}_{slice_number}_{frame:03d}.vtk"
                     grid.save(os.path.join(view_folder, save_name))
 
-    return image_plots, image_grids
+    return image_plots, image_grid
 
 
 def save_figure(figure, output_folder_html, case, num, my_logger):
@@ -314,16 +314,15 @@ def generate_html(case: str, gp_dir: str, out_dir: str ="./results/", gp_suffix:
 
     # Pre-prepare all the images to be plotted in parallel (if configured)
     if image_path is not None:
-        image_grids = {} # keys are slice numbers, values are the corresponding grids for plotting the image slices. We store this to avoid recomputing the grids for each frame if they are the same.
+        image_grid = {} # keys are slice numbers, values are the corresponding grids for plotting the image slices. We store this to avoid recomputing the grids for each frame if they are the same.
         image_plots = {} # keys are frame numbers, values are the corresponding image plots for that frame 
         for num in frames_to_fit:
             if num in datasets.keys():
                 data_set = datasets[num]
                 try:
-                    image_plot, image_grids = prepare_image_plots(image_path, data_set, image_grids, num, shifts=None, output_path = vtk_export_path, logger=my_logger) # Returns the image plots and the grids used for plotting (so that we don't have to recompute the grids for each frame if they are the same), and exports image VTK files to the specified path if configured
+                    image_plot, image_grid = prepare_image_plots(image_path, data_set, image_grid, num, shifts=None, output_path = vtk_export_path, logger=my_logger) # Returns the image plots and the grids used for plotting (so that we don't have to recompute the grids for each frame if they are the same), and exports image VTK files to the specified path if configured
                 except Exception as e:
                     my_logger.error(f"Error preparing image plots for frame {num:03}: {e}")
-                    breakpoint()
                     image_plot = None
 
                 image_plots[num] = image_plot
