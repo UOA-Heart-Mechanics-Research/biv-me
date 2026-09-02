@@ -257,14 +257,14 @@ class VSGUI:
 
                 # Display drop down with list of different views
                 # Populate with current view
-                self.list_of_dropdowns.append(ttk.Combobox(self.window, values=LIST_OF_VIEWS, textvariable=stringvars[i], state="readonly", font=('Arial', 12)))
+                self.list_of_dropdowns.append(ttk.Combobox(self.window, values=LIST_OF_VIEWS, textvariable=stringvars[i], state="readonly", font=('Arial', 12), height=11))
                 self.list_of_dropdowns[-1].grid(row=self.gridlayout[mapped_series][0]-1, column=self.gridlayout[mapped_series][1])
 
             else:
                 # Add hover text with series number, confidence, description, location, frames, etc
                 Hovertip(lbl_image, f'Series: {series}\nOriginal prediction: {vp}\nConfidence: {confidences[i]:.2f}\nDescription: {descriptions[i]}\nLocation: {locations[i]:.2f}\nFrames: {frames[i]}', hover_delay=300)
 
-                self.list_of_dropdowns.append(ttk.Combobox(self.window, values=LIST_OF_VIEWS, textvariable=stringvars[i], state="readonly", font=('Arial', 12)))
+                self.list_of_dropdowns.append(ttk.Combobox(self.window, values=LIST_OF_VIEWS, textvariable=stringvars[i], state="readonly", font=('Arial', 12), height=11))
                 self.list_of_dropdowns[-1].grid(row=self.gridlayout[mapped_series][0]-1, column=self.gridlayout[mapped_series][1])
 
         # Configure grids
