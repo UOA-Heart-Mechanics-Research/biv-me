@@ -466,6 +466,12 @@ def select_views(patient, src, dst, model, states, config, my_logger):
     except statistics.StatisticsError: # If no mode found (i.e. two values with equally similar counts), use median
         num_phases = np.median(sax_series['Frames Per Slice'].values)
 
+    # Check if nan
+    if num_phases is None or np.isnan(num_phases):
+        my_logger.warning('No SAX series are defined, setting the target number of phases to the median of the number of phases in the other series (if any).')
+        # Reset the number of phases to the median of the number of phases in the other series (if any)
+        num_phases = int(view_predictions['Frames Per Slice'].median())
+
     out = []
     for i, row in view_predictions.iterrows():
         # Get row of viewSelector.df
