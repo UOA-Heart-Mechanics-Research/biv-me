@@ -38,9 +38,9 @@ class CustomImageDataset(Dataset):
 
 def predict_views(vs):
     if vs.type == 'metadata':
-        predict_on_metadata(vs)
+        return predict_on_metadata(vs)
     elif vs.type == 'image':
-        predict_on_images(vs)
+        return predict_on_images(vs)
 
 
 def predict_on_metadata(vs):
@@ -48,7 +48,7 @@ def predict_on_metadata(vs):
 
     if len(vs.df) == 0:
         vs.my_logger.error("No series found. This means that after excluding invalid series descriptions and images with less than 10 frames, this case has no eligible cine images. Please check your input directory.")
-        sys.exit(0)
+        return -1
 
     # Create a plane for each series
     plane_dict = {}
@@ -173,7 +173,7 @@ def predict_on_images(vs):
 
     if len(vs.df) == 0:
         vs.my_logger.error("No series found. This means that after excluding invalid series descriptions and images with less than 10 frames, this case has no eligible cine images. Please check your input directory.")
-        sys.exit(0)
+        return -1
 
     old_view_label_map = {'2ch': 0, '2ch-RT': 1, '3ch': 2, '4ch': 3, 'LVOT': 4, 
                 'OTHER': 5, 'RVOT': 6, 'RVOT-T': 7, 'SAX': 8, 'SAX-atria': 9}

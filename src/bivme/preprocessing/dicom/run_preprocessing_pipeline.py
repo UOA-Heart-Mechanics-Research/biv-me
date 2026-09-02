@@ -80,6 +80,10 @@ def perform_preprocessing(case, config, mylogger):
     ## Step 1: View selection
     slice_info_df, num_phases = select_views(case, src, dst, MODEL_DIR, states, config, mylogger)
 
+    if slice_info_df is None:
+        mylogger.error('Skipping the rest of the preprocessing pipeline due to view selection failure.')
+        return
+
     mylogger.success(f'View selection complete.')
     mylogger.info(f'Number of phases: {num_phases}')
 

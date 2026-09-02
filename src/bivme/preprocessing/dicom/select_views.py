@@ -123,14 +123,18 @@ def select_views(patient, src, dst, model, states, config, my_logger):
         metadata_csv_path = os.path.join(dst, 'view-classification', 'metadata_view_predictions.csv')
         my_logger.info('Performing metadata-based view prediction...')
         viewSelectorMetadata = ViewSelector(src, dst, model, type='metadata', csv_path=metadata_csv_path, show_warnings=True, my_logger=my_logger)
-        predict_views(viewSelectorMetadata)
+        return_code = predict_views(viewSelectorMetadata)
+        if return_code == -1:
+            return None, None
         my_logger.success('Metadata-based view prediction complete.')
 
         # Image-based model
         my_logger.info('Performing image-based view prediction...')
         image_csv_path = os.path.join(dst, 'view-classification', 'image_view_predictions.csv')
         viewSelectorImage = ViewSelector(src, dst, model, type='image', csv_path=image_csv_path, show_warnings=False, my_logger=my_logger)
-        predict_views(viewSelectorImage)
+        return_code = predict_views(viewSelectorImage)
+        if return_code == -1:
+            return None, None
         my_logger.success('Image-based view prediction complete.')
 
         # Combine metadata and image-based predictions
@@ -273,7 +277,9 @@ def select_views(patient, src, dst, model, states, config, my_logger):
         my_logger.info('Performing image-based view prediction...')
         csv_path = os.path.join(dst, 'view-classification', 'view_predictions.csv')
         viewSelector = ViewSelector(src, dst, model, type='image', csv_path=csv_path, show_warnings=True, my_logger=my_logger)
-        predict_views(viewSelector)
+        return_code = predict_views(viewSelector)
+        if return_code == -1:
+            return None, None 
         my_logger.success('Image-based view prediction complete.')
 
         view_predictions = pd.read_csv(csv_path)
