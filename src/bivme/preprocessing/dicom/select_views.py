@@ -98,6 +98,9 @@ def handle_duplicates(view_predictions, viewSelector, my_logger):
 
 
 def correct_views(patient, dst, viewSelector, csv_path, states_path, show_videos, my_logger):
+    # Make sure viewSelector csv path is set to the correct path (just in case)
+    viewSelector.csv_path = csv_path
+
     gui = VSGUI(patient, dst, viewSelector, show_videos, my_logger)
     gui.correct_views_gui()
 
@@ -383,7 +386,7 @@ def select_views(patient, src, dst, model, states, config, my_logger):
         csv_path = os.path.join(states, 'view_predictions.csv')
         if not os.path.exists(csv_path):
             my_logger.error(f'View predictions not found at {csv_path}. Please run view selection with option="default" or "image-only" first.')
-            raise FileNotFoundError(f'View predictions not found at {csv_path}. Please run view selection with option="default" or "image-only" first.')
+            return None, None
         
         view_predictions = pd.read_csv(csv_path)
 
