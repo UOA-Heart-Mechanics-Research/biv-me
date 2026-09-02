@@ -199,7 +199,7 @@ def run_fitting(case, config, mylogger):
         mylogger.info(f"Fitting models for case {os.path.basename(case)} took: {time.time() - start_time:.2f} seconds")
         mylogger.info(f"Average residuals: {residuals} for case {os.path.basename(case)}")
 
-        if config["plotting"]["generate_plots_fitting"]:
+        if config["plotting"]["generate_plots_fitting"] and residuals != -1:
             start_time = time.time()
             gp_dir = os.path.join(config["output_fitting"]["output_directory"], case, "gpfiles") # directory where the guidepoints are saved after fitting
             model_dir = os.path.join(config["output_fitting"]["output_directory"], case) # directory where the fitted models are saved
