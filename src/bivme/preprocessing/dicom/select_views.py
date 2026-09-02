@@ -142,7 +142,7 @@ def select_views(patient, src, dst, model, states, config, my_logger):
         view_predictions_array = []
 
         old_refinement_map = {'2ch': 'LAX', '2ch-RT': 'LAX', '3ch': 'LAX', '4ch': 'LAX', 'LVOT': 'LAX', 'OTHER': 'SAX', 'RVOT': 'LAX', 'RVOT-T': 'Other', 'SAX': 'SAX', 'SAX-atria': 'SAX'}   
-        refinement_map = {'2ch': 'LAX', '2ch-RV': 'LAX', '3ch': 'LAX', '4ch': 'LAX', 'LVOT': 'LAX', 'SAX-other': 'SAX', 'RVOT': 'LAX', 'RVOT-oblique': 'Other', 'SAX': 'SAX', 'SAX-atria': 'SAX'}   # Map refined views to view types (SAX, LAX, Outflow)        
+        refinement_map = {'2ch': 'LAX', '2ch-RV': 'LAX', '3ch': 'LAX', '4ch': 'LAX', 'LVOT': 'LAX', 'SAX-other': 'SAX', 'RVOT': 'LAX', 'RVOT-oblique': 'LAX', 'SAX': 'SAX', 'SAX-atria': 'SAX'}   # Map refined views to view types (SAX, LAX, Outflow)        
 
         # Loop over all series and get the predictions from both metadata and image-based models                                                                                               
         for series in all_series:
@@ -160,8 +160,8 @@ def select_views(patient, src, dst, model, states, config, my_logger):
             description = image_row['Series Description'].values[0]
             location = image_row['Slice Location'].values[0]
 
-            # Scenario 1: Metadata and image-based predictions agree on view type. We trust the image-based prediction.
-            if metadata_pred_type == image_pred_type:
+            # Scenario 1: Metadata and image-based predictions agree on view type, or metadata prediction failed in some way. We trust the image-based prediction.
+            if metadata_pred_type == image_pred_type or metadata_pred_type == 'Other':
                 if conf < CONFIDENCE_THRESHOLD:
                     my_logger.warning(f"Low confidence for series {series} with image based prediction ({image_pred})...") 
                 view_predictions_array.append([series, description, location, image_pred, vote_share, conf, image_row['Frames Per Slice'].values[0]])

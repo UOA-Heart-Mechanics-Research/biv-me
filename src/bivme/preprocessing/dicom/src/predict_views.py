@@ -142,12 +142,21 @@ def predict_on_metadata(vs):
         groups.append(sorted(group))
     
     group_sets = set(tuple(group) for group in groups)
-    largest_set = max(group_sets, key=len)
+    if not group_sets:
+        vs.my_logger.warning("No intersecting series found, which is unexpected. Either metadata view prediction failed, or you should check your input data - it might be only SAX images.")
+        largest_set = None
+        series_nums = vs.df['Series Number'].unique()
+        simplified_intersection_dict = {series: [] for series in series_nums}
+    else:
+        largest_set = max(group_sets, key=len)
 
     view_predictions = []
 
     for series, intersecting_series in simplified_intersection_dict.items():
-        if series in largest_set:     # Largest set of non-intersecting series assumed to be SAX
+        if largest_set is None:
+            view_predictions.append([series, 'Other'])
+
+        elif series in largest_set:     # Largest set of non-intersecting series assumed to be SAX
             view_predictions.append([series, 'SAX'])
         elif set(largest_set).issubset(set(intersecting_series)):   # LAX views will be the ones that intersect with every SAX view
             view_predictions.append([series, 'LAX'])
