@@ -27,6 +27,8 @@ def handle_duplicates(view_predictions, viewSelector, my_logger):
         index = viewSelector.df[viewSelector.df['Series Number'] == row['Series Number']].index[0]
         indices.append(index)
 
+    # Round slice locations to 2dp (we're not interested in differences smaller than this)
+    slice_locations = [round(x, 2) for x in slice_locations]
     repeated_slice_locations = [x for x in slice_locations if slice_locations.count(x) > 1]
     repeated_slice_locations = list(set(repeated_slice_locations))  # Convert to unique set
 
@@ -46,6 +48,7 @@ def handle_duplicates(view_predictions, viewSelector, my_logger):
 
             # Retain only the series with the highest Confidence, convert the rest to 'Excluded'
             confidences = [view_predictions[view_predictions['Series Number'] == x]['Confidence'].values[0] for x in repeated_series_num]
+            confidences = [round(x, 2) for x in confidences]
 
             idx_max = np.argmax(confidences)
             idx_to_exclude = [i for i in range(len(repeated_series_num)) if i != idx_max]
@@ -72,6 +75,9 @@ def handle_duplicates(view_predictions, viewSelector, my_logger):
 
         if len(series) > 1:
             confidences = [view_predictions[view_predictions['Series Number'] == x]['Confidence'].values[0] for x in series_nums]
+
+            # Round confidences to 2dp (we're not interested in differences smaller than this)
+            confidences = [round(x, 2) for x in confidences]
 
             idx_max = np.argmax(confidences)
             idx_to_exclude = [i for i in range(len(series)) if i != idx_max]
