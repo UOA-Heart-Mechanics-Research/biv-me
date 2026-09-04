@@ -147,13 +147,13 @@ class ViewSelector:
                 dst = os.path.join(dir_sorted, view, img)
                 shutil.copyfile(src, dst)
 
-    def get_dicom_header(self, dicom_loc):
+    def get_dicom_header(self, dicom_loc, array, idx=None):
         # read dicom file and return header information and image
-        ds = pydicom.dcmread(dicom_loc, force=True)
+        ds = pydicom.dcmread(dicom_loc, force=True, stop_before_pixels=True)
         # get patient, study, and series information
         patient_id = ds.get("PatientID", "NA")
         modality = ds.get("Modality","NA")
-        
+
         try:
             instance_number = int(ds.get("InstanceNumber","NA"))
         except ValueError:
@@ -170,46 +170,113 @@ class ViewSelector:
                 self.my_logger.warning(f"SeriesNumber for {dicom_loc} is not an integer.")
             series_number = ds.get('SeriesNumber', 'NA')
 
-        image_position_patient = ds.get("ImagePositionPatient", 'NA')
-        image_orientation_patient = ds.get("ImageOrientationPatient", 'NA')
-        pixel_spacing = ds.get("PixelSpacing", 'NA')
+        if idx is None:
+            image_position_patient = ds.get("ImagePositionPatient", 'NA')
+            image_orientation_patient = ds.get("ImageOrientationPatient", 'NA')
+            pixel_spacing = ds.get("PixelSpacing", 'NA')
 
-        echo_time = ds.get("EchoTime", 'NA')
-        repetition_time = ds.get("RepetitionTime", 'NA')
+            echo_time = ds.get("EchoTime", 'NA')
+            repetition_time = ds.get("RepetitionTime", 'NA')
 
-        try:
-            trigger_time = float(ds.get('TriggerTime', 'NA'))
-        except ValueError:
-            trigger_time = ds.get('TriggerTime', 'NA')
+            try:
+                trigger_time = float(ds.get('TriggerTime', 'NA'))
+            except ValueError:
+                trigger_time = ds.get('TriggerTime', 'NA')
 
-        encoding_direction = ds.get("InPlanePhaseEncodingDirection", 'NA')
-        image_dimension = [ds.get('Rows', 'NA'), ds.get('Columns', 'NA')]
-        slice_thickness = ds.get('SliceThickness', 'NA')
-        slice_location = ds.get('SliceLocation', 'NA')
-        series_description = ds.get('SeriesDescription', 'NA')
+            encoding_direction = ds.get("InPlanePhaseEncodingDirection", 'NA')
+            image_dimension = [ds.get('Rows', 'NA'), ds.get('Columns', 'NA')]
+            slice_thickness = ds.get('SliceThickness', 'NA')
+            slice_location = ds.get('SliceLocation', 'NA')
+            series_description = ds.get('SeriesDescription', 'NA')
 
-        # store image data
-        try:
-            array = ds.pixel_array.astype(np.float32)
-        except:
-            if self.show_warnings:
-                self.my_logger.warning(f"Could not load image data for {dicom_loc}. Might not contain an image.")
-            array = None
 
-        return patient_id, dicom_loc, modality, instance_number, series_instance_uid, series_number , tuple(image_position_patient), image_orientation_patient, pixel_spacing, echo_time, repetition_time, trigger_time, encoding_direction, image_dimension, slice_thickness, array, slice_location, series_description
+        else:
+            frame_sequence = ds.get("PerFrameFunctionalGroupsSequence", None)
+            if frame_sequence is None:
+                if self.show_warnings:
+                    self.my_logger.warning(f"Dicom file {dicom_loc} does not contain a PerFrameFunctionalGroupsSequence. Cannot extract frame {idx}.")
+                return None
+            frame_data = frame_sequence[idx]
+
+            image_position_patient = frame_data.PlanePositionSequence[0].get("ImagePositionPatient", 'NA')
+            image_orientation_patient = frame_data.PlaneOrientationSequence[0].get("ImageOrientationPatient", 'NA')
+            pixel_spacing = frame_data.PixelMeasuresSequence[0].get("PixelSpacing", 'NA')
+
+            mr_echo_sequence = frame_data.get("MREchoSequence", None)
+
+            if mr_echo_sequence is not None:
+                echo_time = mr_echo_sequence[0].get("EffectiveEchoTime", 'NA')
+
+            else:
+                echo_time = ds.get("EchoTime", 'NA')
+
+            shared_functional_groups_sequence = ds.get("SharedFunctionalGroupsSequence", None)
+            if shared_functional_groups_sequence is not None:
+                mrfov_geometry_sequence = shared_functional_groups_sequence[0].get("MRFOVGeometrySequence", None)
+                if mrfov_geometry_sequence is not None:
+                    encoding_direction = mrfov_geometry_sequence[0].get("InPlanePhaseEncodingDirection", 'NA')
+                else:
+                    encoding_direction = ds.get("InPlanePhaseEncodingDirection", 'NA')
+                try:
+                    repetition_time = shared_functional_groups_sequence[0][0x0018,0x9112][0].get("RepetitionTime", 'NA')
+                except KeyError:
+                    repetition_time = shared_functional_groups_sequence[0].get("RepetitionTime", 'NA')
+            else:
+                repetition_time = ds.get("RepetitionTime", 'NA')
+                encoding_direction = ds.get("InPlanePhaseEncodingDirection", 'NA')
+
+            cardiac_sync_sequence = frame_data.get("CardiacSynchronizationSequence", None)
+            if cardiac_sync_sequence is not None:
+                try:
+                    trigger_time = float(cardiac_sync_sequence[0].get("NominalCardiacTriggerDelayTime", 'NA'))
+                except ValueError:
+                    trigger_time = cardiac_sync_sequence[0].get("NominalCardiacTriggerDelayTime", 'NA')
+            else:
+                trigger_time = ds.get('TriggerTime', 'NA')
+
+            image_dimension = [ds.get('Rows', 'NA'), ds.get('Columns', 'NA')]
+
+            slice_thickness = frame_data.PixelMeasuresSequence[0].get('SliceThickness', 'NA')
+
+            try:
+                slice_location = frame_data[0x0021, 0x11FE][0][0x0021,0x1188].value
+            except KeyError:
+                slice_location = ds.get('SliceLocation', 'NA')
+
+            series_description = ds.get('SeriesDescription', 'NA')
+
+            instance_number = idx + 1
+
+        return patient_id, dicom_loc, modality, instance_number, series_instance_uid, series_number, tuple(image_position_patient), image_orientation_patient, pixel_spacing, echo_time, repetition_time, trigger_time, encoding_direction, image_dimension, slice_thickness, array, slice_location, series_description
     
     def store_dicom_info(self):
         unsorted_list = []
         for root, dirs, files in os.walk(self.src):
             for file in files:
-                if ".dcm" in file: 
+                if ".dcm" in file:
                     unsorted_list.append(os.path.join(root, file))
         output = []
         for dicom_loc in unsorted_list:
             try:
-                output.append(self.get_dicom_header(dicom_loc))
+                ds = pydicom.dcmread(dicom_loc, force=True)
+                array = ds.pixel_array.astype(np.float32)
+
+                if len(array.shape) == 2:
+                    mdata = self.get_dicom_header(dicom_loc, array)
+                    if mdata is not None:
+                        output.append(mdata)
+                elif len(array.shape) == 3:
+                    # Multi-frame dicom, split into individual frames
+                    for frame in range(array.shape[0]):
+                        array_frame = array[frame, :, :]
+                        mdata = self.get_dicom_header(dicom_loc, array_frame, idx=frame)
+                        if mdata is not None:
+                            output.append(mdata)
+                else:
+                    raise ValueError(f"Unexpected number of dimensions in dicom image: {len(array.shape)}")
             except:
-                # self.my_logger.warning(f"Could not read {dicom_loc}. Image data may be incompatible.")
+                if self.show_warnings:
+                    self.my_logger.warning(f"Could not read {dicom_loc}. Image or metadata may be incompatible.")
                 continue
 
 
