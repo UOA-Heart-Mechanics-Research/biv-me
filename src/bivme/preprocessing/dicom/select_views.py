@@ -8,8 +8,7 @@ from bivme.preprocessing.dicom.src.predict_views import predict_views
 from bivme.preprocessing.dicom.src.viewcorrection import VSGUI
 
 
-CONFIDENCE_THRESHOLD = 0.66 # Modify this to change the confidence threshold for view selection. If metadata and image-based predictions disagree, the image-based prediction will be used if its confidence is above this threshold. 
-                            # Otherwise, the metadata-based prediction will be used.
+CONFIDENCE_THRESHOLD = 0.66 
 
 def handle_duplicates(view_predictions, viewSelector, my_logger):
     excluded_series = []
@@ -22,7 +21,15 @@ def handle_duplicates(view_predictions, viewSelector, my_logger):
     for i, row in view_predictions.iterrows():
         if row['Predicted View'] == 'Excluded':
             continue
-        slice_locations.append(viewSelector.df[viewSelector.df['Series Number'] == row['Series Number']]['Image Position Patient'].values[0])
+        for j, r in viewSelector.df.iterrows():
+            if r['Series Number'] == row['Series Number']:
+                if isinstance(r['Slice Location'], str):
+                    slice_locations.append(0)
+                else:
+                    slice_locations.append(r['Slice Location'])
+                    
+
+        # slice_locations.append(viewSelector.df[viewSelector.df['Series Number'] == row['Series Number']]['Slice Location'].values[0])
         # Index should be the same as the row index in viewSelector.df
         index = viewSelector.df[viewSelector.df['Series Number'] == row['Series Number']].index[0]
         indices.append(index)
@@ -41,6 +48,20 @@ def handle_duplicates(view_predictions, viewSelector, my_logger):
             pass
         else:
             repeated_series = viewSelector.df.iloc[idx]
+            # Skip if slice locations are both 0
+            if repeated_slice_location == 0:
+                my_logger.warning(f'Skipped checking duplicate slice location for series {repeated_series["Series Number"].values} as they are all 0 (likely missing the tag in the DICOM metadata)')
+                continue
+            repeated_series_views = view_predictions[view_predictions['Series Number'].isin(repeated_series['Series Number'])]['Predicted View'].values
+            
+            if len(set(repeated_series_views)) == len(repeated_series_views):
+                # All series have different views, so we don't need to exclude any
+                continue
+            elif len(set(repeated_series_views)) > 1 and len(set(repeated_series_views)) < len(repeated_series_views):
+                # At least one series has a unique view, so we can ignore them
+                unique_views = [x for x in repeated_series_views if list(repeated_series_views).count(x) == 1]
+                repeated_series = repeated_series[~repeated_series['Series Number'].isin(view_predictions[view_predictions['Predicted View'].isin(unique_views)]['Series Number'].values)]
+
             repeated_series_num = repeated_series['Series Number'].values
             # Order by series number, so that if that if two series have the same Confidence, the higher series number is retained
             repeated_series_num = sorted(repeated_series_num, reverse=True)
