@@ -300,10 +300,16 @@ class ViewSelector:
                 for i in range(0,num_merged_series):
                     series_rows_split = series_rows[series_rows['Image Position Patient'] == unique_image_positions[i]]
 
+
                     try:
-                        series_rows_split = series_rows_split.sort_values('Trigger Time')
-                    except TypeError:
-                        series_rows_split = series_rows_split.sort_values('Instance Number')
+                        if isinstance(series_rows_split['Trigger Time'].values[0], str):
+                            series_rows_split = series_rows_split.sort_values('Instance Number')
+                        else:
+                            series_rows_split = series_rows_split.sort_values('Trigger Time')
+                    except Exception as e:
+                        # Keep the original order if sorting fails
+                        if self.show_warnings:
+                            self.my_logger.warning(f"Could not sort series {series} split {i+1}. Keeping original order. Error: {e}")
 
                     series_num = max_series_num + i + 1 # New series number ('fake' series number)
 
