@@ -342,9 +342,14 @@ class ViewSelector:
 
             else:
                 try:
-                    series_rows = series_rows.sort_values('Trigger Time')
-                except TypeError:
-                    series_rows = series_rows.sort_values('Instance Number')
+                    if isinstance(series_rows['Trigger Time'].values[0], str):
+                        series_rows = series_rows.sort_values('Instance Number')
+                    else:
+                        series_rows = series_rows.sort_values('Trigger Time')
+                except Exception as e:
+                    # Keep the original order if sorting fails
+                    if self.show_warnings:
+                        self.my_logger.warning(f"Could not sort series {series}. Keeping original order. Error: {e}")
 
                 try:
                     img = np.stack(series_rows['Img'].values, axis=0)
