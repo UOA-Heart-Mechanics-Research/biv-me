@@ -217,7 +217,12 @@ def predict_on_images(vs):
     ])
     
     test_dataset = CustomImageDataset(test_annotations, dir_img_test, transform=orig_transform)
-    batch_size = len(test_dataset)//4
+    
+    # Set batch size to 200 to avoid memory issues, but if there are less than 200 images, set batch size to number of images
+    # Feel free to increase/decrease this based on your system's capacity
+    # A typical study with ~500-600 images will occupy around 4GB of GPU memory with batch size of 200, so adjust accordingly
+    batch_size = min(200, len(test_dataset))
+
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
     # vs.my_logger.info("Running view predictions...")
