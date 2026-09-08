@@ -49,63 +49,65 @@ class ViewSelector:
         # Generate dummy annotations file
         annotations = []
 
-        for i, row in self.df.iterrows():
-            img = row['Img']
-            pixel_spacing = row['Pixel Spacing']
-            for frame in range(img.shape[0]):
-                img_data = img[frame, :, :]
+        if self.type == "image":
+            for i, row in self.df.iterrows():
+                img = row['Img']
+                pixel_spacing = row['Pixel Spacing']
+                for frame in range(img.shape[0]):
+                    img_data = img[frame, :, :]
 
-                img_size = img_data.shape
-                # Minimum dimension should be 256
-                min_dim = min(img_size)
-                if min_dim != 256:
-                    ratio = 256 / min_dim
-                    new_size = (int(img_size[1] * ratio), int(img_size[0] * ratio))
-                    min_dim = min(new_size)
+                    img_size = img_data.shape
+                    # Minimum dimension should be 256
+                    min_dim = min(img_size)
                     if min_dim != 256:
-                        new_size = (max(new_size[0], 256), max(new_size[1], 256)) # prevent rounding errors
+                        ratio = 256 / min_dim
+                        new_size = (int(img_size[1] * ratio), int(img_size[0] * ratio))
+                        min_dim = min(new_size)
+                        if min_dim != 256:
+                            new_size = (max(new_size[0], 256), max(new_size[1], 256)) # prevent rounding errors
 
-                else:
-                    new_size = img_size
+                    else:
+                        new_size = img_size
 
-                img_data = cv2.resize(img_data, new_size, interpolation=cv2.INTER_CUBIC)
+                    img_data = cv2.resize(img_data, new_size, interpolation=cv2.INTER_CUBIC)
 
-                # Crop to central square
-                original_shape = img_data.shape
-
-                if original_shape[0] != original_shape[1]:
-                    # Crop to square
-                    min_dim = min(original_shape[0], original_shape[1])
-                    start_x = (original_shape[0] - min_dim) // 2
-                    start_y = (original_shape[1] - min_dim) // 2
-
-                    img_data = img_data[start_x:start_x+min_dim, start_y:start_y+min_dim]
+                    # Crop to central square
                     original_shape = img_data.shape
 
-                # Apply clahe to img_data
-                min_value = min(0, np.min(img_data))
-                img_data += abs(min_value) # Shift to make all values positive because CLAHE requires uint type (0-)
-                img_data = img_data.astype(np.uint16)
+                    if original_shape[0] != original_shape[1]:
+                        # Crop to square
+                        min_dim = min(original_shape[0], original_shape[1])
+                        start_x = (original_shape[0] - min_dim) // 2
+                        start_y = (original_shape[1] - min_dim) // 2
 
-                clahe = cv2.createCLAHE(tileGridSize=(1,1))
-                img_data_clahe = clahe.apply(img_data)
-                img_data = img_data_clahe
+                        img_data = img_data[start_x:start_x+min_dim, start_y:start_y+min_dim]
+                        original_shape = img_data.shape
 
-                # 0-1 normalization
-                img_data = (img_data - np.min(img_data)) / (np.max(img_data) - np.min(img_data))
-                img_data = (img_data * 255).astype(np.uint8)
+                    # Apply clahe to img_data
+                    min_value = min(0, np.min(img_data))
+                    img_data += abs(min_value) # Shift to make all values positive because CLAHE requires uint type (0-)
 
-                # Stack to 3 channels
-                img_data = np.stack((img_data,)*3, axis=-1)
+                    
+                    img_data = img_data.astype(np.uint16)
 
-                # Save as png
-                img_data = Image.fromarray(img_data)
-                save_path = os.path.join(dir_unsorted, f'{row["Series Number"]}_{frame}.png')
-                img_data.save(save_path)
+                    clahe = cv2.createCLAHE(tileGridSize=(1,1))
+                    img_data_clahe = clahe.apply(img_data)
+                    img_data = img_data_clahe
+
+                    # 0-1 normalization
+                    img_data = (img_data - np.min(img_data)) / (np.max(img_data) - np.min(img_data))
+                    img_data = (img_data * 255).astype(np.uint8)
+
+                    # Stack to 3 channels
+                    img_data = np.stack((img_data,)*3, axis=-1)
+
+                    # Save as png
+                    img_data = Image.fromarray(img_data)
+                    save_path = os.path.join(dir_unsorted, f'{row["Series Number"]}_{frame}.png')
+                    img_data.save(save_path)
+            
+                    annotations.append([os.path.basename(save_path), 0])
         
-                annotations.append([os.path.basename(save_path), 0])
-        
-        if self.type == "image":
             # Write dummy annotations to file
             test_annotations = os.path.join(dir_view_classification, 'test_annotations.csv')
             test_annotations_df = pd.DataFrame(annotations, columns=['image_name', 'view'])
