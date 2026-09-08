@@ -98,6 +98,10 @@ def write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view):
         min_value = min(0, np.min(slice_data))
         slice_data += abs(min_value)  # Shift to make all values positive because CLAHE requires uint type (0-)
 
+        # Check if data is in uint16 range, if not, scale it to uint16 range
+        if np.max(slice_data) > 65535:
+            slice_data = (slice_data / np.max(slice_data) * 65535).astype(np.uint16)
+
         # Apply CLAHE
         clahe = cv2.createCLAHE(tileGridSize=(1,1)) 
         slice_data_clahe = clahe.apply(slice_data.astype(np.uint16))

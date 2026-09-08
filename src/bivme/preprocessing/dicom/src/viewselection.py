@@ -87,6 +87,9 @@ class ViewSelector:
                     min_value = min(0, np.min(img_data))
                     img_data += abs(min_value) # Shift to make all values positive because CLAHE requires uint type (0-)
 
+                    # Check that img data is within the range of uint16 (avoid clipping)
+                    if np.max(img_data) > 65535:
+                        img_data = (img_data / np.max(img_data)) * 65535
                     
                     img_data = img_data.astype(np.uint16)
 
@@ -262,6 +265,10 @@ class ViewSelector:
             try:
                 ds = pydicom.dcmread(dicom_loc, force=True)
                 array = ds.pixel_array.astype(np.float32)
+                
+                if np.max(array) <= 1:
+                    # Arbitrarily expand range to 0-2047 (11 bit range) for images that have been prenormalised to 0-1
+                    array = (array * 2047).astype(np.float32)
 
                 if len(array.shape) == 2:
                     mdata = self.get_dicom_header(dicom_loc, array)
