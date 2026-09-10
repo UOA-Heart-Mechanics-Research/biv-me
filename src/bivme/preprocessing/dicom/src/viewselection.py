@@ -267,8 +267,8 @@ class ViewSelector:
                 array = ds.pixel_array.astype(np.float32)
                 
                 if np.max(array) <= 1:
-                    # Arbitrarily expand range to 0-2047 (11 bit range) for images that have been prenormalised to 0-1
-                    array = (array * 2047).astype(np.float32)
+                    # Arbitrarily expand range to 0-255 (8 bit range) for images that have been prenormalised to 0-1
+                    array = ((array-np.min(array)) / (np.max(array)-np.min(array)) * 255).astype(np.float32)
 
                 if len(array.shape) == 2:
                     mdata = self.get_dicom_header(dicom_loc, array)
