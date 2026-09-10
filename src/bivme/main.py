@@ -333,7 +333,7 @@ if __name__ == "__main__":
         output_folder.mkdir(parents=True, exist_ok=True)
         shutil.copy(args.config_file, output_folder)
 
-    logger.info(f"Found {len(caselist)} cases to process.")
+    logger.info(f"Found {len(caselist)} case(s) to process.")
 
     # Sort caselist
     caselist.sort()
