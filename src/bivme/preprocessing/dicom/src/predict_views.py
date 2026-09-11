@@ -115,6 +115,10 @@ def predict_on_metadata(vs):
     simplified_intersection_dict = {}
     for (series_num_a, series_num_b), points in intersection_dict.items():
         if points is None:
+            if series_num_a not in simplified_intersection_dict:
+                simplified_intersection_dict[series_num_a] = []
+            if series_num_b not in simplified_intersection_dict:
+                simplified_intersection_dict[series_num_b] = []
             continue
         
         if series_num_a not in simplified_intersection_dict:
