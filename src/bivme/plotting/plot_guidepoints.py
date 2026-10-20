@@ -68,7 +68,7 @@ def _plot_one_frame(case, data_set, model, image_plot, num, my_logger):
     # Then add model surface if model is not None
     if model is not None:
         data += model.plot_surface(
-                "rgb(0,127,0)", "rgb(0,127,127)", "rgb(127,0,0)", "all"
+                "rgb(172,85,74)", "rgb(56,114,129)", "rgb(0,0,0)", "all"
             )
 
     # Then add image plot if image_plot is not None
@@ -395,6 +395,10 @@ if __name__ == "__main__":
     # set list of cases to process
     case_list = [c for c in os.listdir(args.gp_directory) if os.path.isdir(os.path.join(args.gp_directory, c))]
     case_dirs = [Path(args.gp_directory, case).as_posix() for case in case_list if not case.startswith('.')]
+
+    # sort cases
+    case_dirs = sorted(case_dirs)
+    
     logger.info(f"Found {len(case_dirs)} cases to plot.")
 
     # start processing...
@@ -422,11 +426,15 @@ if __name__ == "__main__":
                     vtk_export_dir = Path(args.vtk_directory) / case
                     vtk_export_dir.mkdir(parents=True, exist_ok=True)
 
+                # skip if the case has already been processed
+                if os.path.exists(Path(output_folder) / case):
+                    logger.info(f"Skipping {case} as it has already been processed.")
+                    continue
 
                 generate_html(case, gp_dir, out_dir=output_folder, gp_suffix=args.gp_suffix, si_suffix=args.si_suffix,
                                 frames_to_fit=[], my_logger=logger, model_path = model_dir, image_path = image_dir, vtk_export_path=vtk_export_dir, workers=4)
-            except:
-                logger.error(f"Could not process: {os.path.basename(case)}")
+            except Exception as e:
+                logger.error(f"Could not process: {os.path.basename(case)}, error: {e}")
 
         logger.info(f"Total cases processed: {len(case_dirs)}")
         logger.info(f"Total time: {time.time() - start_time}")

@@ -49,6 +49,14 @@ def write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view):
         for frame in range(img.shape[2]):
             new_img[:, :, frame] = cv2.resize(img[:, :, frame], (new_img.shape[1], new_img.shape[0]), interpolation=cv2.INTER_CUBIC)
 
+    elif img.shape[0] < 256 or img.shape[1] < 256:
+        # Resize smallest dimension to 256, keeping aspect ratio
+        ratio = max(256 / img.shape[0], 256 / img.shape[1])
+        new_shape = (int(np.ceil(img.shape[0] * ratio)), int(np.ceil(img.shape[1] * ratio)), img.shape[2])
+        new_img = np.zeros(new_shape, dtype=img.dtype)
+        
+        for frame in range(img.shape[2]):
+            new_img[:, :, frame] = cv2.resize(img[:, :, frame], (new_img.shape[1], new_img.shape[0]), interpolation=cv2.INTER_CUBIC)
     else:
         ratio = 1 # The 'ratio' is the new pixel spacing for the resized images. Usually 1, unless resized images are less than 256x256, in which case they smaller than 1
         new_img = img
@@ -89,6 +97,10 @@ def write_nifti(slice_id, pixel_array, pixel_spacing, input_folder, view):
 
         min_value = min(0, np.min(slice_data))
         slice_data += abs(min_value)  # Shift to make all values positive because CLAHE requires uint type (0-)
+
+        # Check if data is in uint16 range, if not, scale it to uint16 range
+        if np.max(slice_data) > 65535:
+            slice_data = (slice_data / np.max(slice_data) * 65535).astype(np.uint16)
 
         # Apply CLAHE
         clahe = cv2.createCLAHE(tileGridSize=(1,1)) 

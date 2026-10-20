@@ -49,63 +49,68 @@ class ViewSelector:
         # Generate dummy annotations file
         annotations = []
 
-        for i, row in self.df.iterrows():
-            img = row['Img']
-            pixel_spacing = row['Pixel Spacing']
-            for frame in range(img.shape[0]):
-                img_data = img[frame, :, :]
+        if self.type == "image":
+            for i, row in self.df.iterrows():
+                img = row['Img']
+                pixel_spacing = row['Pixel Spacing']
+                for frame in range(img.shape[0]):
+                    img_data = img[frame, :, :]
 
-                img_size = img_data.shape
-                # Minimum dimension should be 256
-                min_dim = min(img_size)
-                if min_dim != 256:
-                    ratio = 256 / min_dim
-                    new_size = (int(img_size[1] * ratio), int(img_size[0] * ratio))
-                    min_dim = min(new_size)
+                    img_size = img_data.shape
+                    # Minimum dimension should be 256
+                    min_dim = min(img_size)
                     if min_dim != 256:
-                        new_size = (max(new_size[0], 256), max(new_size[1], 256)) # prevent rounding errors
+                        ratio = 256 / min_dim
+                        new_size = (int(img_size[1] * ratio), int(img_size[0] * ratio))
+                        min_dim = min(new_size)
+                        if min_dim != 256:
+                            new_size = (max(new_size[0], 256), max(new_size[1], 256)) # prevent rounding errors
 
-                else:
-                    new_size = img_size
+                    else:
+                        new_size = img_size
 
-                img_data = cv2.resize(img_data, new_size, interpolation=cv2.INTER_CUBIC)
+                    img_data = cv2.resize(img_data, new_size, interpolation=cv2.INTER_CUBIC)
 
-                # Crop to central square
-                original_shape = img_data.shape
-
-                if original_shape[0] != original_shape[1]:
-                    # Crop to square
-                    min_dim = min(original_shape[0], original_shape[1])
-                    start_x = (original_shape[0] - min_dim) // 2
-                    start_y = (original_shape[1] - min_dim) // 2
-
-                    img_data = img_data[start_x:start_x+min_dim, start_y:start_y+min_dim]
+                    # Crop to central square
                     original_shape = img_data.shape
 
-                # Apply clahe to img_data
-                min_value = min(0, np.min(img_data))
-                img_data += abs(min_value) # Shift to make all values positive because CLAHE requires uint type (0-)
-                img_data = img_data.astype(np.uint16)
+                    if original_shape[0] != original_shape[1]:
+                        # Crop to square
+                        min_dim = min(original_shape[0], original_shape[1])
+                        start_x = (original_shape[0] - min_dim) // 2
+                        start_y = (original_shape[1] - min_dim) // 2
 
-                clahe = cv2.createCLAHE(tileGridSize=(1,1))
-                img_data_clahe = clahe.apply(img_data)
-                img_data = img_data_clahe
+                        img_data = img_data[start_x:start_x+min_dim, start_y:start_y+min_dim]
+                        original_shape = img_data.shape
 
-                # 0-1 normalization
-                img_data = (img_data - np.min(img_data)) / (np.max(img_data) - np.min(img_data))
-                img_data = (img_data * 255).astype(np.uint8)
+                    # Apply clahe to img_data
+                    min_value = min(0, np.min(img_data))
+                    img_data += abs(min_value) # Shift to make all values positive because CLAHE requires uint type (0-)
 
-                # Stack to 3 channels
-                img_data = np.stack((img_data,)*3, axis=-1)
+                    # Check that img data is within the range of uint16 (avoid clipping)
+                    if np.max(img_data) > 65535:
+                        img_data = (img_data / np.max(img_data)) * 65535
+                    
+                    img_data = img_data.astype(np.uint16)
 
-                # Save as png
-                img_data = Image.fromarray(img_data)
-                save_path = os.path.join(dir_unsorted, f'{row["Series Number"]}_{frame}.png')
-                img_data.save(save_path)
+                    clahe = cv2.createCLAHE(tileGridSize=(1,1))
+                    img_data_clahe = clahe.apply(img_data)
+                    img_data = img_data_clahe
+
+                    # 0-1 normalization
+                    img_data = (img_data - np.min(img_data)) / (np.max(img_data) - np.min(img_data))
+                    img_data = (img_data * 255).astype(np.uint8)
+
+                    # Stack to 3 channels
+                    img_data = np.stack((img_data,)*3, axis=-1)
+
+                    # Save as png
+                    img_data = Image.fromarray(img_data)
+                    save_path = os.path.join(dir_unsorted, f'{row["Series Number"]}_{frame}.png')
+                    img_data.save(save_path)
+            
+                    annotations.append([os.path.basename(save_path), 0])
         
-                annotations.append([os.path.basename(save_path), 0])
-        
-        if self.type == "image":
             # Write dummy annotations to file
             test_annotations = os.path.join(dir_view_classification, 'test_annotations.csv')
             test_annotations_df = pd.DataFrame(annotations, columns=['image_name', 'view'])
@@ -147,13 +152,13 @@ class ViewSelector:
                 dst = os.path.join(dir_sorted, view, img)
                 shutil.copyfile(src, dst)
 
-    def get_dicom_header(self, dicom_loc):
+    def get_dicom_header(self, dicom_loc, array, idx=None):
         # read dicom file and return header information and image
-        ds = pydicom.dcmread(dicom_loc, force=True)
+        ds = pydicom.dcmread(dicom_loc, force=True, stop_before_pixels=True)
         # get patient, study, and series information
         patient_id = ds.get("PatientID", "NA")
         modality = ds.get("Modality","NA")
-        
+
         try:
             instance_number = int(ds.get("InstanceNumber","NA"))
         except ValueError:
@@ -170,46 +175,117 @@ class ViewSelector:
                 self.my_logger.warning(f"SeriesNumber for {dicom_loc} is not an integer.")
             series_number = ds.get('SeriesNumber', 'NA')
 
-        image_position_patient = ds.get("ImagePositionPatient", 'NA')
-        image_orientation_patient = ds.get("ImageOrientationPatient", 'NA')
-        pixel_spacing = ds.get("PixelSpacing", 'NA')
+        if idx is None:
+            image_position_patient = ds.get("ImagePositionPatient", 'NA')
+            image_orientation_patient = ds.get("ImageOrientationPatient", 'NA')
+            pixel_spacing = ds.get("PixelSpacing", 'NA')
 
-        echo_time = ds.get("EchoTime", 'NA')
-        repetition_time = ds.get("RepetitionTime", 'NA')
+            echo_time = ds.get("EchoTime", 'NA')
+            repetition_time = ds.get("RepetitionTime", 'NA')
 
-        try:
-            trigger_time = float(ds.get('TriggerTime', 'NA'))
-        except ValueError:
-            trigger_time = ds.get('TriggerTime', 'NA')
+            try:
+                trigger_time = float(ds.get('TriggerTime', 'NA'))
+            except ValueError:
+                trigger_time = ds.get('TriggerTime', 'NA')
 
-        encoding_direction = ds.get("InPlanePhaseEncodingDirection", 'NA')
-        image_dimension = [ds.get('Rows', 'NA'), ds.get('Columns', 'NA')]
-        slice_thickness = ds.get('SliceThickness', 'NA')
-        slice_location = ds.get('SliceLocation', 'NA')
-        series_description = ds.get('SeriesDescription', 'NA')
+            encoding_direction = ds.get("InPlanePhaseEncodingDirection", 'NA')
+            image_dimension = [ds.get('Rows', 'NA'), ds.get('Columns', 'NA')]
+            slice_thickness = ds.get('SliceThickness', 'NA')
+            slice_location = ds.get('SliceLocation', 'NA')
+            series_description = ds.get('SeriesDescription', 'NA')
 
-        # store image data
-        try:
-            array = ds.pixel_array.astype(np.float32)
-        except:
-            if self.show_warnings:
-                self.my_logger.warning(f"Could not load image data for {dicom_loc}. Might not contain an image.")
-            array = None
 
-        return patient_id, dicom_loc, modality, instance_number, series_instance_uid, series_number , tuple(image_position_patient), image_orientation_patient, pixel_spacing, echo_time, repetition_time, trigger_time, encoding_direction, image_dimension, slice_thickness, array, slice_location, series_description
+        else:
+            frame_sequence = ds.get("PerFrameFunctionalGroupsSequence", None)
+            if frame_sequence is None:
+                if self.show_warnings:
+                    self.my_logger.warning(f"Dicom file {dicom_loc} does not contain a PerFrameFunctionalGroupsSequence. Cannot extract frame {idx}.")
+                return None
+            frame_data = frame_sequence[idx]
+
+            image_position_patient = frame_data.PlanePositionSequence[0].get("ImagePositionPatient", 'NA')
+            image_orientation_patient = frame_data.PlaneOrientationSequence[0].get("ImageOrientationPatient", 'NA')
+            pixel_spacing = frame_data.PixelMeasuresSequence[0].get("PixelSpacing", 'NA')
+
+            mr_echo_sequence = frame_data.get("MREchoSequence", None)
+
+            if mr_echo_sequence is not None:
+                echo_time = mr_echo_sequence[0].get("EffectiveEchoTime", 'NA')
+
+            else:
+                echo_time = ds.get("EchoTime", 'NA')
+
+            shared_functional_groups_sequence = ds.get("SharedFunctionalGroupsSequence", None)
+            if shared_functional_groups_sequence is not None:
+                mrfov_geometry_sequence = shared_functional_groups_sequence[0].get("MRFOVGeometrySequence", None)
+                if mrfov_geometry_sequence is not None:
+                    encoding_direction = mrfov_geometry_sequence[0].get("InPlanePhaseEncodingDirection", 'NA')
+                else:
+                    encoding_direction = ds.get("InPlanePhaseEncodingDirection", 'NA')
+                try:
+                    repetition_time = shared_functional_groups_sequence[0][0x0018,0x9112][0].get("RepetitionTime", 'NA')
+                except KeyError:
+                    repetition_time = shared_functional_groups_sequence[0].get("RepetitionTime", 'NA')
+            else:
+                repetition_time = ds.get("RepetitionTime", 'NA')
+                encoding_direction = ds.get("InPlanePhaseEncodingDirection", 'NA')
+
+            cardiac_sync_sequence = frame_data.get("CardiacSynchronizationSequence", None)
+            if cardiac_sync_sequence is not None:
+                try:
+                    trigger_time = float(cardiac_sync_sequence[0].get("NominalCardiacTriggerDelayTime", 'NA'))
+                except ValueError:
+                    trigger_time = cardiac_sync_sequence[0].get("NominalCardiacTriggerDelayTime", 'NA')
+            else:
+                trigger_time = ds.get('TriggerTime', 'NA')
+
+            image_dimension = [ds.get('Rows', 'NA'), ds.get('Columns', 'NA')]
+
+            slice_thickness = frame_data.PixelMeasuresSequence[0].get('SliceThickness', 'NA')
+
+            try:
+                slice_location = frame_data[0x0021, 0x11FE][0][0x0021,0x1188].value
+            except KeyError:
+                slice_location = ds.get('SliceLocation', 'NA')
+
+            series_description = ds.get('SeriesDescription', 'NA')
+
+            instance_number = idx + 1
+
+        return patient_id, dicom_loc, modality, instance_number, series_instance_uid, series_number, tuple(image_position_patient), image_orientation_patient, pixel_spacing, echo_time, repetition_time, trigger_time, encoding_direction, image_dimension, slice_thickness, array, slice_location, series_description
     
     def store_dicom_info(self):
         unsorted_list = []
         for root, dirs, files in os.walk(self.src):
             for file in files:
-                if ".dcm" in file: 
+                if ".dcm" in file:
                     unsorted_list.append(os.path.join(root, file))
         output = []
         for dicom_loc in unsorted_list:
             try:
-                output.append(self.get_dicom_header(dicom_loc))
+                ds = pydicom.dcmread(dicom_loc, force=True)
+                array = ds.pixel_array.astype(np.float32)
+                
+                if np.max(array) <= 1:
+                    # Arbitrarily expand range to 0-255 (8 bit range) for images that have been prenormalised to 0-1
+                    array = ((array-np.min(array)) / (np.max(array)-np.min(array)) * 255).astype(np.float32)
+
+                if len(array.shape) == 2:
+                    mdata = self.get_dicom_header(dicom_loc, array)
+                    if mdata is not None:
+                        output.append(mdata)
+                elif len(array.shape) == 3:
+                    # Multi-frame dicom, split into individual frames
+                    for frame in range(array.shape[0]):
+                        array_frame = array[frame, :, :]
+                        mdata = self.get_dicom_header(dicom_loc, array_frame, idx=frame)
+                        if mdata is not None:
+                            output.append(mdata)
+                else:
+                    raise ValueError(f"Unexpected number of dimensions in dicom image: {len(array.shape)}")
             except:
-                # self.my_logger.warning(f"Could not read {dicom_loc}. Image data may be incompatible.")
+                if self.show_warnings:
+                    self.my_logger.warning(f"Could not read {dicom_loc}. Image or metadata may be incompatible.")
                 continue
 
 
@@ -300,10 +376,16 @@ class ViewSelector:
                 for i in range(0,num_merged_series):
                     series_rows_split = series_rows[series_rows['Image Position Patient'] == unique_image_positions[i]]
 
+
                     try:
-                        series_rows_split = series_rows_split.sort_values('Trigger Time')
-                    except TypeError:
-                        series_rows_split = series_rows_split.sort_values('Instance Number')
+                        if isinstance(series_rows_split['Trigger Time'].values[0], str):
+                            series_rows_split = series_rows_split.sort_values('Instance Number')
+                        else:
+                            series_rows_split = series_rows_split.sort_values('Trigger Time')
+                    except Exception as e:
+                        # Keep the original order if sorting fails
+                        if self.show_warnings:
+                            self.my_logger.warning(f"Could not sort series {series} split {i+1}. Keeping original order. Error: {e}")
 
                     series_num = max_series_num + i + 1 # New series number ('fake' series number)
 
@@ -342,9 +424,14 @@ class ViewSelector:
 
             else:
                 try:
-                    series_rows = series_rows.sort_values('Trigger Time')
-                except TypeError:
-                    series_rows = series_rows.sort_values('Instance Number')
+                    if isinstance(series_rows['Trigger Time'].values[0], str):
+                        series_rows = series_rows.sort_values('Instance Number')
+                    else:
+                        series_rows = series_rows.sort_values('Trigger Time')
+                except Exception as e:
+                    # Keep the original order if sorting fails
+                    if self.show_warnings:
+                        self.my_logger.warning(f"Could not sort series {series}. Keeping original order. Error: {e}")
 
                 try:
                     img = np.stack(series_rows['Img'].values, axis=0)

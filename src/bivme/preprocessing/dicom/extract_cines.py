@@ -7,7 +7,7 @@ EXCLUSION_TERMS = ['loc', 'molli', 't1', 't2', 'dense', 'scout', 'grid', 'flow',
                    'single shot', 'report', 'document', 'segmentation', 'result', 'mapping', 'mag', 'psir', 'suiteheart',
                    'axial', 'coronal', 'transverse', 'cas', 'survey', 'nav', 'tpat', 't-pat', 'gad',
                    'cs_rt_10sl_jc', 'truefisp', 'catch', 'fl3d', 'exceptions', 'haste', 'oblique', 'perf',
-                   'pc', 'phase', 'contrast', 'ao', 'ps:', 'pa cine ir', 'dynamic_test', 'bolus', 'gre', 'rr'] # exclude series with any one of these terms in the description
+                   'pc', 'phase', 'contrast', 'ao', 'ps:', 'pa cine ir', 'dynamic_test', 'bolus', 'gre', 'rr', '3d'] # exclude series with any one of these terms in the description
 
 def extract_cines(src, dst, my_logger):
     # This function is used to preprocess the DICOM files before running the pipeline. 

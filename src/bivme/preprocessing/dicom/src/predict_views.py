@@ -38,9 +38,9 @@ class CustomImageDataset(Dataset):
 
 def predict_views(vs):
     if vs.type == 'metadata':
-        predict_on_metadata(vs)
+        return predict_on_metadata(vs)
     elif vs.type == 'image':
-        predict_on_images(vs)
+        return predict_on_images(vs)
 
 
 def predict_on_metadata(vs):
@@ -48,7 +48,7 @@ def predict_on_metadata(vs):
 
     if len(vs.df) == 0:
         vs.my_logger.error("No series found. This means that after excluding invalid series descriptions and images with less than 10 frames, this case has no eligible cine images. Please check your input directory.")
-        sys.exit(0)
+        return -1
 
     # Create a plane for each series
     plane_dict = {}
@@ -115,6 +115,10 @@ def predict_on_metadata(vs):
     simplified_intersection_dict = {}
     for (series_num_a, series_num_b), points in intersection_dict.items():
         if points is None:
+            if series_num_a not in simplified_intersection_dict:
+                simplified_intersection_dict[series_num_a] = []
+            if series_num_b not in simplified_intersection_dict:
+                simplified_intersection_dict[series_num_b] = []
             continue
         
         if series_num_a not in simplified_intersection_dict:
@@ -142,12 +146,21 @@ def predict_on_metadata(vs):
         groups.append(sorted(group))
     
     group_sets = set(tuple(group) for group in groups)
-    largest_set = max(group_sets, key=len)
+    if not group_sets:
+        vs.my_logger.warning("No intersecting series found, which is unexpected. Either metadata view prediction failed, or you should check your input data - it might be only SAX images.")
+        largest_set = None
+        series_nums = vs.df['Series Number'].unique()
+        simplified_intersection_dict = {series: [] for series in series_nums}
+    else:
+        largest_set = max(group_sets, key=len)
 
     view_predictions = []
 
     for series, intersecting_series in simplified_intersection_dict.items():
-        if series in largest_set:     # Largest set of non-intersecting series assumed to be SAX
+        if largest_set is None:
+            view_predictions.append([series, 'Other'])
+
+        elif series in largest_set:     # Largest set of non-intersecting series assumed to be SAX
             view_predictions.append([series, 'SAX'])
         elif set(largest_set).issubset(set(intersecting_series)):   # LAX views will be the ones that intersect with every SAX view
             view_predictions.append([series, 'LAX'])
@@ -164,7 +177,7 @@ def predict_on_images(vs):
 
     if len(vs.df) == 0:
         vs.my_logger.error("No series found. This means that after excluding invalid series descriptions and images with less than 10 frames, this case has no eligible cine images. Please check your input directory.")
-        sys.exit(0)
+        return -1
 
     old_view_label_map = {'2ch': 0, '2ch-RT': 1, '3ch': 2, '4ch': 3, 'LVOT': 4, 
                 'OTHER': 5, 'RVOT': 6, 'RVOT-T': 7, 'SAX': 8, 'SAX-atria': 9}
@@ -208,7 +221,12 @@ def predict_on_images(vs):
     ])
     
     test_dataset = CustomImageDataset(test_annotations, dir_img_test, transform=orig_transform)
-    batch_size = len(test_dataset)//4
+    
+    # Set batch size to 200 to avoid memory issues, but if there are less than 200 images, set batch size to number of images
+    # Feel free to increase/decrease this based on your system's capacity
+    # A typical study with ~500-600 images will occupy around 4GB of GPU memory with batch size of 200, so adjust accordingly
+    batch_size = min(200, len(test_dataset))
+
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
     # vs.my_logger.info("Running view predictions...")

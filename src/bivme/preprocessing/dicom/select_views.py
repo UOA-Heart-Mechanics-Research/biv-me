@@ -8,8 +8,7 @@ from bivme.preprocessing.dicom.src.predict_views import predict_views
 from bivme.preprocessing.dicom.src.viewcorrection import VSGUI
 
 
-CONFIDENCE_THRESHOLD = 0.66 # Modify this to change the confidence threshold for view selection. If metadata and image-based predictions disagree, the image-based prediction will be used if its confidence is above this threshold. 
-                            # Otherwise, the metadata-based prediction will be used.
+CONFIDENCE_THRESHOLD = 0.66 
 
 def handle_duplicates(view_predictions, viewSelector, my_logger):
     excluded_series = []
@@ -22,11 +21,21 @@ def handle_duplicates(view_predictions, viewSelector, my_logger):
     for i, row in view_predictions.iterrows():
         if row['Predicted View'] == 'Excluded':
             continue
-        slice_locations.append(viewSelector.df[viewSelector.df['Series Number'] == row['Series Number']]['Image Position Patient'].values[0])
+        for j, r in viewSelector.df.iterrows():
+            if r['Series Number'] == row['Series Number']:
+                if isinstance(r['Slice Location'], str):
+                    slice_locations.append(0)
+                else:
+                    slice_locations.append(r['Slice Location'])
+                    
+
+        # slice_locations.append(viewSelector.df[viewSelector.df['Series Number'] == row['Series Number']]['Slice Location'].values[0])
         # Index should be the same as the row index in viewSelector.df
         index = viewSelector.df[viewSelector.df['Series Number'] == row['Series Number']].index[0]
         indices.append(index)
 
+    # Round slice locations to 2dp (we're not interested in differences smaller than this)
+    slice_locations = [round(x, 2) for x in slice_locations]
     repeated_slice_locations = [x for x in slice_locations if slice_locations.count(x) > 1]
     repeated_slice_locations = list(set(repeated_slice_locations))  # Convert to unique set
 
@@ -39,6 +48,20 @@ def handle_duplicates(view_predictions, viewSelector, my_logger):
             pass
         else:
             repeated_series = viewSelector.df.iloc[idx]
+            # Skip if slice locations are both 0
+            if repeated_slice_location == 0:
+                my_logger.warning(f'Skipped checking duplicate slice location for series {repeated_series["Series Number"].values} as they are all 0 (likely missing the tag in the DICOM metadata)')
+                continue
+            repeated_series_views = view_predictions[view_predictions['Series Number'].isin(repeated_series['Series Number'])]['Predicted View'].values
+            
+            if len(set(repeated_series_views)) == len(repeated_series_views):
+                # All series have different views, so we don't need to exclude any
+                continue
+            elif len(set(repeated_series_views)) > 1 and len(set(repeated_series_views)) < len(repeated_series_views):
+                # At least one series has a unique view, so we can ignore them
+                unique_views = [x for x in repeated_series_views if list(repeated_series_views).count(x) == 1]
+                repeated_series = repeated_series[~repeated_series['Series Number'].isin(view_predictions[view_predictions['Predicted View'].isin(unique_views)]['Series Number'].values)]
+
             repeated_series_num = repeated_series['Series Number'].values
             # Order by series number, so that if that if two series have the same Confidence, the higher series number is retained
             repeated_series_num = sorted(repeated_series_num, reverse=True)
@@ -46,6 +69,7 @@ def handle_duplicates(view_predictions, viewSelector, my_logger):
 
             # Retain only the series with the highest Confidence, convert the rest to 'Excluded'
             confidences = [view_predictions[view_predictions['Series Number'] == x]['Confidence'].values[0] for x in repeated_series_num]
+            confidences = [round(x, 2) for x in confidences]
 
             idx_max = np.argmax(confidences)
             idx_to_exclude = [i for i in range(len(repeated_series_num)) if i != idx_max]
@@ -73,6 +97,9 @@ def handle_duplicates(view_predictions, viewSelector, my_logger):
         if len(series) > 1:
             confidences = [view_predictions[view_predictions['Series Number'] == x]['Confidence'].values[0] for x in series_nums]
 
+            # Round confidences to 2dp (we're not interested in differences smaller than this)
+            confidences = [round(x, 2) for x in confidences]
+
             idx_max = np.argmax(confidences)
             idx_to_exclude = [i for i in range(len(series)) if i != idx_max]
 
@@ -92,6 +119,9 @@ def handle_duplicates(view_predictions, viewSelector, my_logger):
 
 
 def correct_views(patient, dst, viewSelector, csv_path, states_path, show_videos, my_logger):
+    # Make sure viewSelector csv path is set to the correct path (just in case)
+    viewSelector.csv_path = csv_path
+
     gui = VSGUI(patient, dst, viewSelector, show_videos, my_logger)
     gui.correct_views_gui()
 
@@ -117,14 +147,18 @@ def select_views(patient, src, dst, model, states, config, my_logger):
         metadata_csv_path = os.path.join(dst, 'view-classification', 'metadata_view_predictions.csv')
         my_logger.info('Performing metadata-based view prediction...')
         viewSelectorMetadata = ViewSelector(src, dst, model, type='metadata', csv_path=metadata_csv_path, show_warnings=True, my_logger=my_logger)
-        predict_views(viewSelectorMetadata)
+        return_code = predict_views(viewSelectorMetadata)
+        if return_code == -1:
+            return None, None
         my_logger.success('Metadata-based view prediction complete.')
 
         # Image-based model
         my_logger.info('Performing image-based view prediction...')
         image_csv_path = os.path.join(dst, 'view-classification', 'image_view_predictions.csv')
         viewSelectorImage = ViewSelector(src, dst, model, type='image', csv_path=image_csv_path, show_warnings=False, my_logger=my_logger)
-        predict_views(viewSelectorImage)
+        return_code = predict_views(viewSelectorImage)
+        if return_code == -1:
+            return None, None
         my_logger.success('Image-based view prediction complete.')
 
         # Combine metadata and image-based predictions
@@ -136,7 +170,7 @@ def select_views(patient, src, dst, model, states, config, my_logger):
         view_predictions_array = []
 
         old_refinement_map = {'2ch': 'LAX', '2ch-RT': 'LAX', '3ch': 'LAX', '4ch': 'LAX', 'LVOT': 'LAX', 'OTHER': 'SAX', 'RVOT': 'LAX', 'RVOT-T': 'Other', 'SAX': 'SAX', 'SAX-atria': 'SAX'}   
-        refinement_map = {'2ch': 'LAX', '2ch-RV': 'LAX', '3ch': 'LAX', '4ch': 'LAX', 'LVOT': 'LAX', 'SAX-other': 'SAX', 'RVOT': 'LAX', 'RVOT-oblique': 'Other', 'SAX': 'SAX', 'SAX-atria': 'SAX'}   # Map refined views to view types (SAX, LAX, Outflow)        
+        refinement_map = {'2ch': 'LAX', '2ch-RV': 'LAX', '3ch': 'LAX', '4ch': 'LAX', 'LVOT': 'LAX', 'SAX-other': 'SAX', 'RVOT': 'LAX', 'RVOT-oblique': 'LAX', 'SAX': 'SAX', 'SAX-atria': 'SAX'}   # Map refined views to view types (SAX, LAX, Outflow)        
 
         # Loop over all series and get the predictions from both metadata and image-based models                                                                                               
         for series in all_series:
@@ -154,8 +188,8 @@ def select_views(patient, src, dst, model, states, config, my_logger):
             description = image_row['Series Description'].values[0]
             location = image_row['Slice Location'].values[0]
 
-            # Scenario 1: Metadata and image-based predictions agree on view type. We trust the image-based prediction.
-            if metadata_pred_type == image_pred_type:
+            # Scenario 1: Metadata and image-based predictions agree on view type, or metadata prediction failed in some way. We trust the image-based prediction.
+            if metadata_pred_type == image_pred_type or metadata_pred_type == 'Other':
                 if conf < CONFIDENCE_THRESHOLD:
                     my_logger.warning(f"Low confidence for series {series} with image based prediction ({image_pred})...") 
                 view_predictions_array.append([series, description, location, image_pred, vote_share, conf, image_row['Frames Per Slice'].values[0]])
@@ -267,7 +301,9 @@ def select_views(patient, src, dst, model, states, config, my_logger):
         my_logger.info('Performing image-based view prediction...')
         csv_path = os.path.join(dst, 'view-classification', 'view_predictions.csv')
         viewSelector = ViewSelector(src, dst, model, type='image', csv_path=csv_path, show_warnings=True, my_logger=my_logger)
-        predict_views(viewSelector)
+        return_code = predict_views(viewSelector)
+        if return_code == -1:
+            return None, None 
         my_logger.success('Image-based view prediction complete.')
 
         view_predictions = pd.read_csv(csv_path)
@@ -371,7 +407,7 @@ def select_views(patient, src, dst, model, states, config, my_logger):
         csv_path = os.path.join(states, 'view_predictions.csv')
         if not os.path.exists(csv_path):
             my_logger.error(f'View predictions not found at {csv_path}. Please run view selection with option="default" or "image-only" first.')
-            raise FileNotFoundError(f'View predictions not found at {csv_path}. Please run view selection with option="default" or "image-only" first.')
+            return None, None
         
         view_predictions = pd.read_csv(csv_path)
 
@@ -450,6 +486,12 @@ def select_views(patient, src, dst, model, states, config, my_logger):
         num_phases = statistics.mode(sax_series['Frames Per Slice'].values)
     except statistics.StatisticsError: # If no mode found (i.e. two values with equally similar counts), use median
         num_phases = np.median(sax_series['Frames Per Slice'].values)
+
+    # Check if nan
+    if num_phases is None or np.isnan(num_phases):
+        my_logger.warning('No SAX series are defined, setting the target number of phases to the median of the number of phases in the other series (if any).')
+        # Reset the number of phases to the median of the number of phases in the other series (if any)
+        num_phases = int(view_predictions['Frames Per Slice'].median())
 
     out = []
     for i, row in view_predictions.iterrows():

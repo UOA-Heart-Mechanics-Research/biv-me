@@ -1,6 +1,6 @@
 
 title = "Configuration file for biv-me"
-version = "1.2.0" # for semantic versioning - Major.Minor.Patch sequence
+version = "1.2.1" # for semantic versioning - Major.Minor.Patch sequence
 # e.g software version 2.3.1 means that the software is in its second major version,
 # with three additional functionalities added, and one patch fix implemented.
 # When a developer fixes a bug in that version, the next version release is named version 2.3.2.

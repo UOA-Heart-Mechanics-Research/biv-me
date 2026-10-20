@@ -167,6 +167,9 @@ def perform_fitting(folder: str,  config: dict, out_dir: str ="./results/", gp_s
         write_all_gpfiles(gp_dataset_list, output_folder, case_name, logger)
         logger.info(f"[CHECKPOINT][WRITE] Writing out GP files to disk took: {time.time() - start_time}s")
 
+        # Write residuals to a text file
+        write_residuals_to_file(residual_dict, output_folder, logger)
+
         return total_residual / len(frames_to_fit) # return average residual across all frames (only counting successful fits)
 
     except KeyboardInterrupt:
@@ -348,3 +351,11 @@ def write_all_gpfiles(gpdataset_list, output_folder, case_name, logger):
         gpfile_name = gpfile_folder / f"{case_name}_GPFile_{frame_num:03}.txt"
         data_set.write_gpfile(str(gpfile_name), int(frame_num), overwrite=True)
         logger.success(f"{os.path.basename(gpfile_name)} successfully saved to {gpfile_name}")
+
+def write_residuals_to_file(residual_dict, output_folder, logger):
+    residuals_filename = Path(output_folder) / f"residuals.txt"
+    with open(residuals_filename, 'w') as f:
+        f.write("Frame,Residual\n")
+        for frame, residual in sorted(residual_dict.items()):
+            f.write(f"{frame},{residual}\n")
+    logger.success(f"Residuals successfully saved to {residuals_filename}")

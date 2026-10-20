@@ -1,14 +1,13 @@
 <div align="center">
 
+### 20th October, 2026: [v1.2.1 update - improved error handling and user experience](https://github.com/UOA-Heart-Mechanics-Research/biv-me/releases/tag/v1.2.1)
+Update addresses some uncommon image processing-related issues, and makes quality of life improvements to make running the pipeline easier.
+
 ### 12th May, 2026: [v1.2 major update - improved segmentation and optimised model fitting](https://github.com/UOA-Heart-Mechanics-Research/biv-me/releases/tag/v1.2)
 Major update provides new segmentation and view selection models designed for greater generalisability, and significantly reworks model fitting for enhanced performance. 
 
 ### 9th September, 2025: [v1.1.6 update - new visualisation tools](https://github.com/UOA-Heart-Mechanics-Research/biv-me/releases/tag/v1.1.6)
 Update adds tools to visualise images alongisde models to help visual inspection of mesh reconstruction and create eye-catching videos. 
-
-### 28th July, 2025: [v1.1.5 update - improved view selection & smoother landmarks](https://github.com/UOA-Heart-Mechanics-Research/biv-me/releases/tag/v1.1.5)
-Update significantly improves view selection by overhauling metadata-based prediction, and adds new config option for more temporally consistent landmarks.
-
 
 
 # Biventricular modelling pipeline (biv-me) - **v1.2**
@@ -459,7 +458,7 @@ If you wish to contribute to this project, please follow the naming conventions 
 
 ## Acknowledgments
 ------------------------------------
-This work is based on contributions by **Laura Del Toso**, **Esther Puyol-Anton**, **Sachin Govil**, **Brendan Crabb**, **Anna Mîra**, **Liandong Lee**, **Richard Burns**, **Devran Ugurlu**, **Ayah Elsayed**, **Grant Roberts**, **Debbie Zhao**, **Joshua Dillon**, and **Charlène Mauger**. 
+This work is based on contributions by **Laura Del Toso**, **Esther Puyol-Anton**, **Sachin Govil**, **Brendan Crabb**, **Anna Mîra**, **Liandong Lee**, **Richard Burns**, **Devran Ugurlu**, **Ayah Elsayed**, **Mathilde Verlyck**, **Grant Roberts**, **Debbie Zhao**, **Joshua Dillon**, and **Charlène Mauger**. 
 
 We gratefully acknowledge the study participants who contributed their data for development and validation of the biv-me pipeline.
 
