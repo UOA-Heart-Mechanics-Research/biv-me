@@ -59,7 +59,7 @@ if __name__ == "__main__":
     parser.add_argument('-close', '--closed_mesh', action='store_true',
                         help='If set, will export closed meshes (with valves). If not set, will export open meshes (without valves)', default=False)
     parser.add_argument('-surfaces', '--surfaces_to_export', nargs='+', type=str, default=["LV_ENDOCARDIAL", "EPICARDIAL", "RV_ENDOCARDIAL"],
-                        help='List of surfaces to export. Options: LV_ENDOCARDIAL, RV_SEPTUM, RV_FREEWALL, RV_EPICARDIAL, MITRAL_VALVE, AORTA_VALVE, TRICUSPID_VALVE, PULMONARY_VALVE. Default is LV, RV, and Epi.')
+                        help='List of surfaces to export. Options: LV_ENDOCARDIAL, RV_ENDOCARDIAL, EPICARDIAL, RV_SEPTUM, RV_FREEWALL, RV_EPICARDIAL, MITRAL_VALVE, AORTA_VALVE, TRICUSPID_VALVE, PULMONARY_VALVE. Default is LV, RV, and Epi.')
     
     parser.add_argument('-format', '--output_format', type=str, default='.vtk',
                         help='Output format for the exported meshes. Options: .vtk, .obj. Default is .vtk')
